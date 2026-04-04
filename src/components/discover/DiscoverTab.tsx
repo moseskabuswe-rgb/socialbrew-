@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { Search, MapPin, Star, CheckCircle, PlusCircle, X, RefreshCw, Globe, Phone, ChevronRight, ArrowLeft, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
-
-
 import { fetchNearbyCoffeeShops, searchCoffeeShops } from '../../lib/places'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
@@ -17,7 +15,7 @@ const FALLBACK_PHOTOS = [
   'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800',
 ]
 
-function getPhoto(shop: Partial<CoffeeShop>, index: number) {
+function getPhoto(shop: any, index: number) {
   return shop.photo_url || FALLBACK_PHOTOS[index % FALLBACK_PHOTOS.length]
 }
 
@@ -36,20 +34,15 @@ function formatDistance(km: number) {
   return `${Math.round(miles)} mi`
 }
 
-
 // Shop detail page
-function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo: string; onBack: () => void }) {
+function ShopDetail({ shop, photo, onBack }: { shop: any; photo: string; onBack: () => void }) {
   const [imgError, setImgError] = useState(false)
-  const website = (shop as any).website
-  const phone = (shop as any).phone
-  const hours = (shop as any).hours
   const googleMapsUrl = shop.lat && shop.lng
     ? `https://www.google.com/maps/search/?api=1&query=${shop.lat},${shop.lng}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((shop.name || '') + ' ' + (shop.address || ''))}`
 
   return (
     <div className="min-h-screen bg-cream-100 animate-fade-in">
-      {/* Hero image */}
       <div className="relative h-64 bg-coffee-200">
         {!imgError ? (
           <img src={photo} alt={shop.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
@@ -59,10 +52,8 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <button
-          onClick={onBack}
-          className="absolute top-4 left-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md"
-        >
+        <button onClick={onBack}
+          className="absolute top-4 left-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md">
           <ArrowLeft size={18} className="text-coffee-800" />
         </button>
         <div className="absolute bottom-4 left-4 right-4">
@@ -77,7 +68,7 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
       </div>
 
       <div className="p-5 space-y-5">
-        {/* Stats row */}
+        {/* Stats */}
         <div className="flex gap-3">
           {(shop.avg_rating ?? 0) > 0 && (
             <div className="flex-1 bg-white rounded-xl p-3 border border-cream-200 text-center">
@@ -94,7 +85,7 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
               <p className="text-coffee-400 text-xs">this week</p>
             </div>
           )}
-          {(shop as any).is_certified && (
+          {shop.is_certified && (
             <div className="flex-1 bg-white rounded-xl p-3 border border-cream-200 text-center">
               <CheckCircle size={16} className="text-caramel mx-auto mb-0.5" />
               <p className="text-coffee-400 text-xs">Certified</p>
@@ -107,7 +98,7 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
           <div>
             <p className="text-coffee-600 text-xs font-semibold uppercase tracking-wider mb-2">Vibes</p>
             <div className="flex flex-wrap gap-2">
-              {shop.vibes!.map(v => (
+              {shop.vibes.map((v: string) => (
                 <span key={v} className="bg-white text-coffee-600 px-3 py-1 rounded-full text-sm border border-cream-200">{v}</span>
               ))}
             </div>
@@ -115,67 +106,48 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
         )}
 
         {/* Description */}
-        {(shop as any).description && (
+        {shop.description && (
           <div>
             <p className="text-coffee-600 text-xs font-semibold uppercase tracking-wider mb-2">About</p>
-            <p className="text-coffee-700 text-sm leading-relaxed">{(shop as any).description}</p>
-          </div>
-        )}
-
-        {/* Hours */}
-        {hours && (
-          <div>
-            <p className="text-coffee-600 text-xs font-semibold uppercase tracking-wider mb-2">Hours</p>
-            <p className="text-coffee-700 text-sm">{hours}</p>
+            <p className="text-coffee-700 text-sm leading-relaxed">{shop.description}</p>
           </div>
         )}
 
         {/* Action links */}
         <div className="space-y-2">
-          {website && (
-            <a
-              href={website.startsWith('http') ? website : `https://${website}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between bg-white rounded-xl p-4 border border-cream-200 shadow-sm"
-            >
+          {shop.website && (
+            <a href={shop.website.startsWith('http') ? shop.website : `https://${shop.website}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-between bg-white rounded-xl p-4 border border-cream-200 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-caramel/10 rounded-xl flex items-center justify-center">
                   <Globe size={16} className="text-caramel" />
                 </div>
                 <div>
                   <p className="text-coffee-800 font-medium text-sm">Website</p>
-                  <p className="text-coffee-400 text-xs truncate max-w-48">{website.replace(/^https?:\/\//, '')}</p>
+                  <p className="text-coffee-400 text-xs truncate max-w-48">{shop.website.replace(/^https?:\/\//, '')}</p>
                 </div>
               </div>
               <ExternalLink size={14} className="text-coffee-400" />
             </a>
           )}
-
-          {phone && (
-            <a
-              href={`tel:${phone}`}
-              className="flex items-center justify-between bg-white rounded-xl p-4 border border-cream-200 shadow-sm"
-            >
+          {shop.phone && (
+            <a href={`tel:${shop.phone}`}
+              className="flex items-center justify-between bg-white rounded-xl p-4 border border-cream-200 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-caramel/10 rounded-xl flex items-center justify-center">
                   <Phone size={16} className="text-caramel" />
                 </div>
                 <div>
                   <p className="text-coffee-800 font-medium text-sm">Call</p>
-                  <p className="text-coffee-400 text-xs">{phone}</p>
+                  <p className="text-coffee-400 text-xs">{shop.phone}</p>
                 </div>
               </div>
               <ChevronRight size={14} className="text-coffee-400" />
             </a>
           )}
-
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between bg-white rounded-xl p-4 border border-cream-200 shadow-sm"
-          >
+          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-between bg-white rounded-xl p-4 border border-cream-200 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-caramel/10 rounded-xl flex items-center justify-center">
                 <MapPin size={16} className="text-caramel" />
@@ -208,7 +180,7 @@ export default function DiscoverTab() {
   const [suggestAddr, setSuggestAddr] = useState('')
   const [suggestSent, setSuggestSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [selectedShop, setSelectedShop] = useState<{ shop: Partial<CoffeeShop>; photo: string } | null>(null)
+  const [selectedShop, setSelectedShop] = useState<{ shop: any; photo: string } | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 500)
@@ -216,14 +188,10 @@ export default function DiscoverTab() {
   }, [search])
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('coffee_shops').select('*').eq('is_active', true)
-        .order('weekly_visits', { ascending: false })
-      if (data) setDbShops(data)
-      setLoading(false)
-    }
-    load()
+    supabase.from('coffee_shops').select('*').eq('is_active', true)
+      .order('weekly_visits', { ascending: false })
+      .then(({ data }) => { if (data) setDbShops(data); setLoading(false) })
+
     navigator.geolocation?.getCurrentPosition(
       pos => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude) },
       () => {}
@@ -249,15 +217,13 @@ export default function DiscoverTab() {
     }
   }, [debouncedSearch])
 
-  // Merge DB shops + nearby, dedupe, sort by proximity
   const allShops = [
     ...dbShops.map(s => ({ ...s, _fromDb: true })),
     ...nearbyShops.filter(n =>
       !dbShops.some(db => db.name.toLowerCase().trim() === (n.name || '').toLowerCase().trim())
-    ).map(s => ({ ...s, _fromDb: false }))
+    )
   ]
 
-  // Sort by distance if we have user location
   const shopsWithDistance = allShops.map(shop => ({
     ...shop,
     _distance: shop.lat && shop.lng ? distanceKm(userLat, userLng, shop.lat, shop.lng) : 999,
@@ -267,8 +233,6 @@ export default function DiscoverTab() {
 
   const filtered = shopsWithDistance
     .filter(shop => {
-      // When not searching: only show coffee shops (from DB = already filtered, nearby = cafe type)
-      // When searching: show all results since user is specifically looking
       const matchVibe = isSearching || activeVibe === 'All' || shop.vibes?.includes(activeVibe)
       const matchSearch = !search.trim() ||
         shop.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -292,7 +256,6 @@ export default function DiscoverTab() {
     setSubmitting(false)
   }
 
-  // Show shop detail page
   if (selectedShop) {
     return <ShopDetail shop={selectedShop.shop} photo={selectedShop.photo} onBack={() => setSelectedShop(null)} />
   }
@@ -317,7 +280,7 @@ export default function DiscoverTab() {
         <div className="flex items-center bg-white rounded-xl px-4 py-2.5 border border-cream-200 shadow-sm mb-3">
           <Search size={15} className="text-coffee-400 mr-2.5" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={isSearching ? "Searching all cafes & coffee shops..." : "Search coffee shops near you..."}
+            placeholder="Search coffee shops..."
             className="flex-1 bg-transparent text-coffee-800 text-sm placeholder-coffee-400 focus:outline-none" />
           {search && <button onClick={() => setSearch('')} className="text-coffee-400 ml-2"><X size={14} /></button>}
         </div>
@@ -331,12 +294,6 @@ export default function DiscoverTab() {
               </button>
             ))}
           </div>
-        )}
-
-        {isSearching && (
-          <p className="text-coffee-400 text-xs px-1">
-            Searching all cafes & coffee shops — no limits
-          </p>
         )}
       </div>
 
@@ -409,22 +366,15 @@ export default function DiscoverTab() {
         {filtered.map((shop, i) => {
           const photo = getPhoto(shop, i)
           return (
-            <ShopCard
-              key={shop.id || i}
-              shop={shop}
-              photo={photo}
-              index={i}
+            <ShopCard key={shop.id || i} shop={shop} photo={photo} index={i}
               distance={shop._distance < 900 ? formatDistance(shop._distance) : undefined}
-              onTap={() => setSelectedShop({ shop, photo })}
-            />
+              onTap={() => setSelectedShop({ shop, photo })} />
           )
         })}
 
         {filtered.length > 0 && (
           <div className="text-center pt-2">
-            <p className="text-coffee-400 text-xs">
-              {isSearching ? 'Showing all cafes & coffee shops' : 'Sorted by proximity · Independent coffee shops'}
-            </p>
+            <p className="text-coffee-400 text-xs">Independent coffee shops · Sorted by proximity</p>
             <button onClick={() => setShowSuggest(true)} className="text-caramel text-xs underline mt-1 block">
               Missing a shop? Suggest it →
             </button>
@@ -435,24 +385,15 @@ export default function DiscoverTab() {
   )
 }
 
-function ShopCard({
-  shop, photo, index, distance, onTap
-}: {
-  shop: Partial<CoffeeShop> & { _fromDb?: boolean }
-  photo: string
-  index: number
-  distance?: string
-  onTap: () => void
+function ShopCard({ shop, photo, index, distance, onTap }: {
+  shop: any; photo: string; index: number; distance?: string; onTap: () => void
 }) {
   const [imgError, setImgError] = useState(false)
-  const isInDb = (shop as any)._fromDb
 
   return (
-    <button
-      onClick={onTap}
-      className="w-full text-left bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200 animate-fade-in active:scale-98 transition-transform"
-      style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}
-    >
+    <button onClick={onTap}
+      className="w-full text-left bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200 animate-fade-in active:scale-95 transition-transform"
+      style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}>
       <div className="relative h-44 bg-coffee-200 overflow-hidden">
         {!imgError ? (
           <img src={photo} alt={shop.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
@@ -461,7 +402,7 @@ function ShopCard({
             <span className="text-5xl opacity-30">☕</span>
           </div>
         )}
-        {isInDb && shop.is_certified && (
+        {shop._fromDb && shop.is_certified && (
           <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
             <CheckCircle size={11} className="text-caramel" />
             <span className="text-coffee-700 text-xs font-semibold">Certified</span>
@@ -493,13 +434,13 @@ function ShopCard({
         )}
         {(shop.vibes?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-2">
-            {shop.vibes!.map(v => (
+            {shop.vibes.map((v: string) => (
               <span key={v} className="bg-cream-100 text-coffee-600 px-2 py-0.5 rounded-full text-xs border border-cream-200">{v}</span>
             ))}
           </div>
         )}
         <div className="pt-2 border-t border-cream-100">
-          {isInDb && (shop.total_ratings ?? 0) > 0 ? (
+          {shop._fromDb && (shop.total_ratings ?? 0) > 0 ? (
             <div className="flex gap-4">
               <div className="text-center">
                 <p className="text-coffee-800 font-bold text-sm">{shop.total_ratings}</p>
