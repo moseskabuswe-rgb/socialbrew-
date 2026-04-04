@@ -5,7 +5,6 @@ import type { CoffeeShop } from '../../lib/supabase'
 
 
 import { fetchNearbyCoffeeShops, searchCoffeeShops } from '../../lib/places'
-import type { PlaceShop } from '../../lib/places'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
 
@@ -196,7 +195,7 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
 
 export default function DiscoverTab() {
   const [dbShops, setDbShops] = useState<CoffeeShop[]>([])
-  const [nearbyShops, setNearbyShops] = useState<Partial<CoffeeShop>[]>([])
+  const [nearbyShops, setNearbyShops] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [activeVibe, setActiveVibe] = useState('All')
@@ -289,7 +288,6 @@ export default function DiscoverTab() {
       is_active: false,
       vibes: [], avg_rating: 0, total_ratings: 0, weekly_visits: 0
     })
-    trackEvent('shop_suggested', { name: suggestName })
     setSuggestSent(true)
     setSubmitting(false)
   }
@@ -520,4 +518,3 @@ function ShopCard({
     </button>
   )
 }
-
