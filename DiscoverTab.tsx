@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Search, MapPin, Star, CheckCircle, PlusCircle, X, RefreshCw, Globe, Phone, ChevronRight, ArrowLeft, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
-import { trackEvent } from '../../lib/analytics'
+
+
+import { fetchNearbyCoffeeShops, searchCoffeeShops } from '../../lib/places'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const FALLBACK_PHOTOS = [
   'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800',
@@ -36,24 +36,6 @@ function formatDistance(km: number) {
   return `${Math.round(miles)} mi`
 }
 
-async function fetchPlaces(lat: number, lng: number, query?: string, searchMode = false): Promise<Partial<CoffeeShop>[]> {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/places`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'apikey': SUPABASE_KEY,
-      },
-      body: JSON.stringify({ lat, lng, query, searchMode }),
-    })
-    if (!res.ok) return []
-    const data = await res.json()
-    return data.shops || []
-  } catch {
-    return []
-  }
-}
 
 // Shop detail page
 function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo: string; onBack: () => void }) {
@@ -213,7 +195,7 @@ function ShopDetail({ shop, photo, onBack }: { shop: Partial<CoffeeShop>; photo:
 
 export default function DiscoverTab() {
   const [dbShops, setDbShops] = useState<CoffeeShop[]>([])
-  const [nearbyShops, setNearbyShops] = useState<Partial<CoffeeShop>[]>([])
+  const [nearbyShops, setNearbyShops] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [activeVibe, setActiveVibe] = useState('All')
@@ -248,9 +230,11 @@ export default function DiscoverTab() {
     )
   }, [])
 
-  const loadNearby = useCallback(async (query?: string, searchMode = false) => {
+  const loadNearby = useCallback(async (query?: string) => {
     setLoadingNearby(true)
-    const shops = await fetchPlaces(userLat, userLng, query, searchMode)
+    const shops = query
+      ? await searchCoffeeShops(query, userLat, userLng)
+      : await fetchNearbyCoffeeShops(userLat, userLng)
     setNearbyShops(shops)
     setLoadingNearby(false)
   }, [userLat, userLng])
@@ -259,8 +243,7 @@ export default function DiscoverTab() {
 
   useEffect(() => {
     if (debouncedSearch.trim().length >= 2) {
-      // When user is searching, use searchMode=true to allow broader results
-      loadNearby(debouncedSearch, true)
+      loadNearby(debouncedSearch)
     } else if (debouncedSearch.trim().length === 0) {
       loadNearby()
     }
@@ -305,7 +288,6 @@ export default function DiscoverTab() {
       is_active: false,
       vibes: [], avg_rating: 0, total_ratings: 0, weekly_visits: 0
     })
-    trackEvent('shop_suggested', { name: suggestName })
     setSuggestSent(true)
     setSubmitting(false)
   }
@@ -536,3 +518,4 @@ function ShopCard({
     </button>
   )
 }
+
