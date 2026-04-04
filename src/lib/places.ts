@@ -1,5 +1,5 @@
-// Direct Google Places API calls - no Edge Function needed
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_PLACES_KEY || ''
+// Overpass API (OpenStreetMap) - free, no API key, works from browser
+// Queries specifically for cafes/coffee shops only
 
 export interface PlaceShop {
   id: string
@@ -28,59 +28,82 @@ const CHAINS = [
 ]
 
 function isChain(name: string) {
-  const lower = name.toLowerCase()
-  return CHAINS.some(c => lower.includes(c))
+  return CHAINS.some(c => name.toLowerCase().includes(c))
 }
 
-function buildPhotoUrl(ref: string) {
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${GOOGLE_KEY}`
-}
-
-function mapPlace(p: any): PlaceShop {
+function mapOsmNode(node: any): PlaceShop {
+  const t = node.tags || {}
+  const addr = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ')
   return {
-    id: `gpl-${p.place_id}`,
-    name: p.name,
-    address: p.vicinity || p.formatted_address || null,
-    city: null,
-    state: null,
-    lat: p.geometry?.location?.lat ?? null,
-    lng: p.geometry?.location?.lng ?? null,
-    photo_url: p.photos?.[0]?.photo_reference ? buildPhotoUrl(p.photos[0].photo_reference) : null,
-    avg_rating: p.rating ?? 0,
-    total_ratings: p.user_ratings_total ?? 0,
+    id: `osm-${node.id}`,
+    name: t.name || 'Coffee Shop',
+    address: addr || t['addr:full'] || null,
+    city: t['addr:city'] || null,
+    state: t['addr:state'] || null,
+    lat: node.lat ?? null,
+    lng: node.lon ?? null,
+    photo_url: null,
+    avg_rating: 0,
+    total_ratings: 0,
     weekly_visits: 0,
     is_certified: false,
     vibes: [],
-    website: null,
-    phone: null,
+    website: t.website || t['contact:website'] || null,
+    phone: t.phone || t['contact:phone'] || null,
     _fromDb: false,
   }
 }
 
-// Nearby coffee shops for discover/default view
-export async function fetchNearbyCoffeeShops(lat: number, lng: number): Promise<PlaceShop[]> {
-  if (!GOOGLE_KEY) return []
+// Fetch coffee shops near a location using Overpass
+export async function fetchNearbyCoffeeShops(lat: number, lng: number, radiusMeters = 25000): Promise<PlaceShop[]> {
+  // Query for cafes AND places with coffee in name/cuisine
+  const query = `
+    [out:json][timeout:25];
+    (
+      node["amenity"="cafe"]["name"](around:${radiusMeters},${lat},${lng});
+      node["amenity"="coffee_shop"]["name"](around:${radiusMeters},${lat},${lng});
+      node["cuisine"="coffee_shop"]["name"](around:${radiusMeters},${lat},${lng});
+    );
+    out body;
+  `
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=25000&type=cafe&keyword=coffee&rankby=prominence&key=${GOOGLE_KEY}`
-    const res = await fetch(url)
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: query,
+    })
     const data = await res.json()
-    return (data.results || [])
-      .filter((p: any) => !isChain(p.name))
-      .slice(0, 20)
-      .map(mapPlace)
+    return (data.elements || [])
+      .filter((n: any) => n.tags?.name && !isChain(n.tags.name))
+      .map(mapOsmNode)
+      .slice(0, 30)
   } catch {
     return []
   }
 }
 
-// Search — broader, includes all cafes, no chain filter
+// Search by name using Overpass — searches wider area
 export async function searchCoffeeShops(query: string, lat: number, lng: number): Promise<PlaceShop[]> {
-  if (!GOOGLE_KEY || !query.trim()) return []
+  const q = query.toLowerCase()
+  // Search in a large radius, filter by name match
+  const overpassQuery = `
+    [out:json][timeout:25];
+    (
+      node["amenity"="cafe"]["name"~"${q}",i](around:80000,${lat},${lng});
+      node["amenity"="coffee_shop"]["name"~"${q}",i](around:80000,${lat},${lng});
+      node["cuisine"="coffee_shop"]["name"~"${q}",i](around:80000,${lat},${lng});
+    );
+    out body;
+  `
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' cafe coffee')}&location=${lat},${lng}&radius=80000&type=cafe&key=${GOOGLE_KEY}`
-    const res = await fetch(url)
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: overpassQuery,
+    })
     const data = await res.json()
-    return (data.results || []).slice(0, 20).map(mapPlace)
+    return (data.elements || [])
+      .filter((n: any) => n.tags?.name)
+      .map(mapOsmNode)
+      .slice(0, 20)
   } catch {
     return []
   }
