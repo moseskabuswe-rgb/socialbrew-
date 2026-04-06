@@ -1,7 +1,7 @@
 import posthog from 'posthog-js'
 
 const POSTHOG_KEY = import.meta.env.phc_rLczdbAiAbMoFRd83rwsdkxshZy7EEGnhCWEYLCNmycf
-const POSTHOG_HOST = import.meta.env.https://us.i.posthog.com || 'https://app.posthog.com'
+const POSTHOG_HOST = import.meta.env.https://us.i.posthog.com || 'https://us.i.posthog.com'
 
 export function initAnalytics() {
   if (!phc_rLczdbAiAbMoFRd83rwsdkxshZy7EEGnhCWEYLCNmycf) return
