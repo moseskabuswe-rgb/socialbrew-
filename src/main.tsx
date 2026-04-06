@@ -7,7 +7,7 @@ import { initAnalytics, identifyUser, trackEvent } from './analytics'  // only i
 // 1. Initialize PostHog
 initAnalytics()
 
-// 2. Identify the user (any string works)
+// 2. Identify the user
 identifyUser('test_user_1')
 
 // 3. Track a test event
