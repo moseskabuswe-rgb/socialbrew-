@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- ── VIEWPORT & THEME ─────────────────────────── -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f0500" />
+    <meta name="background-color" content="#0f0500" />
+
+    <!-- ── DESCRIPTION ──────────────────────────────── -->
+    <meta name="description" content="Discover and share your coffee experiences. Rate visits, follow friends, and find the best independent coffee shops near you." />
+    <meta name="keywords" content="coffee, social, discover, coffee shops, rating, community" />
+
+    <!-- ── PWA / MANIFEST ───────────────────────────── -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- ── APPLE / iOS ──────────────────────────────── -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Social Brew" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+
+    <!-- Apple splash screens (optional — add if you generate them) -->
+    <!-- <link rel="apple-touch-startup-image" href="/splash.png" /> -->
+
+    <!-- ── ICONS ─────────────────────────────────────── -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="shortcut icon" href="/favicon.png" />
+
+    <!-- ── OPEN GRAPH (looks good when shared as link) ── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Social Brew" />
+    <meta property="og:description" content="Discover and share your coffee experiences with friends." />
+    <meta property="og:image" content="/icon-512.png" />
+
+    <!-- ── PREVENT AUTO BEHAVIORS ───────────────────── -->
+    <meta name="format-detection" content="telephone=no" />
+
+    <title>Social Brew</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- ── SERVICE WORKER REGISTRATION ──────────────── -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/',
+              updateViaCache: 'none', // Always check network for SW updates
+            });
+
+            console.log('[SocialBrew] Service Worker registered:', registration.scope);
+
+            // Check for updates every 60 seconds while app is open
+            setInterval(() => {
+              registration.update();
+            }, 60000);
+
+            // When a new SW is waiting, it means an update is ready
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              if (!newWorker) return;
+
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[SocialBrew] New version available — reloading');
+                  // Auto-reload to pick up new version
+                  // The SW's activate handler also sends SW_UPDATED message
+                  window.location.reload();
+                }
+              });
+            });
+
+            // Listen for SW_UPDATED message from the service worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              if (event.data?.type === 'SW_UPDATED') {
+                console.log(`[SocialBrew] Updated to version ${event.data.version}`);
+                window.location.reload();
+              }
+            });
+
+          } catch (error) {
+            console.error('[SocialBrew] Service Worker registration failed:', error);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
