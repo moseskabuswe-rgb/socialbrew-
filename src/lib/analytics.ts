@@ -15,12 +15,17 @@ export function initAnalytics() {
   console.log('PostHog initialized')
 }
 
-export function identifyUser(userId: string) {
-  posthog.identify(userId)
-  console.log('User identified:', userId)
+export function identifyUser(userId: string, properties?: Record<string, any>) {
+  posthog.identify(userId, properties)
+  console.log('User identified:', userId, properties)
 }
 
 export function trackEvent(event: string, properties?: Record<string, any>) {
   posthog.capture(event, properties)
   console.log('Tracked event:', event, properties)
+}
+
+export function resetUser() {
+  posthog.reset()
+  console.log('User reset')
 }
