@@ -1,6 +1,6 @@
 import posthog from 'posthog-js'
 
-// POSTHOG_KEY is your client key from PostHog
+// Hardcode your PostHog client key for testing
 const POSTHOG_KEY = 'phc_rLczdbAiAbMoFRd83rwsdkxshZy7EEGnhCWEYLCNmycf'
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
@@ -23,9 +23,4 @@ export function identifyUser(userId: string) {
 export function trackEvent(event: string, properties?: Record<string, any>) {
   posthog.capture(event, properties)
   console.log('Tracked event:', event, properties)
-}
-
-export function resetUser() {
-  posthog.reset()
-  console.log('User reset')
 }
