@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
-import { initAnalytics, identifyUser, trackEvent } from './analytics'  // only import once
+import { initAnalytics, identifyUser, trackEvent } from './analytics'
 
 // 1. Initialize PostHog
 initAnalytics()
