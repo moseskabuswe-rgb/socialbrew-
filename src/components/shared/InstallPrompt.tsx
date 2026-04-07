@@ -23,7 +23,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (isStandalone()) return
-    if (sessionStorage.getItem('sb-install-dismissed')) return
+    if (sessionStorage.getItem('sb-install-dismissed') || isStandalone()) return
 
     const handler = (e: Event) => {
       e.preventDefault()
@@ -34,7 +34,7 @@ export default function InstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handler as EventListener)
 
-    if (isIOS() && isSafari()) {
+    if (isIOS()) {
       const timer = setTimeout(() => {
         setShowIOS(true)
         trackInstallEvent('prompt_shown', 'ios')
