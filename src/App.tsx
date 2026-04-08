@@ -8,7 +8,6 @@ import TrendingTab from './components/trending/TrendingTab'
 import ProfileTab from './components/profile/ProfileTab'
 import BottomNav from './components/shared/BottomNav'
 import EmailVerificationBanner from './components/shared/EmailVerificationBanner'
-import InstallPrompt from './components/shared/InstallPrompt'
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
@@ -49,9 +48,6 @@ function AppContent() {
         {activeTab === 'profile' && <ProfileTab />}
       </div>
       <BottomNav active={activeTab} onChange={setActiveTab} />
-
-      {/* PWA install prompt — smart, auto-hides if already installed */}
-      <InstallPrompt />
     </div>
   )
 }
