@@ -86,9 +86,10 @@ export default function TrendingTab() {
                 {spotlight.description && (
                   <p className="text-cream-200 text-xs mt-1 line-clamp-1">{spotlight.description}</p>
                 )}
-                <button className="mt-2 flex items-center gap-1 text-caramel text-sm font-semibold">
-                  Visit Shop Profile <ArrowRight size={14} />
-                </button>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-white/80 text-xs font-medium">🔥 {spotlight.weekly_visits} visits this week</span>
+                  <span className="text-caramel text-xs font-semibold">Trending now</span>
+                </div>
               </div>
             </div>
           </div>
@@ -119,8 +120,11 @@ export default function TrendingTab() {
                   <div className="p-2.5">
                     <p className="text-coffee-800 font-semibold text-xs leading-tight line-clamp-2">{shop.name}</p>
                     <p className="text-caramel text-xs mt-1 flex items-center gap-0.5">
-                      <Zap size={9} />{shop.weekly_visits} visits
+                      <Zap size={9} />{shop.weekly_visits} this week
                     </p>
+                    {shop.weekly_visits > 50 && (
+                      <p className="text-red-500 text-xs font-bold mt-0.5">🔥 Hot</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -149,7 +153,8 @@ export default function TrendingTab() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-coffee-800 font-bold text-sm">{shop.weekly_visits}</p>
-                    <p className="text-coffee-400 text-xs">visits</p>
+                    <p className="text-coffee-400 text-xs">this week</p>
+                    {i === 0 && <p className="text-orange-500 text-xs font-bold">↑ rising</p>}
                   </div>
                 </div>
               ))}
