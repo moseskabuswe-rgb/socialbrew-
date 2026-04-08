@@ -8,7 +8,6 @@ import TrendingTab from './components/trending/TrendingTab'
 import ProfileTab from './components/profile/ProfileTab'
 import BottomNav from './components/shared/BottomNav'
 import EmailVerificationBanner from './components/shared/EmailVerificationBanner'
-import FeedbackWidget from './components/shared/FeedbackWidget'
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
@@ -16,14 +15,23 @@ function AppContent() {
   const { profile, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [feedRefresh, setFeedRefresh] = useState(0)
+  const [showLanding, setShowLanding] = useState(
+    !sessionStorage.getItem('sb-landing-seen') &&
+    !window.matchMedia('(display-mode: standalone)').matches &&
+    !(window.navigator as any).standalone
+  )
+
+  if (showLanding && !loading && !profile) {
+    return <LandingScreen onContinue={() => { setShowLanding(false); sessionStorage.setItem('sb-landing-seen', '1') }} />
+  }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center"
-        style={{ background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%)' }}>
+        style={{ background: 'radial-gradient(ellipse at top, #2a1f0e 0%, #0d0904 100%)' }}>
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
-          <p className="text-coffee-400 text-sm">Brewing...</p>
+          <p className="text-coffee-300 text-sm">Brewing...</p>
         </div>
       </div>
     )
@@ -49,7 +57,6 @@ function AppContent() {
         {activeTab === 'profile' && <ProfileTab />}
       </div>
       <BottomNav active={activeTab} onChange={setActiveTab} />
-      <FeedbackWidget />
     </div>
   )
 }
