@@ -41,7 +41,7 @@ function AppContent() {
   return (
     <div className="w-full min-h-[100dvh] max-w-md mx-auto relative overflow-x-hidden bg-[#0f0500]">
       {showVerificationBanner && <EmailVerificationBanner />}
-      <div className="pb-20">
+      <div className="pb-20 px-4">
         {activeTab === 'home' && <HomeTab refresh={feedRefresh} />}
         {activeTab === 'discover' && <DiscoverTab />}
         {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
