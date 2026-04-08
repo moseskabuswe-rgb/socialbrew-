@@ -15,20 +15,13 @@ function AppContent() {
   const { profile, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [feedRefresh, setFeedRefresh] = useState(0)
-  const [showLanding, setShowLanding] = useState(
-    !sessionStorage.getItem('sb-landing-seen') &&
-    !window.matchMedia('(display-mode: standalone)').matches &&
-    !(window.navigator as any).standalone
-  )
-
-  if (showLanding && !loading && !profile) {
-    return <LandingScreen onContinue={() => { setShowLanding(false); sessionStorage.setItem('sb-landing-seen', '1') }} />
-  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center"
-        style={{ background: 'radial-gradient(ellipse at top, #2a1f0e 0%, #0d0904 100%)' }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'radial-gradient(ellipse at top, #2a1f0e 0%, #0d0904 100%)' }}
+      >
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
           <p className="text-coffee-300 text-sm">Brewing...</p>
