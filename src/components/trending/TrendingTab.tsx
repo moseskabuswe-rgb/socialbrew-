@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, Zap, Crown, ArrowRight } from 'lucide-react'
+import { TrendingUp, Zap, Crown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
 
