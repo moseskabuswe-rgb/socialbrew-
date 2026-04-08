@@ -345,7 +345,66 @@ export default function HomeTab({ refresh }: { refresh: number }) {
           const isOwn = user?.id === profile?.id
           void isOwn // used in PostMenu
           const mugColor = getMugColor(rating.fill_level)
+          const isQuickSip = (rating as any).is_quick_sip
 
+          // ── COMPACT QUICK SIP CARD ──
+          if (isQuickSip) {
+            return (
+              <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                    {user?.avatar_url
+                      ? <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
+                          <span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span>
+                        </div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-coffee-700 font-semibold text-sm">{user?.username}</span>
+                      <span className="text-coffee-400 text-xs">had a quick sip</span>
+                      {shop && (
+                        <button onClick={() => setSelectedShop(shop)}
+                          className="text-caramel text-xs font-semibold hover:underline truncate max-w-24">
+                          @ {shop.name}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-1">
+                        <div className="w-14 h-1.5 bg-cream-200 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${rating.fill_level}%`, background: mugColor }} />
+                        </div>
+                        <span className="text-coffee-400 text-xs">{rating.fill_level}%</span>
+                      </div>
+                      <span className="text-coffee-300 text-xs">·</span>
+                      <span className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</span>
+                      <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#7ab0c822', color: '#5a90a8' }}>⚡ Quick Sip</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setActiveMenu(rating)} className="text-coffee-300 p-1 flex-shrink-0">
+                    <MoreHorizontal size={15} />
+                  </button>
+                </div>
+                {/* Mini actions */}
+                <div className="flex items-center px-4 pb-3 gap-3 border-t border-cream-50">
+                  <button onClick={() => toggleLike(rating.id)}
+                    className="flex items-center gap-1 transition-all active:scale-90 mt-2"
+                    style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
+                    <Heart size={16} fill={isLiked ? '#e05a5a' : 'none'} />
+                    {rating.likes_count > 0 && <span className="text-xs">{rating.likes_count}</span>}
+                  </button>
+                  <button onClick={() => setActiveComments(rating.id)}
+                    className="flex items-center gap-1 text-coffee-400 mt-2">
+                    <MessageCircle size={16} />
+                    {rating.comments_count > 0 && <span className="text-xs">{rating.comments_count}</span>}
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
+          // ── FULL RATING CARD ──
           return (
             <div key={rating.id} className="bg-white mx-4 mb-3 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
               {/* User row */}

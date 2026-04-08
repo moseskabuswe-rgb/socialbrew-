@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Coffee, Gift, ShoppingBag, Camera } from 'lucide-react'
+import { Coffee, Gift, Zap, Camera } from 'lucide-react'
 import ShopSelector from './ShopSelector'
 import MugRating from './MugRating'
 import ShareMoment from './ShareMoment'
+import QuickSip from './QuickSip'
 
 type Props = { onPostCreated: () => void }
-type BrewAction = 'rate' | 'share' | 'gift' | 'order'
+type BrewAction = 'rate' | 'share' | 'quicksip' | 'gift'
 
 export default function BrewTab({ onPostCreated }: Props) {
   const [action, setAction] = useState<BrewAction | null>(null)
@@ -13,7 +14,7 @@ export default function BrewTab({ onPostCreated }: Props) {
   const [showShopSelector, setShowShopSelector] = useState(false)
 
   function handleAction(a: BrewAction) {
-    if (a === 'gift' || a === 'order') return
+    if (a === 'gift') return
     setAction(a)
     if (a === 'rate') setShowShopSelector(true)
   }
@@ -30,34 +31,72 @@ export default function BrewTab({ onPostCreated }: Props) {
   }
 
   const actions = [
-    { id: 'rate' as BrewAction, icon: Coffee, label: 'Rate a Visit', sub: 'Log your sip', color: '#c8853a', available: true },
-    { id: 'gift' as BrewAction, icon: Gift, label: 'Gift a Drink', sub: 'Coming soon', color: '#9b7a8a', available: false },
-    { id: 'order' as BrewAction, icon: ShoppingBag, label: 'Order Ahead', sub: 'Coming soon', color: '#7a8a9b', available: false },
-    { id: 'share' as BrewAction, icon: Camera, label: 'Share Moment', sub: 'Post a photo', color: '#6a8a6a', available: true },
+    {
+      id: 'rate' as BrewAction,
+      icon: Coffee,
+      label: 'Rate a Visit',
+      sub: 'Full experience',
+      color: '#c8853a',
+      available: true,
+      badge: null,
+    },
+    {
+      id: 'quicksip' as BrewAction,
+      icon: Zap,
+      label: 'Quick Sip',
+      sub: 'Log in seconds',
+      color: '#7ab0c8',
+      available: true,
+      badge: '⚡ Fast',
+    },
+    {
+      id: 'gift' as BrewAction,
+      icon: Gift,
+      label: 'Gift a Drink',
+      sub: 'Coming soon',
+      color: '#9b7a8a',
+      available: false,
+      badge: null,
+    },
+    {
+      id: 'share' as BrewAction,
+      icon: Camera,
+      label: 'Share Moment',
+      sub: 'Post a photo',
+      color: '#6a8a6a',
+      available: true,
+      badge: null,
+    },
   ]
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6"
-      style={{ background: 'linear-gradient(160deg, #f5ead8 0%, #efe0c4 50%, #e8d5b0 100%)' }}>
+      style={{ background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%)' }}>
 
-      <div className="text-center mb-12 animate-fade-in">
+      <div className="text-center mb-10 animate-fade-in">
         <h1 className="font-display text-4xl font-bold text-coffee-700 tracking-tight">Brew</h1>
-        <p className="text-coffee-400 text-sm mt-2 tracking-wide">Create your coffee experience</p>
+        <p className="text-coffee-400 text-sm mt-2">Create your coffee experience</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 w-full max-w-sm animate-slide-up">
-        {actions.map(({ id, icon: Icon, label, sub, color, available }) => (
+        {actions.map(({ id, icon: Icon, label, sub, color, available, badge }) => (
           <button key={id} onClick={() => handleAction(id)}
-            className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 ${available ? 'hover:scale-105 active:scale-95' : 'opacity-60 cursor-default'}`}
+            className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 ${available ? 'hover:scale-105 active:scale-95' : 'opacity-50 cursor-default'}`}
             style={{
-              background: available ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
-              border: `1.5px solid ${available ? color + '44' : 'rgba(200,180,150,0.3)'}`,
+              background: 'rgba(255,255,255,0.85)',
+              border: `1.5px solid ${available ? color + '55' : 'rgba(200,180,150,0.3)'}`,
               backdropFilter: 'blur(10px)',
-              boxShadow: available ? '0 4px 20px rgba(0,0,0,0.06)' : 'none',
+              boxShadow: available ? `0 4px 20px ${color}22` : 'none',
             }}>
 
+            {badge && (
+              <div className="absolute top-2 right-2 rounded-full px-1.5 py-0.5"
+                style={{ background: color + '22', border: `1px solid ${color}44` }}>
+                <span className="text-xs font-semibold" style={{ color }}>{badge}</span>
+              </div>
+            )}
             {!available && (
-              <div className="absolute top-2 right-2 bg-latte rounded-full px-1.5 py-0.5">
+              <div className="absolute top-2 right-2 bg-cream-200 rounded-full px-1.5 py-0.5">
                 <span className="text-coffee-400 text-xs">Soon</span>
               </div>
             )}
@@ -72,14 +111,32 @@ export default function BrewTab({ onPostCreated }: Props) {
         ))}
       </div>
 
+      {/* Explainer */}
+      <div className="mt-8 max-w-sm w-full animate-fade-in">
+        <div className="bg-white/60 rounded-2xl p-4 border border-cream-200 flex gap-4">
+          <div className="flex-1 text-center">
+            <div className="text-lg mb-1">☕</div>
+            <p className="text-coffee-700 font-semibold text-xs">Rate a Visit</p>
+            <p className="text-coffee-400 text-xs mt-0.5">Full post with drink, photo, caption</p>
+          </div>
+          <div className="w-px bg-cream-200" />
+          <div className="flex-1 text-center">
+            <div className="text-lg mb-1">⚡</div>
+            <p className="text-coffee-700 font-semibold text-xs">Quick Sip</p>
+            <p className="text-coffee-400 text-xs mt-0.5">Fill the mug, done in 3 seconds</p>
+          </div>
+        </div>
+      </div>
+
       {showShopSelector && (
         <ShopSelector onSelect={handleShopSelect} onClose={handleClose} />
       )}
-
       {action === 'rate' && selectedShop && (
         <MugRating shop={selectedShop} onClose={handleClose} onComplete={onPostCreated} />
       )}
-
+      {action === 'quicksip' && (
+        <QuickSip onClose={handleClose} onComplete={onPostCreated} />
+      )}
       {action === 'share' && (
         <ShareMoment onClose={handleClose} onComplete={onPostCreated} />
       )}

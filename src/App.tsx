@@ -39,9 +39,9 @@ function AppContent() {
   const showVerificationBanner = profile && !profile.email_verified
 
   return (
-    <div className="w-full min-h-[100dvh] max-w-md mx-auto relative overflow-x-hidden bg-[#0f0500]">
+    <div className="min-h-screen max-w-lg mx-auto relative">
       {showVerificationBanner && <EmailVerificationBanner />}
-      <div className="pb-20 px-4">
+      <div className="pb-20">
         {activeTab === 'home' && <HomeTab refresh={feedRefresh} />}
         {activeTab === 'discover' && <DiscoverTab />}
         {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
