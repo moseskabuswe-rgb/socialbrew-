@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { MapPin, LogOut, Coffee, Camera, Search, UserPlus, Check, ChevronRight, Bell, Lock, HelpCircle, Settings } from 'lucide-react'
+import { MapPin, LogOut, Coffee, Camera, Search, UserPlus, Check, ChevronRight, Bell, Lock, HelpCircle, Settings, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import type { Rating } from '../../lib/supabase'
 
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
+import BadgeCelebration from '../shared/BadgeCelebration'
 
 // Badge progression system
 const BADGES = [
@@ -56,6 +57,9 @@ export default function ProfileTab() {
   const [editUsername, setEditUsername] = useState('')
   const [editBio, setEditBio] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
+  const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
+  const [prevRatingCount, setPrevRatingCount] = useState(0)
+  const [isPrivate, setIsPrivate] = useState((profile as any)?.is_private || false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -70,7 +74,17 @@ export default function ProfileTab() {
         supabase.from('follows').select('following_id, profiles!follows_following_id_fkey(id,username,full_name,avatar_url,badge)').eq('follower_id', profile!.id),
         supabase.from('wishlist').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false }),
       ])
-      if (ratingsRes.data) setRatings(ratingsRes.data)
+      if (ratingsRes.data) {
+        const newCount = ratingsRes.data.length
+        setRatings(ratingsRes.data)
+        // Check for badge upgrade
+        if (prevRatingCount > 0 && newCount > prevRatingCount) {
+          const oldBadge = getBadgeInfo(prevRatingCount).current
+          const newBadge = getBadgeInfo(newCount).current
+          if (oldBadge.label !== newBadge.label) setCelebrateBadge(newBadge)
+        }
+        setPrevRatingCount(newCount)
+      }
       if (visitsRes.data) setVisitedShops(visitsRes.data as any)
       if (followersRes.data) {
         setFollowerCount(followersRes.data.length)
@@ -285,6 +299,26 @@ export default function ProfileTab() {
             </div>
 
             <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200">
+              {/* Privacy toggle */}
+              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-cream-100">
+                <div className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center flex-shrink-0">
+                  {isPrivate ? <EyeOff size={15} className="text-coffee-500" /> : <Eye size={15} className="text-coffee-500" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-coffee-800 text-sm font-medium">Private Account</p>
+                  <p className="text-coffee-400 text-xs">{isPrivate ? 'Only followers see your posts' : 'Anyone can see your posts'}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const newVal = !isPrivate
+                    setIsPrivate(newVal)
+                    await supabase.from('profiles').update({ is_private: newVal }).eq('id', profile.id)
+                  }}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${isPrivate ? 'bg-caramel' : 'bg-cream-300'}`}>
+                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-300 ${isPrivate ? 'left-6' : 'left-0.5'}`} />
+                </button>
+              </div>
+
               {[
                 { icon: Bell, label: 'Notifications', sub: 'Manage your alerts' },
                 { icon: Lock, label: 'Privacy', sub: 'Control who sees your activity' },
@@ -560,6 +594,10 @@ export default function ProfileTab() {
           </>
         )}
       </div>
+      {/* Badge celebration */}
+      {celebrateBadge && (
+        <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />
+      )}
     </div>
   )
 }

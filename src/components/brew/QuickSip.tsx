@@ -25,6 +25,11 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const s = getMugStyle(fill)
   const showSteam = fill >= 60
 
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
+
   // Auto-load last visited shop
   useEffect(() => {
     if (!profile) return
@@ -40,6 +45,15 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     }
     loadLastShop()
   }, [profile])
+
+  async function searchShops(q: string) {
+    setSearchQuery(q)
+    if (q.trim().length < 2) { setSearchResults([]); return }
+    setSearching(true)
+    const { data } = await supabase.from('coffee_shops').select('*').eq('is_active', true).ilike('name', `%${q}%`).limit(8)
+    setSearchResults(data || [])
+    setSearching(false)
+  }
 
   const calculateFill = useCallback((clientY: number) => {
     if (!mugRef.current) return
@@ -105,22 +119,49 @@ export default function QuickSip({ onClose, onComplete }: Props) {
           </div>
         ) : (
           <div className="px-5 pb-6">
-            {/* Shop chip */}
+            {/* Shop picker */}
             {shop ? (
               <div className="flex items-center gap-2 mb-4 bg-white rounded-xl px-3 py-2 border border-cream-200 shadow-sm">
-                <div className="w-7 h-7 rounded-lg overflow-hidden bg-coffee-100 flex-shrink-0">
+                <div className="w-7 h-7 rounded-lg overflow-hidden bg-cream-100 flex-shrink-0">
                   {shop.photo_url
                     ? <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-sm">☕</div>}
                 </div>
                 <p className="text-coffee-700 font-semibold text-sm flex-1 truncate">{shop.name}</p>
-                <button onClick={() => setShop(null)} className="text-coffee-300 text-xs">change</button>
+                <button onClick={() => { setShop(null); setShowSearch(true) }} className="text-caramel text-xs font-medium">change</button>
+              </div>
+            ) : showSearch ? (
+              <div className="mb-4">
+                <div className="flex items-center bg-white rounded-xl px-3 py-2.5 border border-cream-200 shadow-sm mb-2">
+                  <span className="text-coffee-300 mr-2">🔍</span>
+                  <input value={searchQuery} onChange={e => searchShops(e.target.value)}
+                    placeholder="Search coffee shops..."
+                    autoFocus
+                    className="flex-1 bg-transparent text-coffee-700 text-sm placeholder-coffee-300 focus:outline-none" />
+                  {searching && <div className="w-4 h-4 rounded-full border-2 border-caramel border-t-transparent animate-spin" />}
+                </div>
+                {searchResults.map(s => (
+                  <button key={s.id} onClick={() => { setShop(s); setShowSearch(false); setSearchQuery(''); setSearchResults([]) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-cream-100 rounded-xl text-left transition-colors">
+                    <span className="text-base">☕</span>
+                    <div>
+                      <p className="text-coffee-700 font-medium text-sm">{s.name}</p>
+                      {s.city && <p className="text-coffee-400 text-xs">{s.city}, {s.state}</p>}
+                    </div>
+                  </button>
+                ))}
+                {searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
+                  <p className="text-coffee-400 text-xs text-center py-2">No shops found — you can still rate without a shop</p>
+                )}
+                <button onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]) }}
+                  className="w-full text-center text-coffee-400 text-xs py-2 mt-1">Skip — rate without a shop</button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 mb-4 bg-white/60 rounded-xl px-3 py-2 border border-cream-200 border-dashed">
+              <button onClick={() => setShowSearch(true)}
+                className="flex items-center gap-2 mb-4 w-full bg-cream-50 rounded-xl px-3 py-2.5 border border-dashed border-cream-300 hover:bg-cream-100 transition-colors">
                 <span className="text-coffee-300 text-sm">☕</span>
-                <p className="text-coffee-400 text-sm italic">No recent shop — still counts!</p>
-              </div>
+                <p className="text-coffee-400 text-sm">Search for a coffee shop...</p>
+              </button>
             )}
 
             {/* Mug */}

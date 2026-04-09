@@ -9,6 +9,7 @@ import ProfileTab from './components/profile/ProfileTab'
 import BottomNav from './components/shared/BottomNav'
 import EmailVerificationBanner from './components/shared/EmailVerificationBanner'
 import FeedbackWidget from './components/shared/FeedbackWidget'
+import { NotificationBell } from './components/shared/NotificationsPanel'
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
@@ -36,18 +37,28 @@ function AppContent() {
     setActiveTab('home')
   }
 
-  const showVerificationBanner = profile && !profile.email_verified
-
   return (
     <div className="min-h-screen max-w-lg mx-auto relative">
-      {showVerificationBanner && <EmailVerificationBanner />}
-      <div className="pb-20">
+      {profile && !profile.email_verified && <EmailVerificationBanner />}
+
+      {/* Global header with notifications */}
+      {activeTab === 'home' && (
+        <div className="sticky top-0 z-20 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
+          <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+          </div>
+        </div>
+      )}
+
+      <div className={activeTab === 'home' ? '' : 'pb-20'}>
         {activeTab === 'home' && <HomeTab refresh={feedRefresh} />}
         {activeTab === 'discover' && <DiscoverTab />}
         {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
         {activeTab === 'trending' && <TrendingTab />}
         {activeTab === 'profile' && <ProfileTab />}
       </div>
+
       <BottomNav active={activeTab} onChange={setActiveTab} />
       <FeedbackWidget />
     </div>

@@ -6,9 +6,9 @@ export default {
       colors: {
         cream: {
           50: '#fefcf8',
-          100: '#faf5ec',
-          200: '#f2e8d5',
-          300: '#e8d8bc',
+          100: '#faf6ef',
+          200: '#f2e8d8',
+          300: '#e8d8c0',
         },
         coffee: {
           100: '#d4b896',
@@ -26,18 +26,18 @@ export default {
         tan: '#f0e4cc',
         espresso: '#1c1008',
       },
-      fontFamily: {
-        display: ['Georgia', 'serif'],
-      },
+      fontFamily: { display: ['Georgia', 'serif'] },
       animation: {
         'steam-rise': 'steamRise 2s ease-in-out infinite',
         'slide-up': 'slideUp 0.3s ease-out',
         'fade-in': 'fadeIn 0.2s ease-out',
+        'bounce-in': 'bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
       },
       keyframes: {
         steamRise: { '0%,100%': { opacity: 0.3, transform: 'translateY(0)' }, '50%': { opacity: 0.8, transform: 'translateY(-10px)' } },
         slideUp: { '0%': { transform: 'translateY(20px)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
         fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+        bounceIn: { '0%': { transform: 'scale(0.3)', opacity: 0 }, '50%': { transform: 'scale(1.05)' }, '70%': { transform: 'scale(0.9)' }, '100%': { transform: 'scale(1)', opacity: 1 } },
       },
     },
   },

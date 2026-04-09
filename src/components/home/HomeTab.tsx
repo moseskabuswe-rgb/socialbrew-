@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Heart, MessageCircle, Gift, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus } from 'lucide-react'
+import { Heart, MessageCircle, Gift, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Rating } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -23,6 +23,10 @@ function getFillLabel(fill: number) {
   return 'Perfect Brew ✨'
 }
 
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -34,10 +38,7 @@ function timeAgo(dateStr: string) {
 }
 
 type Comment = {
-  id: string
-  user_id: string
-  content: string
-  created_at: string
+  id: string; user_id: string; content: string; created_at: string; edited: boolean
   profiles: { username: string; avatar_url: string | null }
 }
 
@@ -47,14 +48,14 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
   const [newComment, setNewComment] = useState('')
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('comments')
+      const { data } = await supabase.from('comments')
         .select('*, profiles(username, avatar_url)')
-        .eq('rating_id', ratingId)
-        .order('created_at', { ascending: true })
+        .eq('rating_id', ratingId).order('created_at', { ascending: true })
       if (data) setComments(data as any)
       setLoading(false)
     }
@@ -64,11 +65,9 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
   async function postComment() {
     if (!newComment.trim() || !profile || posting) return
     setPosting(true)
-    const { data } = await supabase
-      .from('comments')
+    const { data } = await supabase.from('comments')
       .insert({ user_id: profile.id, rating_id: ratingId, content: newComment.trim() })
-      .select('*, profiles(username, avatar_url)')
-      .single()
+      .select('*, profiles(username, avatar_url)').single()
     if (data) {
       setComments(prev => [...prev, data as any])
       await supabase.from('ratings').update({ comments_count: comments.length + 1 }).eq('id', ratingId)
@@ -78,13 +77,26 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
     setPosting(false)
   }
 
+  async function editComment(id: string) {
+    if (!editText.trim()) return
+    await supabase.from('comments').update({ content: editText.trim(), edited: true }).eq('id', id)
+    setComments(prev => prev.map(c => c.id === id ? { ...c, content: editText.trim(), edited: true } : c))
+    setEditingId(null)
+  }
+
+  async function deleteComment(id: string) {
+    await supabase.from('comments').delete().eq('id', id)
+    setComments(prev => prev.filter(c => c.id !== id))
+    await supabase.from('ratings').update({ comments_count: Math.max(0, comments.length - 1) }).eq('id', ratingId)
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '75vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
           <h3 className="font-display font-bold text-coffee-800 text-lg">Comments</h3>
-          <button onClick={onClose} className="text-coffee-400 text-sm font-medium">Done</button>
+          <button onClick={onClose} className="text-coffee-500 text-sm font-medium">Done</button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
           {loading && <div className="flex justify-center py-6"><div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
@@ -98,9 +110,32 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
                       <span className="text-white text-xs font-bold">{comment.profiles?.username?.[0]?.toUpperCase()}</span>
                     </div>}
               </div>
-              <div className="flex-1 bg-cream-100 rounded-2xl px-3 py-2">
-                <p className="text-coffee-800 font-semibold text-xs">{comment.profiles?.username}</p>
-                <p className="text-coffee-700 text-sm mt-0.5">{comment.content}</p>
+              <div className="flex-1">
+                {editingId === comment.id ? (
+                  <div className="bg-cream-100 rounded-2xl px-3 py-2">
+                    <input value={editText} onChange={e => setEditText(e.target.value)}
+                      className="w-full bg-transparent text-coffee-800 text-sm focus:outline-none" />
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={() => editComment(comment.id)} className="text-caramel text-xs font-semibold">Save</button>
+                      <button onClick={() => setEditingId(null)} className="text-coffee-400 text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-cream-100 rounded-2xl px-3 py-2">
+                    <p className="text-coffee-800 font-semibold text-xs">{comment.profiles?.username}
+                      {comment.edited && <span className="text-coffee-400 font-normal"> · edited</span>}
+                    </p>
+                    <p className="text-coffee-700 text-sm mt-0.5">{comment.content}</p>
+                  </div>
+                )}
+                {comment.user_id === profile?.id && editingId !== comment.id && (
+                  <div className="flex gap-3 mt-1 px-1">
+                    <button onClick={() => { setEditingId(comment.id); setEditText(comment.content) }}
+                      className="text-coffee-400 text-xs flex items-center gap-1"><Edit2 size={10} /> Edit</button>
+                    <button onClick={() => deleteComment(comment.id)}
+                      className="text-red-400 text-xs flex items-center gap-1"><Trash2 size={10} /> Delete</button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -120,26 +155,18 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
   )
 }
 
-// Add to wishlist modal
 function AddToWishlistModal({ rating, onClose }: { rating: any; onClose: () => void }) {
   const { profile } = useAuth()
   const shop = rating.coffee_shops as any
   const [drinkName, setDrinkName] = useState(rating.drink_name || '')
   const [shopName, setShopName] = useState(shop?.name || '')
-  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
   async function save() {
     if (!profile || !drinkName.trim()) return
     setSaving(true)
-    await supabase.from('wishlist').insert({
-      user_id: profile.id,
-      drink_name: drinkName.trim(),
-      shop_name: shopName.trim() || null,
-      notes: notes.trim() || null,
-    })
-    trackEvent('wishlist_item_added', { drink_name: drinkName, from_post: true })
+    await supabase.from('wishlist').insert({ user_id: profile.id, drink_name: drinkName.trim(), shop_name: shopName.trim() || null })
     setDone(true)
     setTimeout(onClose, 1500)
     setSaving(false)
@@ -151,34 +178,17 @@ function AddToWishlistModal({ rating, onClose }: { rating: any; onClose: () => v
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-bold text-coffee-800 text-lg">Add to Wishlist</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full bg-cream-100 flex items-center justify-center text-coffee-400"><X size={14} /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500"><X size={14} /></button>
         </div>
         {done ? (
-          <div className="text-center py-8">
-            <p className="text-3xl mb-2">☕</p>
-            <p className="text-coffee-700 font-display text-lg">Added to your wishlist!</p>
-          </div>
+          <div className="text-center py-8"><p className="text-3xl mb-2">☕</p><p className="text-coffee-700 font-display text-lg">Added to wishlist!</p></div>
         ) : (
           <>
             <div className="space-y-3 mb-5">
-              <div>
-                <label className="text-coffee-400 text-xs uppercase tracking-wider mb-1 block">Drink</label>
-                <input value={drinkName} onChange={e => setDrinkName(e.target.value)}
-                  placeholder="What drink do you want?"
-                  className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
-              </div>
-              <div>
-                <label className="text-coffee-400 text-xs uppercase tracking-wider mb-1 block">From</label>
-                <input value={shopName} onChange={e => setShopName(e.target.value)}
-                  placeholder="Which coffee shop?"
-                  className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
-              </div>
-              <div>
-                <label className="text-coffee-400 text-xs uppercase tracking-wider mb-1 block">Notes (optional)</label>
-                <input value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Any customizations?"
-                  className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
-              </div>
+              <input value={drinkName} onChange={e => setDrinkName(e.target.value)} placeholder="Drink name"
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
+              <input value={shopName} onChange={e => setShopName(e.target.value)} placeholder="From which shop?"
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
             </div>
             <button onClick={save} disabled={!drinkName.trim() || saving}
               className="w-full py-3 rounded-xl bg-caramel text-white font-semibold text-sm disabled:opacity-40">
@@ -191,43 +201,41 @@ function AddToWishlistModal({ rating, onClose }: { rating: any; onClose: () => v
   )
 }
 
-// Post options menu (delete, report, block)
-function PostMenu({ isOwn, onDelete, onReport, onBlock, onClose }: {
-  isOwn: boolean
-  onDelete: () => any; onReport: () => any; onBlock: () => any; onClose: () => void
+function PostMenu({ isOwn, onDelete, onEdit, onReport, onBlock, onClose }: {
+  isOwn: boolean; rating: any
+  onDelete: () => any; onEdit: () => void; onReport: () => any; onBlock: () => any; onClose: () => void
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}>
+      style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-t-2xl overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
         <div className="px-4 py-3 border-b border-cream-200 text-center">
           <p className="text-coffee-400 text-xs">Post options</p>
         </div>
         {isOwn ? (
-          <button onClick={onDelete}
-            className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors border-b border-cream-100">
-            <Trash2 size={18} />
-            <span className="font-medium">Delete post</span>
-          </button>
+          <>
+            <button onClick={onEdit}
+              className="w-full flex items-center gap-3 px-5 py-4 text-coffee-700 hover:bg-cream-50 transition-colors border-b border-cream-100">
+              <Edit2 size={18} className="text-caramel" /><span className="font-medium">Edit post</span>
+            </button>
+            <button onClick={onDelete}
+              className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors border-b border-cream-100">
+              <Trash2 size={18} /><span className="font-medium">Delete post</span>
+            </button>
+          </>
         ) : (
           <>
             <button onClick={onReport}
               className="w-full flex items-center gap-3 px-5 py-4 text-coffee-700 hover:bg-cream-50 transition-colors border-b border-cream-100">
-              <Flag size={18} className="text-orange-500" />
-              <span className="font-medium">Report post</span>
+              <Flag size={18} className="text-orange-500" /><span className="font-medium">Report post</span>
             </button>
             <button onClick={onBlock}
               className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors border-b border-cream-100">
-              <UserX size={18} />
-              <span className="font-medium">Block user</span>
+              <UserX size={18} /><span className="font-medium">Block user</span>
             </button>
           </>
         )}
-        <button onClick={onClose}
-          className="w-full py-4 text-coffee-500 font-medium hover:bg-cream-50 transition-colors">
-          Cancel
-        </button>
+        <button onClick={onClose} className="w-full py-4 text-coffee-500 font-medium hover:bg-cream-50 transition-colors">Cancel</button>
       </div>
     </div>
   )
@@ -244,13 +252,13 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [activeMenu, setActiveMenu] = useState<any>(null)
   const [wishlistRating, setWishlistRating] = useState<any>(null)
+  const [editingPost, setEditingPost] = useState<any>(null)
+  const [editCaption, setEditCaption] = useState('')
 
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
-      .from('ratings')
-      .select('*, profiles(*), coffee_shops(*)')
-      .order('created_at', { ascending: false })
-      .limit(30)
+      .from('ratings').select('*, profiles(*), coffee_shops(*)')
+      .order('created_at', { ascending: false }).limit(30)
     if (data) setRatings(data)
     setLoading(false)
   }, [])
@@ -261,15 +269,19 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     if (data) setLikedIds(new Set(data.map((l: any) => l.rating_id)))
   }, [profile])
 
+  const loadSaved = useCallback(async () => {
+    if (!profile) return
+    const { data } = await supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id)
+    if (data) setSavedIds(new Set(data.map((s: any) => s.rating_id)))
+  }, [profile])
+
   const loadBlocks = useCallback(async () => {
     if (!profile) return
     const { data } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id)
     if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id)))
   }, [profile])
 
-  useEffect(() => {
-    loadFeed(); loadLikes(); loadBlocks()
-  }, [refresh, loadFeed, loadLikes, loadBlocks])
+  useEffect(() => { loadFeed(); loadLikes(); loadSaved(); loadBlocks() }, [refresh, loadFeed, loadLikes, loadSaved, loadBlocks])
 
   async function toggleLike(ratingId: string) {
     if (!profile) return
@@ -286,19 +298,36 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     }
   }
 
+  async function toggleSave(ratingId: string) {
+    if (!profile) return
+    const isSaved = savedIds.has(ratingId)
+    if (isSaved) {
+      await supabase.from('saved_posts').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
+      setSavedIds(prev => { const n = new Set(prev); n.delete(ratingId); return n })
+    } else {
+      await supabase.from('saved_posts').insert({ user_id: profile.id, rating_id: ratingId })
+      setSavedIds(prev => new Set([...prev, ratingId]))
+    }
+  }
+
   async function deletePost(ratingId: string) {
     await supabase.from('ratings').delete().eq('id', ratingId)
     setRatings(prev => prev.filter(r => r.id !== ratingId))
     setActiveMenu(null)
-    trackEvent('post_deleted')
+  }
+
+  async function saveEditPost() {
+    if (!editingPost) return
+    await supabase.from('ratings').update({ caption: editCaption }).eq('id', editingPost.id)
+    setRatings(prev => prev.map(r => r.id === editingPost.id ? { ...r, caption: editCaption } : r))
+    setEditingPost(null)
   }
 
   async function reportPost(rating: any) {
     if (!profile) return
     await supabase.from('reports').insert({ reporter_id: profile.id, rating_id: rating.id, reason: 'user_reported' })
     setActiveMenu(null)
-    alert('Post reported. Thank you — our team will review it.')
-    trackEvent('post_reported')
+    alert('Post reported. Our team will review it.')
   }
 
   async function blockUser(userId: string) {
@@ -307,7 +336,6 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     setBlockedUsers(prev => new Set([...prev, userId]))
     setRatings(prev => prev.filter(r => (r.profiles as any)?.id !== userId))
     setActiveMenu(null)
-    trackEvent('user_blocked')
   }
 
   const visibleRatings = ratings.filter(r => !blockedUsers.has((r.profiles as any)?.id))
@@ -316,18 +344,15 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     <div className="min-h-screen bg-cream-100">
       <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
-        <div className="flex items-center gap-3">
-          <button className="text-coffee-500"><MessageCircle size={22} /></button>
-          <button className="text-coffee-500"><Bookmark size={22} /></button>
+        <div className="flex items-center gap-2">
+          {/* Notifications wired in App.tsx */}
+          <button onClick={() => {}} className="text-coffee-500 p-1"><MessageCircle size={22} /></button>
+          <button onClick={() => {}} className="text-coffee-500 p-1"><Bookmark size={22} /></button>
         </div>
       </div>
 
       <div className="pb-24">
-        {loading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
-          </div>
-        )}
+        {loading && <div className="flex justify-center py-16"><div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
 
         {!loading && visibleRatings.length === 0 && (
           <div className="text-center py-20 px-8">
@@ -342,10 +367,10 @@ export default function HomeTab({ refresh }: { refresh: number }) {
           const user = rating.profiles as any
           const isLiked = likedIds.has(rating.id)
           const isSaved = savedIds.has(rating.id)
-          const isOwn = user?.id === profile?.id
-          void isOwn // used in PostMenu
+          const isOwn = user?.id === profile?.id; void isOwn
           const mugColor = getMugColor(rating.fill_level)
           const isQuickSip = (rating as any).is_quick_sip
+          const visitTime = (rating as any).visit_time
 
           // ── COMPACT QUICK SIP CARD ──
           if (isQuickSip) {
@@ -364,41 +389,33 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                       <span className="text-coffee-700 font-semibold text-sm">{user?.username}</span>
                       <span className="text-coffee-400 text-xs">had a quick sip</span>
                       {shop && (
-                        <button onClick={() => setSelectedShop(shop)}
-                          className="text-caramel text-xs font-semibold hover:underline truncate max-w-24">
+                        <button onClick={() => setSelectedShop(shop)} className="text-caramel text-xs font-semibold hover:underline truncate max-w-28">
                           @ {shop.name}
                         </button>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center gap-1">
-                        <div className="w-14 h-1.5 bg-cream-200 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${rating.fill_level}%`, background: mugColor }} />
-                        </div>
-                        <span className="text-coffee-400 text-xs">{rating.fill_level}%</span>
+                      <div className="w-14 h-1.5 bg-cream-200 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${rating.fill_level}%`, background: mugColor }} />
                       </div>
+                      <span className="text-coffee-400 text-xs">{rating.fill_level}%</span>
                       <span className="text-coffee-300 text-xs">·</span>
                       <span className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</span>
-                      <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#7ab0c822', color: '#5a90a8' }}>⚡ Quick Sip</span>
+                      <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-400">⚡ Quick Sip</span>
                     </div>
                   </div>
-                  <button onClick={() => setActiveMenu(rating)} className="text-coffee-300 p-1 flex-shrink-0">
-                    <MoreHorizontal size={15} />
-                  </button>
+                  <button onClick={() => setActiveMenu(rating)} className="text-coffee-300 p-1 flex-shrink-0"><MoreHorizontal size={15} /></button>
                 </div>
-                {/* Mini actions */}
                 <div className="flex items-center px-4 pb-3 gap-3 border-t border-cream-50">
-                  <button onClick={() => toggleLike(rating.id)}
-                    className="flex items-center gap-1 transition-all active:scale-90 mt-2"
-                    style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
+                  <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1 mt-2 transition-all active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                     <Heart size={16} fill={isLiked ? '#e05a5a' : 'none'} />
                     {rating.likes_count > 0 && <span className="text-xs">{rating.likes_count}</span>}
                   </button>
-                  <button onClick={() => setActiveComments(rating.id)}
-                    className="flex items-center gap-1 text-coffee-400 mt-2">
+                  <button onClick={() => setActiveComments(rating.id)} className="flex items-center gap-1 text-coffee-400 mt-2">
                     <MessageCircle size={16} />
                     {rating.comments_count > 0 && <span className="text-xs">{rating.comments_count}</span>}
                   </button>
+                  <p className="text-coffee-300 text-xs mt-2 ml-auto">{formatDate(rating.created_at)}</p>
                 </div>
               </div>
             )
@@ -418,13 +435,18 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                         </div>}
                   </div>
                   <div>
-                    <p className="text-coffee-800 font-semibold text-sm">{user?.username}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-coffee-800 font-semibold text-sm">{user?.username}</p>
+                      {visitTime && (
+                        <span className="text-coffee-400 text-xs bg-cream-100 px-1.5 py-0.5 rounded-full border border-cream-200">
+                          🕐 {visitTime.replace(/\(.*?\)/, '').trim()}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</p>
                   </div>
                 </div>
-                <button onClick={() => setActiveMenu(rating)} className="text-coffee-400 p-1">
-                  <MoreHorizontal size={18} />
-                </button>
+                <button onClick={() => setActiveMenu(rating)} className="text-coffee-400 p-1"><MoreHorizontal size={18} /></button>
               </div>
 
               {/* Rating content */}
@@ -441,17 +463,17 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                   <div className="w-12 h-14 flex-shrink-0">
                     <svg viewBox="0 0 56 68" width="48" height="56">
                       <defs><clipPath id={`clip-${rating.id}`}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
-                      <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#b8935a" strokeWidth="1.5" />
+                      <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#c8b090" strokeWidth="1.5" />
                       <g clipPath={`url(#clip-${rating.id})`}>
-                        <rect x="5" y={58 - (46 * rating.fill_level / 100)} width="38" height={46 * rating.fill_level / 100} fill={mugColor} />
+                        <rect x="5" y={58-(46*rating.fill_level/100)} width="38" height={46*rating.fill_level/100} fill={mugColor} />
                       </g>
-                      <rect x="3" y="8" width="42" height="8" rx="4" fill="#8b6232" />
-                      <path d="M43 22 Q56 22 56 33 Q56 44 43 44" stroke="#b8935a" strokeWidth="5" fill="none" strokeLinecap="round" />
+                      <rect x="3" y="8" width="42" height="8" rx="4" fill="#d4b890" />
+                      <path d="M43 22 Q56 22 56 33 Q56 44 43 44" stroke="#c8b090" strokeWidth="5" fill="none" strokeLinecap="round" />
                       <ellipse cx="24" cy="58" rx="19" ry="5" fill="#e8ddc8" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-coffee-800 font-bold text-base">{getFillLabel(rating.fill_level)}</p>
+                    <p className="text-coffee-700 font-bold text-base">{getFillLabel(rating.fill_level)}</p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <div className="h-1.5 w-20 bg-cream-200 rounded-full overflow-hidden">
                         <div className="h-full rounded-full" style={{ width: `${rating.fill_level}%`, background: mugColor }} />
@@ -463,7 +485,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
 
                 {/* Photo */}
                 {rating.photo_url && (
-                  <div className="rounded-xl overflow-hidden mb-2 h-48">
+                  <div className="rounded-xl overflow-hidden mb-2 h-52">
                     <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
                   </div>
                 )}
@@ -472,12 +494,24 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                 {(rating.vibe_tags as any)?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {(rating.vibe_tags as any).map((tag: string) => (
-                      <span key={tag} className="bg-cream-100 text-coffee-600 px-2 py-0.5 rounded-full text-xs border border-cream-200">{tag}</span>
+                      <span key={tag} className="bg-cream-100 text-coffee-500 px-2 py-0.5 rounded-full text-xs border border-cream-200">{tag}</span>
                     ))}
                   </div>
                 )}
 
-                {rating.caption && <p className="text-coffee-700 text-sm mb-2">{rating.caption}</p>}
+                {/* Caption - editable */}
+                {editingPost?.id === rating.id ? (
+                  <div className="mb-2">
+                    <textarea value={editCaption} onChange={e => setEditCaption(e.target.value)} rows={2}
+                      className="w-full bg-cream-50 text-coffee-800 rounded-xl px-3 py-2 text-sm border border-cream-200 focus:border-caramel focus:outline-none resize-none" />
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={saveEditPost} className="text-caramel text-xs font-semibold flex items-center gap-1"><Check size={12} /> Save</button>
+                      <button onClick={() => setEditingPost(null)} className="text-coffee-400 text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  rating.caption && <p className="text-coffee-700 text-sm mb-2">{rating.caption}</p>
+                )}
               </div>
 
               {/* Shop card */}
@@ -488,7 +522,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                     {shop.photo_url && <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-coffee-800 font-semibold text-sm truncate">{shop.name}</p>
+                    <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
                     <p className="text-coffee-400 text-xs truncate">{shop.address}{shop.city ? `, ${shop.city}` : ''}</p>
                   </div>
                   <span className="text-caramel text-xs font-medium flex-shrink-0">View →</span>
@@ -496,62 +530,48 @@ export default function HomeTab({ refresh }: { refresh: number }) {
               )}
 
               {/* Actions */}
-              <div className="flex items-center px-4 pb-4 gap-4">
-                <button onClick={() => toggleLike(rating.id)}
-                  className="flex items-center gap-1.5 transition-all active:scale-90"
-                  style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
+              <div className="flex items-center px-4 pb-2 gap-4">
+                <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1.5 transition-all active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                   <Heart size={20} fill={isLiked ? '#e05a5a' : 'none'} />
                   {rating.likes_count > 0 && <span className="text-sm font-medium">{rating.likes_count}</span>}
                 </button>
-
-                <button onClick={() => setActiveComments(rating.id)}
-                  className="flex items-center gap-1.5 text-coffee-500 active:scale-90 transition-all">
+                <button onClick={() => setActiveComments(rating.id)} className="flex items-center gap-1.5 text-coffee-500 active:scale-90 transition-all">
                   <MessageCircle size={20} />
                   {rating.comments_count > 0 && <span className="text-sm">{rating.comments_count}</span>}
                 </button>
-
-                {/* Add to wishlist */}
-                <button onClick={() => setWishlistRating(rating)}
-                  className="flex items-center gap-1.5 text-coffee-400 active:scale-90 transition-all">
-                  <Plus size={18} />
-                  <span className="text-xs">Wishlist</span>
+                <button onClick={() => setWishlistRating(rating)} className="flex items-center gap-1.5 text-coffee-400 active:scale-90 transition-all">
+                  <Plus size={18} /><span className="text-xs">Wishlist</span>
                 </button>
-
-                {/* Gift (coming soon) */}
-                <button className="ml-auto flex items-center gap-1.5 text-coffee-300 opacity-50 cursor-default">
-                  <Gift size={18} />
-                  <span className="text-xs">Gift</span>
+                <button className="flex items-center gap-1.5 text-coffee-200 cursor-default ml-auto">
+                  <Gift size={18} /><span className="text-xs">Gift</span>
                 </button>
-
-                <button onClick={() => setSavedIds(prev => { const n = new Set(prev); n.has(rating.id) ? n.delete(rating.id) : n.add(rating.id); return n })}
-                  className="transition-all active:scale-90"
-                  style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
+                <button onClick={() => toggleSave(rating.id)} className="transition-all active:scale-90" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
                   <Bookmark size={18} fill={isSaved ? '#c8853a' : 'none'} />
                 </button>
+              </div>
+
+              {/* Date at bottom */}
+              <div className="px-4 pb-3">
+                <p className="text-coffee-300 text-xs">{formatDate(rating.created_at)}</p>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Shop detail modal */}
       {selectedShop && <ShopDetailModal shop={selectedShop} onClose={() => setSelectedShop(null)} />}
-
-      {/* Comments modal */}
       {activeComments && <CommentsSection ratingId={activeComments} onClose={() => setActiveComments(null)} />}
-
-      {/* Post menu */}
       {activeMenu && (
         <PostMenu
           isOwn={(activeMenu.profiles as any)?.id === profile?.id}
+          rating={activeMenu}
           onDelete={() => deletePost(activeMenu.id)}
+          onEdit={() => { setEditCaption(activeMenu.caption || ''); setEditingPost(activeMenu); setActiveMenu(null) }}
           onReport={() => reportPost(activeMenu)}
           onBlock={() => blockUser((activeMenu.profiles as any)?.id)}
           onClose={() => setActiveMenu(null)}
         />
       )}
-
-      {/* Add to wishlist modal */}
       {wishlistRating && <AddToWishlistModal rating={wishlistRating} onClose={() => setWishlistRating(null)} />}
     </div>
   )
