@@ -1,34 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Heart, MessageCircle, Gift, Bookmark, X, Send } from 'lucide-react'
+import { Heart, MessageCircle, Send, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Rating } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-
-function getMugColor(fill: number) {
-  if (fill <= 25) return '#8ca8c5'
-  if (fill <= 50) return '#c4956a'
-  if (fill <= 75) return '#9b5e25'
-  return '#5c2a0a'
-}
-
-function getFillLabel(fill: number) {
-  if (fill <= 15) return 'Just a Sip'
-  if (fill <= 30) return 'Getting There'
-  if (fill <= 50) return 'Half Cup'
-  if (fill <= 70) return 'Good Pour'
-  if (fill <= 85) return 'Almost Perfect'
-  return 'Perfect Brew ✨'
-}
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
-}
 
 type Comment = {
   id: string
@@ -54,7 +28,6 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
       .select('*, profiles(username, avatar_url)')
       .eq('rating_id', ratingId)
       .order('created_at', { ascending: true })
-
     if (data) setComments(data as Comment[])
     setLoading(false)
   }
@@ -62,17 +35,12 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
   async function postComment() {
     if (!text.trim() || !profile || posting) return
     setPosting(true)
-
     const { data } = await supabase
       .from('comments')
       .insert({ rating_id: ratingId, user_id: profile.id, content: text.trim() })
       .select('*, profiles(username, avatar_url)')
       .single()
-
-    if (data) {
-      setComments(prev => [...prev, data as Comment])
-    }
-
+    if (data) setComments(prev => [...prev, data as Comment])
     setText('')
     setPosting(false)
   }
@@ -85,7 +53,6 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
           <h3 className="font-bold">Comments</h3>
           <button onClick={onClose}><X size={14} /></button>
         </div>
-
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
           {comments.map(c => (
             <div key={c.id}>
@@ -94,7 +61,6 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
             </div>
           ))}
         </div>
-
         <div className="px-4 py-3 border-t flex gap-3">
           <input
             value={text}
@@ -116,20 +82,19 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [loading, setLoading] = useState(true)
   const [commentRatingId, setCommentRatingId] = useState<string | null>(null)
 
+  // Load initial feed
   const loadFeed = useCallback(async () => {
     if (!profile) return
-
     setLoading(true)
-
     const { data } = await supabase
       .from('ratings')
       .select('*, profiles(*), coffee_shops(*)')
       .order('created_at', { ascending: false })
-
     setRatings(data || [])
     setLoading(false)
   }, [profile])
 
+  // Load likes for current user
   const loadLikes = useCallback(async () => {
     if (!profile) return
     const { data } = await supabase.from('likes').select('rating_id').eq('user_id', profile.id)
@@ -143,10 +108,25 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     }
   }, [profile, refresh, loadFeed, loadLikes])
 
+  // Real-time subscription to new ratings
+  useEffect(() => {
+    if (!profile) return
+
+    const subscription = supabase
+      .from('ratings')
+      .on('INSERT', payload => {
+        setRatings(prev => [payload.new as Rating, ...prev])
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeSubscription(subscription)
+    }
+  }, [profile])
+
   async function toggleLike(ratingId: string) {
     if (!profile) return
     const isLiked = likedIds.has(ratingId)
-
     if (isLiked) {
       await supabase.from('likes').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
       setLikedIds(prev => {
@@ -165,10 +145,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       <div className="p-5 font-bold text-xl">Social Brew</div>
 
       {loading && <div className="text-center py-10">Loading...</div>}
-
-      {!loading && ratings.length === 0 && (
-        <div className="text-center py-10">No posts</div>
-      )}
+      {!loading && ratings.length === 0 && <div className="text-center py-10">No posts</div>}
 
       {ratings.map(r => (
         <div key={r.id} className="bg-white m-4 p-4 rounded-xl">
@@ -177,7 +154,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
 
           <div className="flex gap-4 mt-2">
             <button onClick={() => toggleLike(r.id)}>
-              <Heart size={18} />
+              <Heart size={18} className={likedIds.has(r.id) ? 'text-red-500' : ''} />
             </button>
             <button onClick={() => setCommentRatingId(r.id)}>
               <MessageCircle size={18} />
