@@ -414,21 +414,28 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     const followingSet = new Set((followData || []).map((f: any) => f.following_id))
     setFollowingIds(followingSet)
 
-    // Load posts: public posts OR my own posts OR posts from people I follow (even private)
-    const { data } = await supabase
+    // Load posts: own posts + following posts + public posts
+    // Simple approach: load all, filter client-side
+    const { data, error } = await supabase
       .from('ratings')
       .select('*, profiles(*), coffee_shops(*)')
       .order('created_at', { ascending: false })
       .limit(50)
 
+    if (error) {
+      console.error('Feed load error:', error)
+      setLoading(false)
+      return
+    }
+
     if (data) {
-      // Filter: show if (1) my post, (2) public account, (3) private account but I follow them
       const filtered = data.filter((r: any) => {
         const authorId = r.profiles?.id
         if (!authorId) return true
-        if (authorId === profile.id) return true // own posts always show
-        if (!r.profiles?.is_private) return true // public accounts always show
-        return followingSet.has(authorId) // private accounts only if following
+        if (authorId === profile.id) return true // always show own posts
+        const isPrivate = r.profiles?.is_private === true // only true if explicitly set
+        if (!isPrivate) return true // show all public posts
+        return followingSet.has(authorId) // private: only if following
       })
       setRatings(filtered)
     }
