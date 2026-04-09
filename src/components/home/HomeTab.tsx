@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Heart, MessageCircle, Gift, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check } from 'lucide-react'
+import { Heart, MessageCircle, Gift, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Rating } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 import ShopDetailModal from '../shared/ShopDetailModal'
+import { NotificationBell } from '../shared/NotificationsPanel'
 
 function getMugColor(fill: number) {
   if (fill <= 20) return '#b0c4d4'
@@ -23,25 +24,177 @@ function getFillLabel(fill: number) {
   return 'Perfect Brew ✨'
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
+function timeAgo(d: string) {
+  const diff = Date.now() - new Date(d).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'Just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
 }
 
 type Comment = {
-  id: string; user_id: string; content: string; created_at: string; edited: boolean
+  id: string; user_id: string; content: string; created_at: string; edited?: boolean
   profiles: { username: string; avatar_url: string | null }
 }
 
+type DM = { id: string; from_id: string; to_id: string; content: string; created_at: string; profiles: { username: string; avatar_url: string | null } }
+
+// ── MESSAGES PANEL ──────────────────────────────────────────
+function MessagesPanel({ onClose }: { onClose: () => void }) {
+  const { profile } = useAuth()
+  const [conversations, setConversations] = useState<any[]>([])
+  const [activeConvo, setActiveConvo] = useState<any>(null)
+  const [messages, setMessages] = useState<DM[]>([])
+  const [newMsg, setNewMsg] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [searchUser, setSearchUser] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!profile) return
+    async function load() {
+      // Get unique conversation partners from DMs
+      const { data: sent } = await supabase.from('direct_messages')
+        .select('to_id, profiles!direct_messages_to_id_fkey(id,username,avatar_url)')
+        .eq('from_id', profile!.id).order('created_at', { ascending: false })
+      const { data: received } = await supabase.from('direct_messages')
+        .select('from_id, profiles!direct_messages_from_id_fkey(id,username,avatar_url)')
+        .eq('to_id', profile!.id).order('created_at', { ascending: false })
+      const partners = new Map()
+      ;(sent || []).forEach((s: any) => { if (!partners.has(s.to_id)) partners.set(s.to_id, s.profiles) })
+      ;(received || []).forEach((r: any) => { if (!partners.has(r.from_id)) partners.set(r.from_id, r.profiles) })
+      setConversations(Array.from(partners.entries()).map(([id, p]) => ({ id, ...p })))
+      setLoading(false)
+    }
+    load()
+  }, [profile])
+
+  async function openConvo(partner: any) {
+    setActiveConvo(partner)
+    const { data } = await supabase.from('direct_messages')
+      .select('*, profiles!direct_messages_from_id_fkey(username,avatar_url)')
+      .or(`and(from_id.eq.${profile?.id},to_id.eq.${partner.id}),and(from_id.eq.${partner.id},to_id.eq.${profile?.id})`)
+      .order('created_at', { ascending: true })
+    setMessages((data || []) as any)
+  }
+
+  async function sendMsg() {
+    if (!newMsg.trim() || !activeConvo || !profile || sending) return
+    setSending(true)
+    const { data } = await supabase.from('direct_messages')
+      .insert({ from_id: profile.id, to_id: activeConvo.id, content: newMsg.trim() })
+      .select('*, profiles!direct_messages_from_id_fkey(username,avatar_url)').single()
+    if (data) setMessages(prev => [...prev, data as any])
+    setNewMsg('')
+    setSending(false)
+  }
+
+  async function searchUsers(q: string) {
+    setSearchUser(q)
+    if (q.trim().length < 2) { setSearchResults([]); return }
+    const { data } = await supabase.from('profiles').select('id,username,avatar_url').ilike('username', `%${q}%`).neq('id', profile?.id).limit(6)
+    setSearchResults(data || [])
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(6px)' }}>
+      <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
+          <div className="flex items-center gap-2">
+            {activeConvo && (
+              <button onClick={() => { setActiveConvo(null); setMessages([]) }} className="text-coffee-400 mr-1">←</button>
+            )}
+            <h3 className="font-display font-bold text-coffee-800 text-lg">
+              {activeConvo ? activeConvo.username : 'Messages'}
+            </h3>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500"><X size={15} /></button>
+        </div>
+
+        {!activeConvo && (
+          <>
+            <div className="px-4 py-2 border-b border-cream-100">
+              <div className="flex items-center bg-cream-50 rounded-xl px-3 py-2 border border-cream-200">
+                <span className="text-coffee-300 mr-2 text-sm">🔍</span>
+                <input value={searchUser} onChange={e => searchUsers(e.target.value)}
+                  placeholder="Search users to message..."
+                  className="flex-1 bg-transparent text-coffee-700 text-sm placeholder-coffee-300 focus:outline-none" />
+              </div>
+              {searchResults.map(u => (
+                <button key={u.id} onClick={() => { setActiveConvo(u); setSearchUser(''); setSearchResults([]); openConvo(u) }}
+                  className="w-full flex items-center gap-3 py-2.5 hover:bg-cream-50 rounded-xl px-2 transition-colors">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                    {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username[0].toUpperCase()}</span></div>}
+                  </div>
+                  <p className="text-coffee-700 font-medium text-sm">{u.username}</p>
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loading && <div className="flex justify-center py-8"><div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
+              {!loading && conversations.length === 0 && (
+                <div className="text-center py-10">
+                  <p className="text-3xl mb-2">💬</p>
+                  <p className="text-coffee-500 font-display">No messages yet</p>
+                  <p className="text-coffee-400 text-sm mt-1">Search for a friend above to start chatting</p>
+                </div>
+              )}
+              {conversations.map(c => (
+                <button key={c.id} onClick={() => openConvo(c)}
+                  className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                    {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{c.username?.[0]?.toUpperCase()}</span></div>}
+                  </div>
+                  <p className="text-coffee-700 font-semibold text-sm">{c.username}</p>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {activeConvo && (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {messages.length === 0 && <p className="text-center text-coffee-400 text-sm py-6">Say hi! ☕</p>}
+              {messages.map(msg => {
+                const isMe = msg.from_id === profile?.id
+                return (
+                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-caramel text-white rounded-br-sm' : 'bg-cream-100 text-coffee-800 rounded-bl-sm'}`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="px-4 py-3 border-t border-cream-200 flex gap-2">
+              <input value={newMsg} onChange={e => setNewMsg(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendMsg()}
+                placeholder="Send a message..."
+                className="flex-1 bg-cream-50 rounded-full px-4 py-2 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200" />
+              <button onClick={sendMsg} disabled={!newMsg.trim() || sending}
+                className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40">
+                <Send size={15} className="text-white" />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── COMMENTS ────────────────────────────────────────────────
 function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () => void }) {
   const { profile } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
@@ -71,10 +224,8 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
     if (data) {
       setComments(prev => [...prev, data as any])
       await supabase.from('ratings').update({ comments_count: comments.length + 1 }).eq('id', ratingId)
-      trackEvent('comment_posted')
     }
-    setNewComment('')
-    setPosting(false)
+    setNewComment(''); setPosting(false)
   }
 
   async function editComment(id: string) {
@@ -87,7 +238,6 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
   async function deleteComment(id: string) {
     await supabase.from('comments').delete().eq('id', id)
     setComments(prev => prev.filter(c => c.id !== id))
-    await supabase.from('ratings').update({ comments_count: Math.max(0, comments.length - 1) }).eq('id', ratingId)
   }
 
   return (
@@ -123,8 +273,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
                 ) : (
                   <div className="bg-cream-100 rounded-2xl px-3 py-2">
                     <p className="text-coffee-800 font-semibold text-xs">{comment.profiles?.username}
-                      {comment.edited && <span className="text-coffee-400 font-normal"> · edited</span>}
-                    </p>
+                      {comment.edited && <span className="text-coffee-400 font-normal"> · edited</span>}</p>
                     <p className="text-coffee-700 text-sm mt-0.5">{comment.content}</p>
                   </div>
                 )}
@@ -162,27 +311,20 @@ function AddToWishlistModal({ rating, onClose }: { rating: any; onClose: () => v
   const [shopName, setShopName] = useState(shop?.name || '')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
-
   async function save() {
     if (!profile || !drinkName.trim()) return
     setSaving(true)
     await supabase.from('wishlist').insert({ user_id: profile.id, drink_name: drinkName.trim(), shop_name: shopName.trim() || null })
-    setDone(true)
-    setTimeout(onClose, 1500)
-    setSaving(false)
+    setDone(true); setTimeout(onClose, 1500); setSaving(false)
   }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-bold text-coffee-800 text-lg">Add to Wishlist</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500"><X size={14} /></button>
         </div>
-        {done ? (
-          <div className="text-center py-8"><p className="text-3xl mb-2">☕</p><p className="text-coffee-700 font-display text-lg">Added to wishlist!</p></div>
-        ) : (
+        {done ? <div className="text-center py-8"><p className="text-3xl mb-2">☕</p><p className="text-coffee-700 font-display text-lg">Added!</p></div> : (
           <>
             <div className="space-y-3 mb-5">
               <input value={drinkName} onChange={e => setDrinkName(e.target.value)} placeholder="Drink name"
@@ -190,8 +332,7 @@ function AddToWishlistModal({ rating, onClose }: { rating: any; onClose: () => v
               <input value={shopName} onChange={e => setShopName(e.target.value)} placeholder="From which shop?"
                 className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
             </div>
-            <button onClick={save} disabled={!drinkName.trim() || saving}
-              className="w-full py-3 rounded-xl bg-caramel text-white font-semibold text-sm disabled:opacity-40">
+            <button onClick={save} disabled={!drinkName.trim() || saving} className="w-full py-3 rounded-xl bg-caramel text-white font-semibold text-sm disabled:opacity-40">
               {saving ? 'Saving...' : 'Add to Wishlist ☕'}
             </button>
           </>
@@ -202,51 +343,60 @@ function AddToWishlistModal({ rating, onClose }: { rating: any; onClose: () => v
 }
 
 function PostMenu({ isOwn, onDelete, onEdit, onReport, onBlock, onClose }: {
-  isOwn: boolean; rating: any
-  onDelete: () => any; onEdit: () => void; onReport: () => any; onBlock: () => any; onClose: () => void
+  isOwn: boolean; onDelete: () => any; onEdit: () => void; onReport: () => any; onBlock: () => any; onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-t-2xl overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
-        <div className="px-4 py-3 border-b border-cream-200 text-center">
-          <p className="text-coffee-400 text-xs">Post options</p>
-        </div>
+        <div className="px-4 py-3 border-b border-cream-200 text-center"><p className="text-coffee-400 text-xs">Post options</p></div>
         {isOwn ? (
           <>
-            <button onClick={onEdit}
-              className="w-full flex items-center gap-3 px-5 py-4 text-coffee-700 hover:bg-cream-50 transition-colors border-b border-cream-100">
+            <button onClick={onEdit} className="w-full flex items-center gap-3 px-5 py-4 text-coffee-700 hover:bg-cream-50 border-b border-cream-100">
               <Edit2 size={18} className="text-caramel" /><span className="font-medium">Edit post</span>
             </button>
-            <button onClick={onDelete}
-              className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors border-b border-cream-100">
+            <button onClick={onDelete} className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 border-b border-cream-100">
               <Trash2 size={18} /><span className="font-medium">Delete post</span>
             </button>
           </>
         ) : (
           <>
-            <button onClick={onReport}
-              className="w-full flex items-center gap-3 px-5 py-4 text-coffee-700 hover:bg-cream-50 transition-colors border-b border-cream-100">
+            <button onClick={onReport} className="w-full flex items-center gap-3 px-5 py-4 text-coffee-700 hover:bg-cream-50 border-b border-cream-100">
               <Flag size={18} className="text-orange-500" /><span className="font-medium">Report post</span>
             </button>
-            <button onClick={onBlock}
-              className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors border-b border-cream-100">
+            <button onClick={onBlock} className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 border-b border-cream-100">
               <UserX size={18} /><span className="font-medium">Block user</span>
             </button>
           </>
         )}
-        <button onClick={onClose} className="w-full py-4 text-coffee-500 font-medium hover:bg-cream-50 transition-colors">Cancel</button>
+        <button onClick={onClose} className="w-full py-4 text-coffee-500 font-medium hover:bg-cream-50">Cancel</button>
       </div>
     </div>
   )
 }
 
+// ── SHOP VISIT TOAST ─────────────────────────────────────────
+function ShopToast({ shopName, onDone }: { shopName: string; onDone: () => void }) {
+  useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t) }, [])
+  return (
+    <div className="fixed top-20 left-1/2 z-[200] animate-slide-up"
+      style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}>
+      <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2.5 shadow-lg border border-cream-200">
+        <span className="text-coffee-700 text-sm font-semibold">{shopName}</span>
+        <span className="text-green-500 font-bold text-sm">+1</span>
+        <span className="text-coffee-400 text-xs">visit logged ☕</span>
+      </div>
+    </div>
+  )
+}
+
+// ── MAIN HOME TAB ─────────────────────────────────────────────
 export default function HomeTab({ refresh }: { refresh: number }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<Rating[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
+  const [_followingIds, setFollowingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [activeComments, setActiveComments] = useState<string | null>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -254,14 +404,36 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [wishlistRating, setWishlistRating] = useState<any>(null)
   const [editingPost, setEditingPost] = useState<any>(null)
   const [editCaption, setEditCaption] = useState('')
+  const [showMessages, setShowMessages] = useState(false)
+  const [shopToast, setShopToast] = useState<string | null>(null)
 
   const loadFeed = useCallback(async () => {
+    if (!profile) return
+    // Load who I follow
+    const { data: followData } = await supabase.from('follows').select('following_id').eq('follower_id', profile.id)
+    const followingSet = new Set((followData || []).map((f: any) => f.following_id))
+    setFollowingIds(followingSet)
+
+    // Load posts: public posts OR my own posts OR posts from people I follow (even private)
     const { data } = await supabase
-      .from('ratings').select('*, profiles(*), coffee_shops(*)')
-      .order('created_at', { ascending: false }).limit(30)
-    if (data) setRatings(data)
+      .from('ratings')
+      .select('*, profiles(*), coffee_shops(*)')
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (data) {
+      // Filter: show if (1) my post, (2) public account, (3) private account but I follow them
+      const filtered = data.filter((r: any) => {
+        const authorId = r.profiles?.id
+        if (!authorId) return true
+        if (authorId === profile.id) return true // own posts always show
+        if (!r.profiles?.is_private) return true // public accounts always show
+        return followingSet.has(authorId) // private accounts only if following
+      })
+      setRatings(filtered)
+    }
     setLoading(false)
-  }, [])
+  }, [profile])
 
   const loadLikes = useCallback(async () => {
     if (!profile) return
@@ -300,8 +472,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
 
   async function toggleSave(ratingId: string) {
     if (!profile) return
-    const isSaved = savedIds.has(ratingId)
-    if (isSaved) {
+    if (savedIds.has(ratingId)) {
       await supabase.from('saved_posts').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
       setSavedIds(prev => { const n = new Set(prev); n.delete(ratingId); return n })
     } else {
@@ -327,7 +498,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     if (!profile) return
     await supabase.from('reports').insert({ reporter_id: profile.id, rating_id: rating.id, reason: 'user_reported' })
     setActiveMenu(null)
-    alert('Post reported. Our team will review it.')
+    alert('Post reported. Thank you!')
   }
 
   async function blockUser(userId: string) {
@@ -342,14 +513,22 @@ export default function HomeTab({ refresh }: { refresh: number }) {
 
   return (
     <div className="min-h-screen bg-cream-100">
+      {/* Header */}
       <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
-        <div className="flex items-center gap-2">
-          {/* Notifications wired in App.tsx */}
-          <button onClick={() => {}} className="text-coffee-500 p-1"><MessageCircle size={22} /></button>
-          <button onClick={() => {}} className="text-coffee-500 p-1"><Bookmark size={22} /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowMessages(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+            <MessageCircle size={22} />
+          </button>
+          <NotificationBell />
+          <button onClick={() => {}} className="w-9 h-9 flex items-center justify-center text-coffee-500">
+            <Bookmark size={22} />
+          </button>
         </div>
       </div>
+
+      {/* Shop visit toast */}
+      {shopToast && <ShopToast shopName={shopToast} onDone={() => setShopToast(null)} />}
 
       <div className="pb-24">
         {loading && <div className="flex justify-center py-16"><div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
@@ -367,32 +546,24 @@ export default function HomeTab({ refresh }: { refresh: number }) {
           const user = rating.profiles as any
           const isLiked = likedIds.has(rating.id)
           const isSaved = savedIds.has(rating.id)
-          const isOwn = user?.id === profile?.id; void isOwn
+          const isOwn = user?.id === profile?.id
           const mugColor = getMugColor(rating.fill_level)
           const isQuickSip = (rating as any).is_quick_sip
           const visitTime = (rating as any).visit_time
 
-          // ── COMPACT QUICK SIP CARD ──
           if (isQuickSip) {
             return (
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url
-                      ? <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
-                          <span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span>
-                        </div>}
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-coffee-700 font-semibold text-sm">{user?.username}</span>
                       <span className="text-coffee-400 text-xs">had a quick sip</span>
-                      {shop && (
-                        <button onClick={() => setSelectedShop(shop)} className="text-caramel text-xs font-semibold hover:underline truncate max-w-28">
-                          @ {shop.name}
-                        </button>
-                      )}
+                      {shop && <button onClick={() => setSelectedShop(shop)} className="text-caramel text-xs font-semibold hover:underline truncate max-w-28">@ {shop.name}</button>}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-14 h-1.5 bg-cream-200 rounded-full overflow-hidden">
@@ -404,10 +575,10 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                       <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-400">⚡ Quick Sip</span>
                     </div>
                   </div>
-                  <button onClick={() => setActiveMenu(rating)} className="text-coffee-300 p-1 flex-shrink-0"><MoreHorizontal size={15} /></button>
+                  <button onClick={() => setActiveMenu({ ...rating, _isOwn: isOwn })} className="text-coffee-300 p-1 flex-shrink-0"><MoreHorizontal size={15} /></button>
                 </div>
                 <div className="flex items-center px-4 pb-3 gap-3 border-t border-cream-50">
-                  <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1 mt-2 transition-all active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
+                  <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1 mt-2 active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                     <Heart size={16} fill={isLiked ? '#e05a5a' : 'none'} />
                     {rating.likes_count > 0 && <span className="text-xs">{rating.likes_count}</span>}
                   </button>
@@ -421,18 +592,13 @@ export default function HomeTab({ refresh }: { refresh: number }) {
             )
           }
 
-          // ── FULL RATING CARD ──
           return (
             <div key={rating.id} className="bg-white mx-4 mb-3 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
-              {/* User row */}
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url
-                      ? <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
-                          <span className="text-white font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</span>
-                        </div>}
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -446,10 +612,9 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                     <p className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</p>
                   </div>
                 </div>
-                <button onClick={() => setActiveMenu(rating)} className="text-coffee-400 p-1"><MoreHorizontal size={18} /></button>
+                <button onClick={() => setActiveMenu({ ...rating, _isOwn: isOwn })} className="text-coffee-400 p-1"><MoreHorizontal size={18} /></button>
               </div>
 
-              {/* Rating content */}
               <div className="px-4 py-2">
                 {rating.drink_name && (
                   <div className="flex items-center gap-2 mb-2">
@@ -457,14 +622,12 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                     <span className="bg-cream-100 text-coffee-700 px-2.5 py-0.5 rounded-full text-sm font-medium border border-cream-200">{rating.drink_name}</span>
                   </div>
                 )}
-
-                {/* Mug visual */}
                 <div className="flex items-center gap-3 my-3">
                   <div className="w-12 h-14 flex-shrink-0">
                     <svg viewBox="0 0 56 68" width="48" height="56">
-                      <defs><clipPath id={`clip-${rating.id}`}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
+                      <defs><clipPath id={`c-${rating.id}`}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
                       <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#c8b090" strokeWidth="1.5" />
-                      <g clipPath={`url(#clip-${rating.id})`}>
+                      <g clipPath={`url(#c-${rating.id})`}>
                         <rect x="5" y={58-(46*rating.fill_level/100)} width="38" height={46*rating.fill_level/100} fill={mugColor} />
                       </g>
                       <rect x="3" y="8" width="42" height="8" rx="4" fill="#d4b890" />
@@ -482,15 +645,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                     </div>
                   </div>
                 </div>
-
-                {/* Photo */}
                 {rating.photo_url && (
                   <div className="rounded-xl overflow-hidden mb-2 h-52">
                     <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
                   </div>
                 )}
-
-                {/* Vibe tags */}
                 {(rating.vibe_tags as any)?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {(rating.vibe_tags as any).map((tag: string) => (
@@ -498,8 +657,6 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                     ))}
                   </div>
                 )}
-
-                {/* Caption - editable */}
                 {editingPost?.id === rating.id ? (
                   <div className="mb-2">
                     <textarea value={editCaption} onChange={e => setEditCaption(e.target.value)} rows={2}
@@ -514,12 +671,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                 )}
               </div>
 
-              {/* Shop card */}
               {shop && (
                 <button onClick={() => setSelectedShop(shop)}
                   className="mx-4 mb-3 flex items-center gap-3 bg-cream-50 rounded-xl p-2.5 border border-cream-200 w-full text-left hover:bg-cream-100 transition-colors">
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {shop.photo_url && <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />}
+                    {shop.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
@@ -529,28 +685,25 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                 </button>
               )}
 
-              {/* Actions */}
               <div className="flex items-center px-4 pb-2 gap-4">
-                <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1.5 transition-all active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
+                <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1.5 active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                   <Heart size={20} fill={isLiked ? '#e05a5a' : 'none'} />
                   {rating.likes_count > 0 && <span className="text-sm font-medium">{rating.likes_count}</span>}
                 </button>
-                <button onClick={() => setActiveComments(rating.id)} className="flex items-center gap-1.5 text-coffee-500 active:scale-90 transition-all">
+                <button onClick={() => setActiveComments(rating.id)} className="flex items-center gap-1.5 text-coffee-500 active:scale-90">
                   <MessageCircle size={20} />
                   {rating.comments_count > 0 && <span className="text-sm">{rating.comments_count}</span>}
                 </button>
-                <button onClick={() => setWishlistRating(rating)} className="flex items-center gap-1.5 text-coffee-400 active:scale-90 transition-all">
+                <button onClick={() => setWishlistRating(rating)} className="flex items-center gap-1.5 text-coffee-400 active:scale-90">
                   <Plus size={18} /><span className="text-xs">Wishlist</span>
                 </button>
                 <button className="flex items-center gap-1.5 text-coffee-200 cursor-default ml-auto">
                   <Gift size={18} /><span className="text-xs">Gift</span>
                 </button>
-                <button onClick={() => toggleSave(rating.id)} className="transition-all active:scale-90" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
+                <button onClick={() => toggleSave(rating.id)} className="active:scale-90" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
                   <Bookmark size={18} fill={isSaved ? '#c8853a' : 'none'} />
                 </button>
               </div>
-
-              {/* Date at bottom */}
               <div className="px-4 pb-3">
                 <p className="text-coffee-300 text-xs">{formatDate(rating.created_at)}</p>
               </div>
@@ -561,10 +714,10 @@ export default function HomeTab({ refresh }: { refresh: number }) {
 
       {selectedShop && <ShopDetailModal shop={selectedShop} onClose={() => setSelectedShop(null)} />}
       {activeComments && <CommentsSection ratingId={activeComments} onClose={() => setActiveComments(null)} />}
+      {showMessages && <MessagesPanel onClose={() => setShowMessages(false)} />}
       {activeMenu && (
         <PostMenu
-          isOwn={(activeMenu.profiles as any)?.id === profile?.id}
-          rating={activeMenu}
+          isOwn={activeMenu._isOwn}
           onDelete={() => deletePost(activeMenu.id)}
           onEdit={() => { setEditCaption(activeMenu.caption || ''); setEditingPost(activeMenu); setActiveMenu(null) }}
           onReport={() => reportPost(activeMenu)}

@@ -107,14 +107,14 @@ export default function ShopSelector({ onSelect, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.92)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-sm bg-coffee-700 rounded-t-3xl animate-slide-up flex flex-col"
+      style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(8px)' }}>
+      <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col"
         style={{ maxHeight: '85vh' }}>
 
         <div className="flex items-center justify-between p-5 pb-3 flex-shrink-0">
           <div>
-            <h2 className="text-white font-display text-xl font-bold">Which shop?</h2>
-            <p className="text-coffee-300 text-xs mt-0.5">
+            <h2 className="text-coffee-800 font-display text-xl font-bold">Which shop?</h2>
+            <p className="text-coffee-400 text-xs mt-0.5">
               {loading ? 'Loading shops...' : searching ? 'Searching...' : `${results.length} shops found`}
             </p>
           </div>
@@ -124,17 +124,17 @@ export default function ShopSelector({ onSelect, onClose }: Props) {
         </div>
 
         <div className="px-5 mb-3 flex-shrink-0">
-          <div className="flex items-center bg-coffee-800 rounded-xl px-4 py-3 border border-coffee-500 focus-within:border-caramel transition-colors">
+          <div className="flex items-center bg-cream-50 rounded-xl px-4 py-3 border border-cream-200 focus-within:border-caramel transition-colors">
             <Search size={15} className="text-coffee-400 mr-3 flex-shrink-0" />
             <input
               ref={inputRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search any coffee shop..."
-              className="flex-1 bg-transparent text-white text-sm placeholder-coffee-400 focus:outline-none"
+              className="flex-1 bg-transparent text-coffee-700 text-sm placeholder-coffee-300 focus:outline-none"
             />
             {searching && <div className="w-4 h-4 rounded-full border-2 border-caramel border-t-transparent animate-spin flex-shrink-0" />}
-            {search && !searching && <button onClick={() => setSearch('')} className="text-coffee-400 flex-shrink-0"><X size={14} /></button>}
+            {search && !searching && <button onClick={() => setSearch('')} className="text-coffee-500 flex-shrink-0"><X size={14} /></button>}
           </div>
         </div>
 
@@ -158,8 +158,8 @@ export default function ShopSelector({ onSelect, onClose }: Props) {
               const isInDb = !String(shop.id).startsWith('osm-') && !String(shop.id).startsWith('fb-')
               return (
                 <button key={`${shop.id}-${i}`} onClick={() => onSelect(shop)}
-                  className="w-full text-left flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-coffee-600/30 active:bg-coffee-600/50 transition-colors">
-                  <div className="w-11 h-11 rounded-xl flex-shrink-0 bg-coffee-800 flex items-center justify-center overflow-hidden">
+                  className="w-full text-left flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-cream-100 active:bg-cream-200 transition-colors">
+                  <div className="w-11 h-11 rounded-xl flex-shrink-0 bg-cream-50 flex items-center justify-center overflow-hidden">
                     {shop.photo_url
                       ? <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
                       : <span className="text-xl">☕</span>
@@ -167,7 +167,7 @@ export default function ShopSelector({ onSelect, onClose }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-white font-semibold text-sm truncate">{shop.name}</p>
+                      <p className="text-coffee-800 font-semibold text-sm truncate">{shop.name}</p>
                       {shop.is_certified && <CheckCircle size={12} className="text-caramel flex-shrink-0" />}
                     </div>
                     {(shop.address || shop.city) && (
