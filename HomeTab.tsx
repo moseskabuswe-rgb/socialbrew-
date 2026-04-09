@@ -71,11 +71,6 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
 
     if (data) {
       setComments(prev => [...prev, data as Comment])
-      await supabase.rpc('increment_comments', { rating_id: ratingId }).catch(() => {
-        supabase.from('ratings')
-          .update({ comments_count: comments.length + 1 })
-          .eq('id', ratingId)
-      })
     }
 
     setText('')
@@ -86,30 +81,16 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
       <div className="flex-1" onClick={onClose} />
       <div className="bg-white rounded-t-3xl flex flex-col max-h-[70vh]">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
-          <h3 className="font-display font-bold text-coffee-800 text-lg">Comments</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full bg-cream-100 flex items-center justify-center">
-            <X size={14} />
-          </button>
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <h3 className="font-bold">Comments</h3>
+          <button onClick={onClose}><X size={14} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
-          {loading && <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-caramel border-t-transparent rounded-full animate-spin" /></div>}
-          {!loading && comments.length === 0 && (
-            <div className="text-center py-8 text-coffee-400 text-sm">No comments yet</div>
-          )}
-
           {comments.map(c => (
-            <div key={c.id} className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-coffee-200 flex items-center justify-center text-xs">
-                {c.profiles?.avatar_url
-                  ? <img src={c.profiles.avatar_url} className="w-full h-full object-cover" />
-                  : c.profiles?.username?.[0]?.toUpperCase()}
-              </div>
-              <div className="bg-cream-50 rounded-2xl px-3 py-2">
-                <p className="text-xs font-semibold">{c.profiles?.username}</p>
-                <p className="text-sm">{c.content}</p>
-              </div>
+            <div key={c.id}>
+              <p className="text-xs font-semibold">{c.profiles?.username}</p>
+              <p className="text-sm">{c.content}</p>
             </div>
           ))}
         </div>
@@ -119,11 +100,9 @@ function CommentSheet({ ratingId, onClose }: { ratingId: string; onClose: () => 
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder="Add a comment..."
-            className="flex-1 bg-cream-50 rounded-full px-4 py-2 text-sm"
+            className="flex-1"
           />
-          <button onClick={postComment} disabled={!text.trim()}>
-            <Send size={16} />
-          </button>
+          <button onClick={postComment}><Send size={16} /></button>
         </div>
       </div>
     </div>
@@ -142,27 +121,9 @@ export default function HomeTab({ refresh }: { refresh: number }) {
 
     setLoading(true)
 
-    const { data: followingData } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', profile.id)
-
-    const followingIds = followingData?.map(f => f.following_id) || []
-
-    let filter = `
-      profiles.is_private.eq.false,
-      user_id.eq.${profile.id}
-    `
-
-    if (followingIds.length > 0) {
-      filter += `,user_id.in.(${followingIds.join(',')})`
-    }
-
     const { data } = await supabase
       .from('ratings')
       .select('*, profiles(*), coffee_shops(*)')
-      .not('shop_id', 'is', null)
-      .or(filter)
       .order('created_at', { ascending: false })
 
     setRatings(data || [])
