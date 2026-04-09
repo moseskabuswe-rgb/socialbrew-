@@ -396,7 +396,6 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
-  const [_followingIds, setFollowingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [activeComments, setActiveComments] = useState<string | null>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -406,16 +405,10 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [editCaption, setEditCaption] = useState('')
   const [showMessages, setShowMessages] = useState(false)
   const [shopToast, setShopToast] = useState<string | null>(null)
+  const [feedError, setFeedError] = useState<string | null>(null)
 
   const loadFeed = useCallback(async () => {
-    if (!profile) return
-    // Load who I follow
-    const { data: followData } = await supabase.from('follows').select('following_id').eq('follower_id', profile.id)
-    const followingSet = new Set((followData || []).map((f: any) => f.following_id))
-    setFollowingIds(followingSet)
-
-    // Load posts: own posts + following posts + public posts
-    // Simple approach: load all, filter client-side
+    // Simple direct query - no filtering, just load everything
     const { data, error } = await supabase
       .from('ratings')
       .select('*, profiles(*), coffee_shops(*)')
@@ -423,24 +416,16 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       .limit(50)
 
     if (error) {
-      console.error('Feed load error:', error)
+      console.error('Feed load error:', error.message, error.code, error.details)
+      setFeedError(error.message)
       setLoading(false)
       return
     }
 
-    if (data) {
-      const filtered = data.filter((r: any) => {
-        const authorId = r.profiles?.id
-        if (!authorId) return true
-        if (authorId === profile.id) return true // always show own posts
-        const isPrivate = r.profiles?.is_private === true // only true if explicitly set
-        if (!isPrivate) return true // show all public posts
-        return followingSet.has(authorId) // private: only if following
-      })
-      setRatings(filtered)
-    }
+    setFeedError(null)
+    setRatings(data || [])
     setLoading(false)
-  }, [profile])
+  }, [])
 
   const loadLikes = useCallback(async () => {
     if (!profile) return
@@ -460,7 +445,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id)))
   }, [profile])
 
-  useEffect(() => { loadFeed(); loadLikes(); loadSaved(); loadBlocks() }, [refresh, loadFeed, loadLikes, loadSaved, loadBlocks])
+  useEffect(() => { loadFeed(); if (profile) { loadLikes(); loadSaved(); loadBlocks() } }, [refresh, loadFeed, profile])
 
   async function toggleLike(ratingId: string) {
     if (!profile) return
@@ -540,7 +525,14 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       <div className="pb-24">
         {loading && <div className="flex justify-center py-16"><div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
 
-        {!loading && visibleRatings.length === 0 && (
+        {feedError && (
+          <div className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-red-600 text-sm font-medium">Feed error: {feedError}</p>
+            <button onClick={() => loadFeed()} className="text-red-500 text-xs underline mt-1">Retry</button>
+          </div>
+        )}
+
+        {!loading && !feedError && visibleRatings.length === 0 && (
           <div className="text-center py-20 px-8">
             <div className="text-6xl mb-4">☕</div>
             <p className="text-coffee-700 font-display text-xl">No brews yet</p>
@@ -555,7 +547,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
           const isSaved = savedIds.has(rating.id)
           const isOwn = user?.id === profile?.id
           const mugColor = getMugColor(rating.fill_level)
-          const isQuickSip = (rating as any).is_quick_sip
+          const isQuickSip = (rating as any).is_quick_sip === true
           const visitTime = (rating as any).visit_time
 
           if (isQuickSip) {
