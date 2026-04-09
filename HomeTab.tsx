@@ -82,7 +82,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [loading, setLoading] = useState(true)
   const [commentRatingId, setCommentRatingId] = useState<string | null>(null)
 
-  // Load initial feed
+  // Load feed
   const loadFeed = useCallback(async () => {
     if (!profile) return
     setLoading(true)
@@ -90,14 +90,19 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       .from('ratings')
       .select('*, profiles(*), coffee_shops(*)')
       .order('created_at', { ascending: false })
+
     setRatings(data || [])
     setLoading(false)
   }, [profile])
 
-  // Load likes for current user
+  // Load likes
   const loadLikes = useCallback(async () => {
     if (!profile) return
-    const { data } = await supabase.from('likes').select('rating_id').eq('user_id', profile.id)
+    const { data } = await supabase
+      .from('likes')
+      .select('rating_id')
+      .eq('user_id', profile.id)
+
     if (data) setLikedIds(new Set(data.map(l => l.rating_id)))
   }, [profile])
 
@@ -108,34 +113,51 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     }
   }, [profile, refresh, loadFeed, loadLikes])
 
-  // Real-time subscription to new ratings
+  // ✅ FIXED REALTIME (Supabase v2)
   useEffect(() => {
     if (!profile) return
 
-    const subscription = supabase
-      .from('ratings')
-      .on('INSERT', payload => {
-        setRatings(prev => [payload.new as Rating, ...prev])
-      })
+    const channel = supabase
+      .channel('ratings-feed')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ratings',
+        },
+        payload => {
+          setRatings(prev => [payload.new as Rating, ...prev])
+        }
+      )
       .subscribe()
 
     return () => {
-      supabase.removeSubscription(subscription)
+      supabase.removeChannel(channel)
     }
   }, [profile])
 
   async function toggleLike(ratingId: string) {
     if (!profile) return
     const isLiked = likedIds.has(ratingId)
+
     if (isLiked) {
-      await supabase.from('likes').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
+      await supabase
+        .from('likes')
+        .delete()
+        .eq('user_id', profile.id)
+        .eq('rating_id', ratingId)
+
       setLikedIds(prev => {
         const n = new Set(prev)
         n.delete(ratingId)
         return n
       })
     } else {
-      await supabase.from('likes').insert({ user_id: profile.id, rating_id: ratingId })
+      await supabase
+        .from('likes')
+        .insert({ user_id: profile.id, rating_id: ratingId })
+
       setLikedIds(prev => new Set([...prev, ratingId]))
     }
   }
@@ -145,7 +167,9 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       <div className="p-5 font-bold text-xl">Social Brew</div>
 
       {loading && <div className="text-center py-10">Loading...</div>}
-      {!loading && ratings.length === 0 && <div className="text-center py-10">No posts</div>}
+      {!loading && ratings.length === 0 && (
+        <div className="text-center py-10">No posts</div>
+      )}
 
       {ratings.map(r => (
         <div key={r.id} className="bg-white m-4 p-4 rounded-xl">
