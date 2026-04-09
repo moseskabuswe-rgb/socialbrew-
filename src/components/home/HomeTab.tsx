@@ -1,106 +1,84 @@
 // src/components/home/HomeTab.tsx
 import { useState } from 'react';
 import { Coffee, Camera } from 'lucide-react';
-import ShopSelector from './ShopSelector';
-import MugRating from './MugRating';
-import ShareMoment from './ShareMoment';
+import { useAuth } from '../../contexts/AuthContext';
+
+// Correct relative imports
+import ShopSelector from '../shop/ShopSelector';
+import MugRating from '../shop/MugRating';
+import ShareMoment from '../shop/ShareMoment';
 import Wishlist from './Wishlist';
 import MessagesPanel from './MessagesPanel';
-import { useAuth } from '../../contexts/AuthContext';
-import type { CoffeeShop } from '../../lib/supabase';
 
-type HomeTabProps = { shop?: CoffeeShop; onClose?: () => void; onComplete?: () => void; refresh?: number };
+type HomeTabProps = {
+  shop?: any;
+  onClose?: () => void;
+  onComplete?: () => void;
+  refresh?: number;
+};
 
 export default function HomeTab({ shop, onClose, onComplete }: HomeTabProps) {
   const { profile } = useAuth();
-  const [selectedShop, setSelectedShop] = useState<CoffeeShop | null>(shop || null);
-  const [showShopSelector, setShowShopSelector] = useState(false);
-  const [showShareMoment, setShowShareMoment] = useState(false);
-  const [showMugRating, setShowMugRating] = useState(false);
+  const [selectedShop, setSelectedShop] = useState(shop || null);
+  const [showWishlist, setShowWishlist] = useState(false);
 
   if (!profile) return null;
 
   return (
-    <div className="p-5 space-y-6">
-      {/* Header */}
-      <header className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-coffee-800">Welcome, {profile.username}</h1>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowShopSelector(true)}
-            className="p-2 rounded-full bg-cream-100 hover:bg-cream-200 transition"
-          >
-            <Coffee size={20} />
-          </button>
-          <button
-            onClick={() => setShowShareMoment(true)}
-            className="p-2 rounded-full bg-cream-100 hover:bg-cream-200 transition"
-          >
-            <Camera size={20} />
-          </button>
-        </div>
+    <div className="home-tab-container">
+      <header className="home-tab-header">
+        <h1>Welcome, {profile.username}</h1>
       </header>
 
-      {/* Selected Shop */}
-      {selectedShop && (
-        <div className="bg-cream-50 p-4 rounded-xl shadow-sm">
-          <h2 className="text-coffee-800 font-semibold">{selectedShop.name}</h2>
-          {selectedShop.address && (
-            <p className="text-coffee-400 text-sm">
-              {[selectedShop.address, selectedShop.city, selectedShop.state].filter(Boolean).join(', ')}
-            </p>
-          )}
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => setShowMugRating(true)}
-              className="px-4 py-2 bg-caramel text-white rounded-lg"
-            >
-              Rate Your Mug
-            </button>
-            <button
-              onClick={() => setSelectedShop(null)}
-              className="px-4 py-2 bg-coffee-200 text-white rounded-lg"
-            >
-              Deselect
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Wishlist Section */}
-      <section className="mt-6">
-        <h2 className="text-coffee-800 font-semibold text-lg mb-2">Your Wishlist</h2>
-        <Wishlist />
-      </section>
-
-      {/* Messages Panel */}
+      {/* Messages modal */}
       <MessagesPanel onClose={() => {}} />
 
-      {/* Modals */}
-      {showShopSelector && (
-        <ShopSelector
-          onSelect={shop => {
-            setSelectedShop(shop);
-            setShowShopSelector(false);
-          }}
-          onClose={() => setShowShopSelector(false)}
-        />
-      )}
+      {/* Wishlist modal */}
+      {showWishlist && <Wishlist onClose={() => setShowWishlist(false)} />}
 
-      {showShareMoment && (
-        <ShareMoment
-          onClose={() => setShowShareMoment(false)}
-          onComplete={() => setShowShareMoment(false)}
-        />
-      )}
+      <section className="home-tab-content">
+        {selectedShop ? (
+          <>
+            <div className="shop-info">
+              <h2>{selectedShop.name}</h2>
+              <p>{selectedShop.description}</p>
+            </div>
+            <MugRating shop={selectedShop} />
+            <ShareMoment shop={selectedShop} />
+          </>
+        ) : (
+          <p>No shop selected</p>
+        )}
 
-      {showMugRating && selectedShop && (
-        <MugRating
-          shop={selectedShop}
-          onClose={() => setShowMugRating(false)}
-          onComplete={() => setShowMugRating(false)}
-        />
-      )}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => setShowWishlist(true)}
+            className="px-4 py-2 bg-caramel text-white rounded"
+          >
+            Wishlist
+          </button>
+          <button
+            onClick={() => {
+              setSelectedShop(null);
+              onClose?.();
+            }}
+            className="px-4 py-2 bg-gray-300 rounded"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => onComplete?.()}
+            className="px-4 py-2 bg-green-600 text-white rounded"
+          >
+            Complete Action
+          </button>
+        </div>
+      </section>
+
+      <footer className="home-tab-footer flex gap-4 mt-4">
+        <Coffee size={24} />
+        <Camera size={24} />
+      </footer>
     </div>
   );
 }
