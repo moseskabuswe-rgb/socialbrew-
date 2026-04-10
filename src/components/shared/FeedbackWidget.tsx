@@ -49,7 +49,7 @@ export default function FeedbackWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-24 right-4 z-40 w-10 h-10 rounded-full bg-white border border-cream-200 shadow-md flex items-center justify-center text-coffee-400 hover:text-caramel hover:border-caramel transition-all duration-200 hover:scale-110"
+          className="fixed bottom-24 right-3 z-40 w-9 h-9 rounded-full bg-white border border-cream-200 shadow-lg flex items-center justify-center text-coffee-300 hover:text-caramel hover:border-caramel transition-all duration-200 hover:scale-110 opacity-60 hover:opacity-100"
           title="Share feedback">
           <MessageSquare size={16} />
         </button>
