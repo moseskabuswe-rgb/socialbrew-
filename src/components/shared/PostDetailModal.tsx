@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2 } from 'lucide-react'
+import { sendNotification, notifyMentions } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -89,10 +90,18 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   async function postComment() {
     if (!newComment.trim() || !profile || posting) return
     setPosting(true)
+    const content = newComment.trim()
     const { data } = await supabase.from('comments')
-      .insert({ user_id: profile.id, rating_id: rating.id, content: newComment.trim() })
+      .insert({ user_id: profile.id, rating_id: rating.id, content })
       .select('*, profiles(username, avatar_url)').single()
-    if (data) setComments(prev => [...prev, data])
+    if (data) {
+      setComments(prev => [...prev, data])
+      // Notify post owner
+      const ownerId = rating.profiles?.id || rating.user_id
+      if (ownerId) sendNotification({ userId: ownerId, actorId: profile.id, type: 'comment', ratingId: rating.id })
+      // Notify @mentions
+      notifyMentions(content, profile.id, rating.id)
+    }
     setNewComment(''); setPosting(false)
   }
 
@@ -262,7 +271,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-cream-200 px-4 py-3 flex gap-2 max-w-lg mx-auto">
         <input value={newComment} onChange={e => setNewComment(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && postComment()}
-          placeholder="Add a comment..."
+          placeholder="Add a comment... use @username to mention"
           className="flex-1 bg-cream-100 rounded-full px-4 py-2 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200" />
         <button onClick={postComment} disabled={!newComment.trim() || posting}
           className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40">
