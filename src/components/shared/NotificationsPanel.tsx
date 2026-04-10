@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 
 type Notification = {
   id: string
-  type: 'like' | 'comment' | 'follow' | 'new_post'
+  type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention'
   read: boolean
   created_at: string
   actor: { username: string; avatar_url: string | null }
@@ -24,15 +24,22 @@ function NotifIcon({ type }: { type: string }) {
   if (type === 'like') return <span className="text-base">❤️</span>
   if (type === 'comment') return <span className="text-base">💬</span>
   if (type === 'follow') return <span className="text-base">👥</span>
-  return <span className="text-base">☕</span>
+  if (type === 'mention') return <span className="text-base">@</span>
+  if (type === 'new_post') return <span className="text-base">☕</span>
+  return <span className="text-base">🔔</span>
 }
 
 function notifText(n: Notification) {
   if (n.type === 'like') return 'liked your post'
   if (n.type === 'comment') return 'commented on your post'
   if (n.type === 'follow') return 'started following you'
+  if (n.type === 'mention') return 'mentioned you in a comment'
+  if (n.type === 'new_post') {
+    const shop = (n.rating?.coffee_shops as any)?.name
+    return shop ? `posted a brew at ${shop}` : 'posted a new brew'
+  }
   const shop = (n.rating?.coffee_shops as any)?.name
-  return shop ? `posted a brew at ${shop}` : 'posted a new brew'
+  return shop ? `posted at ${shop}` : 'posted a new brew'
 }
 
 export function NotificationBell() {
@@ -136,6 +143,12 @@ export function NotificationBell() {
                 <p className="text-3xl mb-2">🔔</p>
                 <p className="text-coffee-500 font-medium text-sm">No notifications yet</p>
                 <p className="text-coffee-400 text-xs mt-1">Activity from friends will appear here</p>
+                {'Notification' in window && Notification.permission === 'default' && (
+                  <button onClick={async () => { const { requestPushPermission } = await import('../../lib/push'); if (profile) await requestPushPermission(profile.id) }}
+                    className="mt-4 px-4 py-2 bg-caramel text-white rounded-full text-xs font-semibold">
+                    Enable push notifications 🔔
+                  </button>
+                )}
               </div>
             )}
             {notifications.map(n => (
