@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX,
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
+import { sendNotification, notifyMentions } from '../../lib/push'
 import ShopDetailModal from '../shared/ShopDetailModal'
 import PostDetailModal from '../shared/PostDetailModal'
 import UserProfilePage from '../shared/UserProfilePage'
@@ -185,8 +186,17 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
   async function postComment() {
     if (!newComment.trim() || !profile || posting) return
     setPosting(true)
-    const { data } = await supabase.from('comments').insert({ user_id: profile.id, rating_id: ratingId, content: newComment.trim() }).select('*, profiles(username, avatar_url)').single()
-    if (data) { setComments(prev => [...prev, data]); await supabase.from('ratings').update({ comments_count: comments.length + 1 }).eq('id', ratingId) }
+    const content = newComment.trim()
+    const { data } = await supabase.from('comments').insert({ user_id: profile.id, rating_id: ratingId, content }).select('*, profiles(username, avatar_url)').single()
+    if (data) {
+      setComments(prev => [...prev, data])
+      await supabase.from('ratings').update({ comments_count: comments.length + 1 }).eq('id', ratingId)
+      // Notify post owner of comment
+      const { data: rating } = await supabase.from('ratings').select('user_id').eq('id', ratingId).single()
+      if (rating?.user_id) sendNotification({ userId: rating.user_id, actorId: profile.id, type: 'comment', ratingId })
+      // Notify @mentions in comment
+      notifyMentions(content, profile.id, ratingId)
+    }
     setNewComment(''); setPosting(false)
   }
 
@@ -374,6 +384,9 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       setLikedIds(prev => new Set([...prev, ratingId]))
       setRatings(prev => prev.map(r => r.id === ratingId ? { ...r, likes_count: r.likes_count + 1 } : r))
       trackEvent('post_liked')
+      // Notify post owner
+      const rating = ratings.find(r => r.id === ratingId)
+      if (rating?.profiles?.id) sendNotification({ userId: rating.profiles.id, actorId: profile.id, type: 'like', ratingId })
     }
   }
 
