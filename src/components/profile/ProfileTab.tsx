@@ -3,6 +3,7 @@ import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronR
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import BadgeCelebration from '../shared/BadgeCelebration'
+import UserProfileModal from '../shared/UserProfileModal'
 
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 
@@ -71,24 +72,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
         </div>
       </div>
       {viewingProfile && (
-        <div className="absolute inset-0 bg-white rounded-t-3xl flex flex-col">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200">
-            <button onClick={() => setViewingProfile(null)} className="text-coffee-500">←</button>
-            <h3 className="font-display font-bold text-coffee-800 text-lg">{viewingProfile.username}</h3>
-          </div>
-          <div className="flex items-center gap-4 px-5 py-5">
-            <div className="w-16 h-16 rounded-full overflow-hidden bg-coffee-200 border-4 border-cream-100 shadow flex-shrink-0">
-              {viewingProfile.avatar_url
-                ? <img src={viewingProfile.avatar_url} alt="" className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-2xl">{viewingProfile.username?.[0]?.toUpperCase()}</span></div>}
-            </div>
-            <div>
-              <p className="text-coffee-800 font-bold text-lg">{viewingProfile.username}</p>
-              {viewingProfile.full_name && <p className="text-coffee-500 text-sm">{viewingProfile.full_name}</p>}
-              <p className="text-caramel text-sm mt-1">{viewingProfile.badge || 'Coffee Curious'}</p>
-            </div>
-          </div>
-        </div>
+        <UserProfileModal userId={viewingProfile.id} onClose={() => setViewingProfile(null)} />
       )}
     </div>
   )
