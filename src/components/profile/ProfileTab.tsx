@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Search, UserPlus } from 'lucide-react'
+import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Search, UserPlus, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import BadgeCelebration from '../shared/BadgeCelebration'
@@ -360,6 +360,10 @@ export default function ProfileTab() {
   const [showShops, setShowShops] = useState(false)
   const [showFindFriends, setShowFindFriends] = useState(false)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+  const [showAddWishlist, setShowAddWishlist] = useState(false)
+  const [newDrink, setNewDrink] = useState('')
+  const [newShop, setNewShop] = useState('')
+  const [addingWishlist, setAddingWishlist] = useState(false)
 
   useEffect(() => {
     if (!profile) return
@@ -389,6 +393,26 @@ export default function ProfileTab() {
   }, [profile])
 
   if (!profile) return null
+  async function addToWishlist() {
+    if (!profile || !newDrink.trim() || addingWishlist) return
+    setAddingWishlist(true)
+    const { data } = await supabase.from('wishlist').insert({
+      user_id: profile.id,
+      drink_name: newDrink.trim(),
+      shop_name: newShop.trim() || null,
+    }).select().single()
+    if (data) setWishlist(prev => [data, ...prev])
+    setNewDrink('')
+    setNewShop('')
+    setShowAddWishlist(false)
+    setAddingWishlist(false)
+  }
+
+  async function deleteWishlistItem(id: string) {
+    await supabase.from('wishlist').delete().eq('id', id)
+    setWishlist(prev => prev.filter(w => w.id !== id))
+  }
+
   const badgeInfo = getBadgeInfo(ratings.length)
 
   return (
@@ -517,25 +541,78 @@ export default function ProfileTab() {
 
         {/* Wishlist */}
         {(activeSection as string) === 'wishlist' && (
-          <div className="px-4 mt-3 space-y-2">
-            {wishlist.length === 0 && (
-              <div className="text-center py-10"><p className="text-4xl mb-2">☕</p><p className="text-coffee-600 font-display">Your coffee wishlist</p><p className="text-coffee-400 text-sm mt-1">Add drinks you want to try from the feed</p></div>
-            )}
-            {wishlist.map(item => (
-              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg">☕</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-coffee-800 font-semibold text-sm">{item.drink_name}</p>
-                    {item.shop_name && <p className="text-caramel text-xs mt-0.5">@ {item.shop_name}</p>}
-                    {item.notes && <p className="text-coffee-400 text-xs mt-1">{item.notes}</p>}
-                  </div>
-                  {item.is_fulfilled && <span className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full border border-green-200 flex-shrink-0">✓ Tried it!</span>}
+          <div className="px-4 mt-3">
+            {/* Add button */}
+            <button onClick={() => setShowAddWishlist(true)}
+              className="w-full mb-3 flex items-center justify-center gap-2 bg-caramel text-white rounded-xl py-3 font-semibold text-sm shadow-sm">
+              <Plus size={16} /> Add a Drink
+            </button>
+
+            {/* Add form */}
+            {showAddWishlist && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200 mb-3">
+                <p className="text-coffee-700 font-semibold text-sm mb-3">Add to Wishlist</p>
+                <div className="space-y-2 mb-3">
+                  <input
+                    value={newDrink}
+                    onChange={e => setNewDrink(e.target.value)}
+                    placeholder="Drink name (e.g. Lavender Oat Latte)"
+                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
+                  />
+                  <input
+                    value={newShop}
+                    onChange={e => setNewShop(e.target.value)}
+                    placeholder="Shop name (optional)"
+                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setShowAddWishlist(false); setNewDrink(''); setNewShop('') }}
+                    className="flex-1 py-2 rounded-xl text-sm text-coffee-500 bg-cream-100 border border-cream-200 font-medium">
+                    Cancel
+                  </button>
+                  <button onClick={addToWishlist} disabled={!newDrink.trim() || addingWishlist}
+                    className="flex-1 py-2 rounded-xl text-sm text-white bg-caramel font-semibold disabled:opacity-40">
+                    {addingWishlist ? 'Adding...' : 'Add ☕'}
+                  </button>
                 </div>
               </div>
-            ))}
+            )}
+
+            {wishlist.length === 0 && !showAddWishlist && (
+              <div className="text-center py-10">
+                <p className="text-4xl mb-2">☕</p>
+                <p className="text-coffee-600 font-display">Your coffee wishlist</p>
+                <p className="text-coffee-400 text-sm mt-1">Drinks you want to try</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {wishlist.map(item => (
+                <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-lg">☕</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-coffee-800 font-semibold text-sm">{item.drink_name}</p>
+                      {item.shop_name && <p className="text-caramel text-xs mt-0.5">@ {item.shop_name}</p>}
+                      {item.notes && <p className="text-coffee-400 text-xs mt-1">{item.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {item.is_fulfilled && (
+                        <span className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                          ✓ Tried it!
+                        </span>
+                      )}
+                      <button onClick={() => deleteWishlistItem(item.id)} className="text-coffee-300 hover:text-red-400 transition-colors p-1">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
