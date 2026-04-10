@@ -69,7 +69,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       }
     }
 
-    const captionParts = [caption, visitTime ? `🕐 ${visitTime}` : ''].filter(Boolean)
+    const captionParts = [caption].filter(Boolean)
     const { error } = await supabase.from('ratings').insert({
       user_id: profile.id,
       shop_id: shop?.id?.startsWith?.('osm-') || shop?.id?.startsWith?.('fb-') ? null : shop.id,
