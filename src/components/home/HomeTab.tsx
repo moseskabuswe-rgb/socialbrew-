@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 import ShopDetailModal from '../shared/ShopDetailModal'
+import PostDetailModal from '../shared/PostDetailModal'
 import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 
@@ -341,6 +342,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [editCaption, setEditCaption] = useState('')
   const [showMessages, setShowMessages] = useState(false)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
+  const [activePost, setActivePost] = useState<any>(null)
 
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
@@ -527,6 +529,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                 <button onClick={() => setActiveMenu({ ...rating, _isOwn: isOwn })} className="text-coffee-400 p-1"><MoreHorizontal size={18} /></button>
               </div>
 
+              <button onClick={() => setActivePost(rating)} className="w-full text-left">
               <div className="px-4 py-2">
                 {rating.drink_name && (
                   <div className="flex items-center gap-2 mb-2">
@@ -580,6 +583,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                   </div>
                 ) : rating.caption && <p className="text-coffee-700 text-sm mb-2">{rating.caption.split('🕐')[0].replace(/\s*·\s*$/, '').trim() || null}</p>}
               </div>
+              </button>
 
               {shop && (
                 <button onClick={() => setSelectedShop(shop)} className="mx-4 mb-3 flex items-center gap-3 bg-cream-50 rounded-xl p-2.5 border border-cream-200 w-full text-left hover:bg-cream-100 transition-colors">
@@ -639,6 +643,14 @@ export default function HomeTab({ refresh }: { refresh: number }) {
         <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
           <UserProfilePage userId={activeUserProfile} onBack={() => setActiveUserProfile(null)} />
         </div>
+      )}
+      {activePost && (
+        <PostDetailModal
+          rating={activePost}
+          onClose={() => setActivePost(null)}
+          onUserClick={(id) => { setActivePost(null); setActiveUserProfile(id) }}
+          onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }}
+        />
       )}
     </div>
   )
