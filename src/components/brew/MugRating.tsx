@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { notifyFollowersOfPost, notifyMentions } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
 type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string) => void }
@@ -80,7 +81,22 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       photo_url: photoUrl,
       visit_time: visitTime || null,
     })
-    if (!error) { setStep('done'); setTimeout(() => { onComplete(shop?.name); onClose() }, 1600) }
+    if (!error) {
+      // Get the new rating id to reference in notifications
+      const { data: newRating } = await supabase
+        .from('ratings')
+        .select('id')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (newRating) {
+        notifyFollowersOfPost(profile.id, newRating.id)
+        if (caption) notifyMentions(caption, profile.id, newRating.id)
+      }
+      setStep('done')
+      setTimeout(() => { onComplete(shop?.name); onClose() }, 1600)
+    }
     else { setStep('details'); alert('Something went wrong. Please try again.') }
   }
 
