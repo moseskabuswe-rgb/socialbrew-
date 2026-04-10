@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, Zap, Crown, ArrowRight } from 'lucide-react'
+import { TrendingUp, Zap, Crown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
+import ShopDetailModal from '../shared/ShopDetailModal'
 
 export default function TrendingTab() {
   const [shops, setShops] = useState<CoffeeShop[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedShop, setSelectedShop] = useState<CoffeeShop | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -14,7 +16,7 @@ export default function TrendingTab() {
         .select('*')
         .eq('is_active', true)
         .order('weekly_visits', { ascending: false })
-        .limit(10)
+        .limit(20)
       if (data) setShops(data)
       setLoading(false)
     }
@@ -54,43 +56,42 @@ export default function TrendingTab() {
           </div>
         )}
 
-        {/* Spotlight card */}
+        {/* Spotlight */}
         {spotlight && (
           <div className="mx-4 mt-4 mb-5">
-            <div className="relative rounded-2xl overflow-hidden shadow-lg" style={{ height: 220 }}>
+            <button
+              onClick={() => setSelectedShop(spotlight)}
+              className="w-full relative rounded-2xl overflow-hidden shadow-lg text-left"
+              style={{ height: 220 }}>
               {spotlight.photo_url ? (
                 <img src={spotlight.photo_url} alt={spotlight.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-coffee-600 to-coffee-800" />
               )}
-
-              {/* Dark overlay */}
               <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,9,4,0.92) 0%, rgba(13,9,4,0.2) 60%, transparent 100%)' }} />
-
-              {/* Spotlight badge */}
               <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-caramel rounded-full px-3 py-1">
                 <Crown size={11} className="text-white" />
                 <span className="text-white text-xs font-bold tracking-wide">SPOTLIGHT</span>
               </div>
-
-              {/* Content */}
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="bg-caramel text-white text-xs font-bold px-2 py-0.5 rounded">TRENDING #1</span>
                   <span className="text-cream-200 text-xs flex items-center gap-1">
-                    <Zap size={10} className="text-yellow-400" />
-                    {spotlight.weekly_visits.toLocaleString()} visits this week
+                    <Zap size={10} className="text-yellow-400" />{spotlight.weekly_visits} visits this week
                   </span>
                 </div>
-                <h2 className="text-white font-display text-2xl font-bold leading-tight">{spotlight.name}</h2>
-                {spotlight.description && (
-                  <p className="text-cream-200 text-xs mt-1 line-clamp-1">{spotlight.description}</p>
-                )}
-                <button className="mt-2 flex items-center gap-1 text-caramel text-sm font-semibold">
-                  Visit Shop Profile <ArrowRight size={14} />
-                </button>
+                <p className="text-white font-display font-bold text-xl">{spotlight.name}</p>
+                <p className="text-cream-300 text-xs mt-0.5">{spotlight.city}, {spotlight.state}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  {(spotlight.vibes || []).slice(0, 3).map(v => (
+                    <span key={v} className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">{v}</span>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-caramel text-sm font-semibold">Tap to view shop →</span>
+                </div>
               </div>
-            </div>
+            </button>
           </div>
         )}
 
@@ -99,49 +100,52 @@ export default function TrendingTab() {
           <div className="px-4 mb-5">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp size={16} className="text-caramel" />
-              <h2 className="text-coffee-800 font-display font-bold text-lg">Movers & Shakers</h2>
+              <h2 className="font-display font-bold text-coffee-700">Movers & Shakers</h2>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-1">
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-0 scrollbar-hide">
               {movers.map((shop, i) => (
-                <div key={shop.id} className="flex-shrink-0 w-36 bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200">
+                <button
+                  key={shop.id}
+                  onClick={() => setSelectedShop(shop)}
+                  className="flex-shrink-0 w-36 bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200 text-left">
                   <div className="relative h-24 bg-coffee-200">
                     {shop.photo_url ? (
                       <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-3xl opacity-30">☕</span>
-                      </div>
+                      <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">☕</div>
                     )}
-                    <div className="absolute top-2 left-2 bg-coffee-800/80 rounded-full w-5 h-5 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">#{i + 2}</span>
+                    <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-caramel flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">{i + 2}</span>
                     </div>
                   </div>
                   <div className="p-2.5">
                     <p className="text-coffee-800 font-semibold text-xs leading-tight line-clamp-2">{shop.name}</p>
-                    <p className="text-caramel text-xs mt-1 flex items-center gap-0.5">
+                    <p className="text-coffee-400 text-xs mt-0.5">{shop.city}</p>
+                    <p className="text-caramel text-xs font-semibold mt-1 flex items-center gap-0.5">
                       <Zap size={9} />{shop.weekly_visits} visits
                     </p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Full rankings */}
+        {/* Rest of the list */}
         {rest.length > 0 && (
           <div className="px-4">
-            <h2 className="text-coffee-800 font-display font-bold text-lg mb-3">This Week's Rankings</h2>
+            <h2 className="font-display font-bold text-coffee-700 mb-3">All Trending</h2>
             <div className="space-y-2">
               {rest.map((shop, i) => (
-                <div key={shop.id} className="bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
-                  <div className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-coffee-500 font-bold text-sm">#{i + 5}</span>
+                <button
+                  key={shop.id}
+                  onClick={() => setSelectedShop(shop)}
+                  className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-coffee-200 flex items-center justify-center flex-shrink-0">
+                    <span className="text-coffee-600 font-bold text-sm">{i + 5}</span>
                   </div>
-                  <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-coffee-200">
-                    {shop.photo_url && (
-                      <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
-                    )}
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
+                    {shop.photo_url && <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-coffee-800 font-semibold text-sm truncate">{shop.name}</p>
@@ -151,12 +155,16 @@ export default function TrendingTab() {
                     <p className="text-coffee-800 font-bold text-sm">{shop.weekly_visits}</p>
                     <p className="text-coffee-400 text-xs">visits</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      {selectedShop && (
+        <ShopDetailModal shop={selectedShop} onClose={() => setSelectedShop(null)} />
+      )}
     </div>
   )
 }
