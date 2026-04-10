@@ -354,11 +354,7 @@ export default function ProfileTab() {
             </div>
           )}
 
-          {/* Tokens */}
-          <div className="mt-3 flex items-center justify-center gap-1.5 bg-amber-50 rounded-full px-4 py-1.5 border border-amber-200">
-            <span className="text-amber-500">🪙</span>
-            <span className="text-amber-700 font-bold text-sm">{profile.tokens} Tokens</span>
-          </div>
+
         </div>
 
         {/* Section toggle */}
