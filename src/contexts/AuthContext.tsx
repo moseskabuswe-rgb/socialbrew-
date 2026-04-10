@@ -70,13 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function signUp(email: string, password: string, username: string, fullName: string) {
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
-    if (!error) {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('profiles').update({ username, full_name: fullName }).eq('id', user.id)
-        trackEvent('signed_up', { username, email })
-      }
+    // Check username not taken first
+    const { data: existing } = await supabase.from('profiles').select('id').eq('username', username).single()
+    if (existing) return { error: { message: 'That username is already taken. Please choose another.' } }
+
+    const { error, data } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+    if (!error && data.user) {
+      // Update profile with chosen username
+      await supabase.from('profiles').update({ username, full_name: fullName }).eq('id', data.user.id)
+      trackEvent('signed_up', { username, email })
+      // Auto sign in after signup
+      await supabase.auth.signInWithPassword({ email, password })
     }
     return { error }
   }
