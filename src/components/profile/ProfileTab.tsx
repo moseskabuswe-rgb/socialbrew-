@@ -27,6 +27,7 @@ function getBadgeInfo(count: number) {
 function FollowersModal({ userId, type, onClose }: { userId: string; type: 'followers' | 'following'; onClose: () => void }) {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [viewingProfile, setViewingProfile] = useState<any>(null)
   useEffect(() => {
     async function load() {
       if (type === 'followers') {
@@ -55,19 +56,40 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
           {loading && <div className="flex justify-center py-10"><div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
           {!loading && users.length === 0 && <div className="text-center py-10"><p className="text-coffee-400">No {type} yet</p></div>}
           {users.map(u => (
-            <div key={u.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100">
+            <button key={u.id} onClick={() => setViewingProfile(u)} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors text-left">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                 {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-coffee-800 font-semibold text-sm">{u.username}</p>
                 <p className="text-coffee-400 text-xs">{u.badge || 'Coffee Curious'}</p>
               </div>
-            </div>
+              <span className="text-coffee-300 text-xs">→</span>
+            </button>
           ))}
         </div>
       </div>
+      {viewingProfile && (
+        <div className="absolute inset-0 bg-white rounded-t-3xl flex flex-col">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200">
+            <button onClick={() => setViewingProfile(null)} className="text-coffee-500">←</button>
+            <h3 className="font-display font-bold text-coffee-800 text-lg">{viewingProfile.username}</h3>
+          </div>
+          <div className="flex items-center gap-4 px-5 py-5">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-coffee-200 border-4 border-cream-100 shadow flex-shrink-0">
+              {viewingProfile.avatar_url
+                ? <img src={viewingProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-2xl">{viewingProfile.username?.[0]?.toUpperCase()}</span></div>}
+            </div>
+            <div>
+              <p className="text-coffee-800 font-bold text-lg">{viewingProfile.username}</p>
+              {viewingProfile.full_name && <p className="text-coffee-500 text-sm">{viewingProfile.full_name}</p>}
+              <p className="text-caramel text-sm mt-1">{viewingProfile.badge || 'Coffee Curious'}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
