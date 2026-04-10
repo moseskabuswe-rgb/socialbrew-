@@ -466,10 +466,16 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                       {shop && <button onClick={() => setSelectedShop(shop)} className="text-caramel text-xs font-semibold hover:underline">@ {shop.name}</button>}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-14 h-1.5 bg-cream-200 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${rating.fill_level}%`, background: mugColor }} />
-                      </div>
-                      <span className="text-coffee-400 text-xs">{rating.fill_level}%</span>
+                      <svg viewBox="0 0 56 68" width="28" height="34" className="flex-shrink-0">
+                        <defs><clipPath id={`qs-${rating.id}`}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
+                        <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#c8b090" strokeWidth="1.5" />
+                        <g clipPath={`url(#qs-${rating.id})`}>
+                          <rect x="5" y={58-(46*rating.fill_level/100)} width="38" height={46*rating.fill_level/100} fill={mugColor} />
+                        </g>
+                        <rect x="3" y="8" width="42" height="8" rx="4" fill="#d4b890" />
+                        <path d="M43 22 Q56 22 56 33 Q56 44 43 44" stroke="#c8b090" strokeWidth="5" fill="none" strokeLinecap="round" />
+                      </svg>
+                      <span className="text-coffee-500 font-semibold text-xs">{rating.fill_level}%</span>
                       <span className="text-coffee-300 text-xs">·</span>
                       <span className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</span>
                       <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-400">⚡ Quick Sip</span>
