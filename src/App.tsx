@@ -9,6 +9,7 @@ import ProfileTab from './components/profile/ProfileTab'
 import BottomNav from './components/shared/BottomNav'
 import EmailVerificationBanner from './components/shared/EmailVerificationBanner'
 import FeedbackWidget from './components/shared/FeedbackWidget'
+import ShopToast from './components/shared/ShopToast'
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
@@ -16,6 +17,7 @@ function AppContent() {
   const { profile, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [feedRefresh, setFeedRefresh] = useState(0)
+  const [shopToast, setShopToast] = useState<string | null>(null)
 
   if (loading) {
     return (
@@ -31,9 +33,10 @@ function AppContent() {
 
   if (!profile) return <AuthForm />
 
-  function handlePostCreated() {
+  function handlePostCreated(shopName?: string) {
     setFeedRefresh(n => n + 1)
     setActiveTab('home')
+    if (shopName) setShopToast(shopName)
   }
 
   return (
@@ -48,6 +51,7 @@ function AppContent() {
       </div>
       <BottomNav active={activeTab} onChange={setActiveTab} />
       <FeedbackWidget />
+      {shopToast && <ShopToast shopName={shopToast} onDone={() => setShopToast(null)} />}
     </div>
   )
 }
