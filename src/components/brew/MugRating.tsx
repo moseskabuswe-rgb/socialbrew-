@@ -3,7 +3,7 @@ import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
-type Props = { shop: any; onClose: () => void; onComplete: () => void }
+type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string) => void }
 
 const VIBE_OPTIONS = ['☕ Cozy', '⚡ Energizing', '❤️ Loved', '📚 Quiet', '🎉 Social', '🌙 Date Night', '💻 Work-friendly', '✨ Aesthetic']
 const TIME_OPTIONS = ['Early Morning (5–8am)', 'Morning (8–10am)', 'Mid-Morning (10–12pm)', 'Lunch (12–2pm)', 'Afternoon (2–5pm)', 'Evening (5–8pm)', 'Night (8pm+)']
@@ -80,7 +80,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       photo_url: photoUrl,
       visit_time: visitTime || null,
     })
-    if (!error) { setStep('done'); setTimeout(() => { onComplete(); onClose() }, 1600) }
+    if (!error) { setStep('done'); setTimeout(() => { onComplete(shop?.name); onClose() }, 1600) }
     else { setStep('details'); alert('Something went wrong. Please try again.') }
   }
 
