@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, UserPlus } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 import ShopDetailModal from '../shared/ShopDetailModal'
+import UserProfileModal from '../shared/UserProfileModal'
 import { NotificationBell } from '../shared/NotificationsPanel'
 
 function getMugColor(fill: number) {
@@ -324,141 +325,6 @@ function PostMenu({ isOwn, onDelete, onEdit, onReport, onBlock, onClose }: {
 }
 
 
-// ── USER PROFILE MODAL ────────────────────────────────────
-function UserProfileModal({ userId, onClose }: { userId: string; onClose: () => void }) {
-  const { profile: me } = useAuth()
-  const [user, setUser] = useState<any>(null)
-  const [ratings, setRatings] = useState<any[]>([])
-  const [followerCount, setFollowerCount] = useState(0)
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function load() {
-      const [profileRes, ratingsRes, followersRes, followingRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.from('ratings').select('*, coffee_shops(name,photo_url)').eq('user_id', userId).order('created_at', { ascending: false }).limit(6),
-        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-        me ? supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', me.id).eq('following_id', userId) : Promise.resolve({ count: 0 }),
-      ])
-      if (profileRes.data) setUser(profileRes.data)
-      if (ratingsRes.data) setRatings(ratingsRes.data)
-      setFollowerCount(followersRes.count ?? 0)
-      setIsFollowing((followingRes.count ?? 0) > 0)
-      setLoading(false)
-    }
-    load()
-  }, [userId, me])
-
-  async function toggleFollow() {
-    if (!me || !user) return
-    if (isFollowing) {
-      await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', userId)
-      setIsFollowing(false)
-      setFollowerCount(n => Math.max(0, n - 1))
-    } else {
-      await supabase.from('follows').insert({ follower_id: me.id, following_id: userId })
-      // Send notification
-      await supabase.from('notifications').insert({
-        user_id: userId,
-        actor_id: me.id,
-        type: 'follow',
-      })
-      setIsFollowing(true)
-      setFollowerCount(n => n + 1)
-    }
-  }
-
-  function getBadgeInfo(count: number) {
-    if (count >= 100) return { label: 'Brew Master', emoji: '👑' }
-    if (count >= 50) return { label: 'Connoisseur', emoji: '🏆' }
-    if (count >= 25) return { label: 'Enthusiast', emoji: '🔥' }
-    if (count >= 10) return { label: 'Regular', emoji: '⭐' }
-    if (count >= 3) return { label: 'Coffee Lover', emoji: '☕' }
-    return { label: 'Coffee Curious', emoji: '🌱' }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-sm bg-cream-100 rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '85vh' }}>
-        <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-cream-200 rounded-t-3xl">
-          <h3 className="font-display font-bold text-coffee-800 text-lg">Profile</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500"><X size={15} /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto pb-6">
-          {loading && <div className="flex justify-center py-16"><div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
-          {!loading && user && (
-            <>
-              {/* Profile header */}
-              <div className="bg-white mx-4 mt-4 rounded-2xl p-5 shadow-sm border border-cream-200">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 border-4 border-cream-100 shadow">
-                    {user.avatar_url
-                      ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-2xl">{user.username?.[0]?.toUpperCase()}</span></div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-coffee-800 font-bold text-lg">{user.username}</p>
-                    {user.full_name && <p className="text-coffee-500 text-sm">{user.full_name}</p>}
-                    {user.bio && <p className="text-coffee-400 text-xs mt-1 line-clamp-2">{user.bio}</p>}
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <span className="text-sm">{getBadgeInfo(ratings.length).emoji}</span>
-                      <span className="text-coffee-500 text-xs font-medium">{getBadgeInfo(ratings.length).label}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-cream-100">
-                  <div className="text-center">
-                    <p className="text-coffee-800 font-bold text-lg">{ratings.length}</p>
-                    <p className="text-coffee-400 text-xs">Sips</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-coffee-800 font-bold text-lg">{followerCount}</p>
-                    <p className="text-coffee-400 text-xs">Followers</p>
-                  </div>
-                </div>
-
-                {me?.id !== userId && (
-                  <button onClick={toggleFollow}
-                    className={`w-full mt-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${isFollowing ? 'bg-cream-100 text-coffee-700 border border-cream-300' : 'bg-caramel text-white'}`}>
-                    {isFollowing ? 'Following ✓' : <span className="flex items-center justify-center gap-1.5"><UserPlus size={15} /> Follow</span>}
-                  </button>
-                )}
-              </div>
-
-              {/* Recent sips */}
-              {ratings.length > 0 && (
-                <div className="px-4 mt-4">
-                  <p className="text-coffee-500 text-xs font-semibold uppercase tracking-wider mb-2 px-1">Recent Sips</p>
-                  <div className="space-y-2">
-                    {ratings.map(r => {
-                      const shop = r.coffee_shops as any
-                      return (
-                        <div key={r.id} className="bg-white rounded-xl p-3 flex items-center gap-3 shadow-sm border border-cream-200">
-                          <div className="w-9 h-9 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
-                            {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-coffee-700 font-semibold text-sm truncate">{shop?.name ?? 'Moment'}</p>
-                            {r.drink_name && <p className="text-coffee-400 text-xs truncate">{r.drink_name}</p>}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-caramel font-bold text-sm">{r.fill_level}%</p>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function HomeTab({ refresh }: { refresh: number }) {
   const { profile } = useAuth()
@@ -645,7 +511,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-800 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
                       {visitTime && (
                         <span className="text-coffee-400 text-xs bg-cream-100 px-1.5 py-0.5 rounded-full border border-cream-200">
-                          🕐 {visitTime.replace(/\(.*?\)/, '').trim()}
+                          🕐 {visitTime}
                         </span>
                       )}
                     </div>
@@ -706,7 +572,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                       <button onClick={() => setEditingPost(null)} className="text-coffee-400 text-xs">Cancel</button>
                     </div>
                   </div>
-                ) : rating.caption && <p className="text-coffee-700 text-sm mb-2">{rating.caption}</p>}
+                ) : rating.caption && <p className="text-coffee-700 text-sm mb-2">{rating.caption.split('🕐')[0].replace(/\s*·\s*$/, '').trim() || null}</p>}
               </div>
 
               {shop && (
