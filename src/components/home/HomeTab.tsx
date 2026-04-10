@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
@@ -94,11 +94,10 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(6px)' }}>
-      <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '80vh' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
+    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
           <div className="flex items-center gap-2">
-            {activeConvo && <button onClick={() => { setActiveConvo(null); setMessages([]) }} className="text-coffee-400 mr-1">←</button>}
+            {activeConvo && <button onClick={() => { setActiveConvo(null); setMessages([]) }} className="text-coffee-500 mr-1"><ArrowLeft size={22} /></button>}
             <h3 className="font-display font-bold text-coffee-800 text-lg">{activeConvo ? activeConvo.username : 'Messages'}</h3>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500"><X size={15} /></button>
@@ -122,7 +121,7 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
                 </button>
               ))}
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-0">
               {loading && <div className="flex justify-center py-8"><div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
               {!loading && conversations.length === 0 && (
                 <div className="text-center py-10"><p className="text-3xl mb-2">💬</p><p className="text-coffee-500 font-display">No messages yet</p><p className="text-coffee-400 text-sm mt-1">Search a friend to start chatting</p></div>
@@ -163,7 +162,6 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
-      </div>
     </div>
   )
 }
