@@ -3,7 +3,7 @@ import { X, Camera } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
-type Props = { onClose: () => void; onComplete: () => void }
+type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
 
 export default function ShareMoment({ onClose, onComplete }: Props) {
   const { profile } = useAuth()
@@ -69,6 +69,7 @@ export default function ShareMoment({ onClose, onComplete }: Props) {
     setLoading(false)
     onComplete()
     onClose()
+
   }
 
   return (
