@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 import ShopDetailModal from '../shared/ShopDetailModal'
-import UserProfileModal from '../shared/UserProfileModal'
+import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 
 function getMugColor(fill: number) {
@@ -629,7 +629,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
         />
       )}
       {wishlistRating && <WishlistModal rating={wishlistRating} onClose={() => setWishlistRating(null)} />}
-      {activeUserProfile && <UserProfileModal userId={activeUserProfile} onClose={() => setActiveUserProfile(null)} />}
+      {activeUserProfile && (
+        <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
+          <UserProfilePage userId={activeUserProfile} onBack={() => setActiveUserProfile(null)} />
+        </div>
+      )}
     </div>
   )
 }
