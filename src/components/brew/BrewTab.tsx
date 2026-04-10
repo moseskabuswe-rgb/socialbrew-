@@ -5,7 +5,7 @@ import MugRating from './MugRating'
 import ShareMoment from './ShareMoment'
 import QuickSip from './QuickSip'
 
-type Props = { onPostCreated: () => void }
+type Props = { onPostCreated: (shopName?: string) => void }
 type BrewAction = 'rate' | 'share' | 'quicksip' | 'gift'
 
 export default function BrewTab({ onPostCreated }: Props) {
