@@ -3,7 +3,7 @@ import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronR
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import BadgeCelebration from '../shared/BadgeCelebration'
-import UserProfileModal from '../shared/UserProfileModal'
+import UserProfilePage from '../shared/UserProfilePage'
 
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 
@@ -72,7 +72,9 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
         </div>
       </div>
       {viewingProfile && (
-        <UserProfileModal userId={viewingProfile.id} onClose={() => setViewingProfile(null)} />
+        <div className="fixed inset-0 z-[70] bg-cream-100 overflow-y-auto">
+          <UserProfilePage userId={viewingProfile.id} onBack={() => setViewingProfile(null)} />
+        </div>
       )}
     </div>
   )
@@ -349,6 +351,7 @@ export default function ProfileTab() {
   const [followerCount, setFollowerCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [wishlist, setWishlist] = useState<any[]>([])
   const [activeSection, setActiveSection] = useState<'sips' | 'map'>('sips')
   const [showSettings, setShowSettings] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
@@ -356,15 +359,17 @@ export default function ProfileTab() {
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [showShops, setShowShops] = useState(false)
   const [showFindFriends, setShowFindFriends] = useState(false)
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!profile) return
     async function load() {
-      const [ratingsRes, visitsRes, followersRes, followingRes] = await Promise.all([
+      const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
         supabase.from('ratings').select('*, coffee_shops(*)').eq('user_id', profile!.id).order('created_at', { ascending: false }),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),
+        supabase.from('wishlist').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false }),
       ])
       const newCount = ratingsRes.data?.length || 0
       if (prevRatingCount > 0 && newCount > prevRatingCount) {
@@ -375,6 +380,7 @@ export default function ProfileTab() {
       setPrevRatingCount(newCount)
       if (ratingsRes.data) setRatings(ratingsRes.data)
       if (visitsRes.data) setVisitedShops(visitsRes.data)
+      if (wishlistRes.data) setWishlist(wishlistRes.data)
       setFollowerCount(followersRes.count ?? 0)
       setFollowingCount(followingRes.count ?? 0)
       setLoading(false)
@@ -462,14 +468,18 @@ export default function ProfileTab() {
         </div>
 
         {/* Section toggle */}
-        <div className="mx-4 mt-4 flex bg-white rounded-xl p-1 border border-cream-200 shadow-sm">
+        <div className="mx-4 mt-4 grid grid-cols-3 bg-white rounded-xl p-1 border border-cream-200 shadow-sm gap-1">
           <button onClick={() => setActiveSection('sips')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeSection === 'sips' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
-            <Coffee size={14} /> Coffee Sips
+            className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === 'sips' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
+            <Coffee size={12} /> Sips
           </button>
           <button onClick={() => setActiveSection('map')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeSection === 'map' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
-            <MapPin size={14} /> Coffee Map
+            className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === 'map' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
+            <MapPin size={12} /> Map
+          </button>
+          <button onClick={() => setActiveSection('wishlist' as any)}
+            className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === ('wishlist' as any) ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
+            ☕ Wishlist
           </button>
         </div>
 
@@ -505,6 +515,30 @@ export default function ProfileTab() {
           </div>
         )}
 
+        {/* Wishlist */}
+        {(activeSection as string) === 'wishlist' && (
+          <div className="px-4 mt-3 space-y-2">
+            {wishlist.length === 0 && (
+              <div className="text-center py-10"><p className="text-4xl mb-2">☕</p><p className="text-coffee-600 font-display">Your coffee wishlist</p><p className="text-coffee-400 text-sm mt-1">Add drinks you want to try from the feed</p></div>
+            )}
+            {wishlist.map(item => (
+              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg">☕</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-coffee-800 font-semibold text-sm">{item.drink_name}</p>
+                    {item.shop_name && <p className="text-caramel text-xs mt-0.5">@ {item.shop_name}</p>}
+                    {item.notes && <p className="text-coffee-400 text-xs mt-1">{item.notes}</p>}
+                  </div>
+                  {item.is_fulfilled && <span className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full border border-green-200 flex-shrink-0">✓ Tried it!</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Map */}
         {activeSection === 'map' && (
           <div className="px-4 mt-3">
@@ -530,6 +564,11 @@ export default function ProfileTab() {
       {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} />}
       {celebrateBadge && <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />}
       {showFindFriends && <FindFriendsModal onClose={() => setShowFindFriends(false)} />}
+      {viewingUserId && (
+        <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
+          <UserProfilePage userId={viewingUserId} onBack={() => setViewingUserId(null)} />
+        </div>
+      )}
     </div>
   )
 }
