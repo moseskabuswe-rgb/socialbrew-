@@ -40,7 +40,6 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [ratings, setRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [debugInfo, setDebugInfo] = useState<string>('')
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [_savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -48,14 +47,12 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   useEffect(() => {
     async function load() {
       try {
-        setDebugInfo('Fetching...')
         const result = await supabase
           .from('ratings')
           .select('*, profiles!ratings_user_id_fkey(*), coffee_shops(*)')
           .order('created_at', { ascending: false })
           .limit(50)
         
-        setDebugInfo(`Done. error=${JSON.stringify(result.error)} count=${result.data?.length}`)
         
         if (result.error) {
           setError(result.error.message)
@@ -64,7 +61,6 @@ export default function HomeTab({ refresh }: { refresh: number }) {
         }
       } catch(e: any) {
         setError(e?.message || 'Unknown error')
-        setDebugInfo('Caught exception: ' + (e?.message || String(e)))
       }
       setLoading(false)
     }
@@ -102,11 +98,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       </div>
 
       <div className="pb-24 px-4 pt-2">
-        {debugInfo && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
-            <p className="text-yellow-800 text-xs font-mono break-all">{debugInfo}</p>
-          </div>
-        )}
+
 
         {loading && (
           <div className="flex justify-center py-16">
