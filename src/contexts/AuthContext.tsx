@@ -25,10 +25,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   async function loadProfile(userId: string, userEmail?: string) {
+    // Get fresh auth user to check email confirmation status
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const isVerified = !!authUser?.email_confirmed_at
+
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
     if (data) {
+      // Sync email_verified if it changed
+      if (data.email_verified !== isVerified) {
+        await supabase.from('profiles').update({ email_verified: isVerified }).eq('id', userId)
+        data.email_verified = isVerified
+      }
       setProfile(data)
-      // Identify in Posthog
       identifyUser(userId, {
         username: data.username,
         email: userEmail,
