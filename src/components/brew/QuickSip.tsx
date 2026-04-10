@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { notifyFollowersOfPost } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 
@@ -78,6 +79,9 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       vibe_tags: [],
     })
     trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
+    // Notify followers
+    const { data: newRating } = await supabase.from('ratings').select('id').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(1).single()
+    if (newRating) notifyFollowersOfPost(profile.id, newRating.id)
     setDone(true)
     setTimeout(() => { onComplete(shop?.name); onClose() }, 1400)
   }
