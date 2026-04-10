@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 
-type Props = { onClose: () => void; onComplete: () => void }
+type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
 
 function getMugStyle(fill: number) {
   if (fill === 0)  return { liquid: 'transparent', crema: 'transparent', glow: 'none', label: 'Slide to rate', color: '#9b7a45' }
@@ -79,7 +79,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     })
     trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
     setDone(true)
-    setTimeout(() => { onComplete(); onClose() }, 1400)
+    setTimeout(() => { onComplete(shop?.name); onClose() }, 1400)
   }
 
   // SVG mug — slightly smaller, cleaner
