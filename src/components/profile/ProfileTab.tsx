@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
+import PostDetailModal from '../shared/PostDetailModal'
 
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 
@@ -360,6 +361,7 @@ export default function ProfileTab() {
   const [showShops, setShowShops] = useState(false)
   const [showFindFriends, setShowFindFriends] = useState(false)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+  const [activePost, setActivePost] = useState<any>(null)
   const [showAddWishlist, setShowAddWishlist] = useState(false)
   const [newDrink, setNewDrink] = useState('')
   const [newShop, setNewShop] = useState('')
@@ -518,21 +520,25 @@ export default function ProfileTab() {
               {ratings.map(rating => {
                 const shop = rating.coffee_shops as any
                 return (
-                  <div key={rating.id} className="bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
+                  <button key={rating.id} onClick={() => setActivePost(rating)} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
                     <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
-                      {shop?.photo_url && <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />}
+                      {shop?.photo_url
+                        ? <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name ?? 'Moment'}</p>
                       {rating.drink_name && <p className="text-coffee-400 text-xs">{rating.drink_name}</p>}
+                      {rating.photo_url && <p className="text-caramel text-xs">📷 Photo</p>}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-coffee-800 font-bold text-sm">{rating.fill_level}%</p>
                       <div className="w-12 h-1.5 bg-cream-200 rounded-full overflow-hidden mt-1">
                         <div className="h-full rounded-full bg-caramel" style={{ width: `${rating.fill_level}%` }} />
                       </div>
+                      <p className="text-coffee-300 text-xs mt-0.5">→</p>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -645,6 +651,12 @@ export default function ProfileTab() {
         <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
           <UserProfilePage userId={viewingUserId} onBack={() => setViewingUserId(null)} />
         </div>
+      )}
+      {activePost && (
+        <PostDetailModal
+          rating={activePost}
+          onClose={() => setActivePost(null)}
+        />
       )}
     </div>
   )
