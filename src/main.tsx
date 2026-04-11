@@ -4,19 +4,33 @@ import './index.css'
 import App from './App'
 import { initAnalytics } from './lib/analytics'
 
-// Unregister OLD service workers (old hash-prefixed ones from Cloudflare previews)
-// but keep our own /sw.js
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    for (const reg of registrations) {
-      if (!reg.scope.endsWith('/') || reg.active?.scriptURL?.includes('sw.js')) continue
-      reg.unregister()
-    }
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    // Check for updates every 30 seconds
+    setInterval(() => reg.update(), 30000)
+
+    // When a new SW is waiting, reload all clients automatically
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing
+      if (!newWorker) return
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // New version ready — reload the page to get fresh code
+          window.location.reload()
+        }
+      })
+    })
+  }).catch(() => {
+    // Silent fail
   })
 
-  // Register our push notification service worker
-  navigator.serviceWorker.register('/sw.js').catch(() => {
-    // Silent fail — push notifications just won't work
+  // If SW controller changes (new SW took over), reload
+  let refreshing = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true
+      window.location.reload()
+    }
   })
 }
 
