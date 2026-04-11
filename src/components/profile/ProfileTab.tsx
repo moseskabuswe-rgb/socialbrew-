@@ -27,9 +27,11 @@ function getBadgeInfo(count: number) {
 
 // ── FOLLOWERS MODAL ─────────────────────────────────────
 function FollowersModal({ userId, type, onClose }: { userId: string; type: 'followers' | 'following'; onClose: () => void }) {
+  const { profile: me } = useAuth()
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [viewingProfile, setViewingProfile] = useState<any>(null)
+  const [following, setFollowing] = useState<Set<string>>(new Set())
   useEffect(() => {
     async function load() {
       if (type === 'followers') {
@@ -46,7 +48,25 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
       setLoading(false)
     }
     load()
-  }, [userId, type])
+    // Load who the current user is already following
+    if (me) {
+      supabase.from('follows').select('following_id').eq('follower_id', me.id)
+        .then(({ data }) => { if (data) setFollowing(new Set(data.map((f: any) => f.following_id))) })
+    }
+  }, [userId, type, me])
+  async function toggleFollow(targetId: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!me || targetId === me.id) return
+    if (following.has(targetId)) {
+      await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', targetId)
+      setFollowing(prev => { const n = new Set(prev); n.delete(targetId); return n })
+    } else {
+      await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId })
+      await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow' })
+      setFollowing(prev => new Set([...prev, targetId]))
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)', backdropFilter: 'blur(6px)' }}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '70vh' }}>
@@ -67,7 +87,17 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
                 <p className="text-coffee-800 font-semibold text-sm">{u.username}</p>
                 <p className="text-coffee-400 text-xs">{u.badge || 'Coffee Curious'}</p>
               </div>
-              <span className="text-coffee-300 text-xs">→</span>
+              {me?.id !== u.id && (
+                <button
+                  onClick={e => toggleFollow(u.id, e)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    following.has(u.id)
+                      ? 'bg-cream-100 text-coffee-600 border border-cream-300'
+                      : 'bg-caramel text-white'
+                  }`}>
+                  {following.has(u.id) ? 'Following' : 'Follow'}
+                </button>
+              )}
             </button>
           ))}
         </div>
