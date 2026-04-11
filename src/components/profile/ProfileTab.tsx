@@ -393,7 +393,6 @@ export default function ProfileTab() {
   const [activeSection, setActiveSection] = useState<'sips' | 'map'>('sips')
   const [showSettings, setShowSettings] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
-  const [prevRatingCount, setPrevRatingCount] = useState(0)
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [showShops, setShowShops] = useState(false)
   const [showFindFriends, setShowFindFriends] = useState(false)
@@ -415,12 +414,20 @@ export default function ProfileTab() {
         supabase.from('wishlist').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false }),
       ])
       const newCount = ratingsRes.data?.length || 0
-      if (prevRatingCount > 0 && newCount > prevRatingCount) {
-        const oldBadge = getBadgeInfo(prevRatingCount).current
-        const newBadge = getBadgeInfo(newCount).current
-        if (oldBadge.label !== newBadge.label) setCelebrateBadge(newBadge)
+      const newBadge = getBadgeInfo(newCount).current
+      // Compare against the badge stored in the profile DB record
+      // If the badge label changed, celebrate and update DB
+      if (profile!.badge && profile!.badge !== newBadge.label) {
+        const oldBadgeInfo = getBadgeInfo(newCount - 1)
+        if (oldBadgeInfo.current.label !== newBadge.label) {
+          setCelebrateBadge(newBadge)
+          // Update the badge in the database
+          await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
+        }
+      } else if (!profile!.badge) {
+        // First time — set initial badge
+        await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
       }
-      setPrevRatingCount(newCount)
       if (ratingsRes.data) setRatings(ratingsRes.data)
       if (visitsRes.data) setVisitedShops(visitsRes.data)
       if (wishlistRes.data) setWishlist(wishlistRes.data)
