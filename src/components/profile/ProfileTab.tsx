@@ -415,19 +415,27 @@ export default function ProfileTab() {
       ])
       const newCount = ratingsRes.data?.length || 0
       const newBadge = getBadgeInfo(newCount).current
-      // Compare against the badge stored in the profile DB record
-      // If the badge label changed, celebrate and update DB
-      if (profile!.badge && profile!.badge !== newBadge.label) {
-        const oldBadgeInfo = getBadgeInfo(newCount - 1)
-        if (oldBadgeInfo.current.label !== newBadge.label) {
+      // Only celebrate if DB badge is different AND it's actually a promotion
+      // profile.badge is the last known badge saved to the database
+      const storedBadge = profile!.badge
+      if (!storedBadge) {
+        // First time — just set it silently, no celebration
+        await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
+      } else if (storedBadge !== newBadge.label) {
+        // Badge changed — check it's a real promotion not just a data mismatch
+        const tiers = ['Coffee Curious','Coffee Lover','Regular','Enthusiast','Connoisseur','Brew Master']
+        const oldIdx = tiers.indexOf(storedBadge)
+        const newIdx = tiers.indexOf(newBadge.label)
+        if (newIdx > oldIdx) {
+          // Genuine level up — celebrate and save
           setCelebrateBadge(newBadge)
-          // Update the badge in the database
+          await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
+        } else {
+          // Something is off — just silently resync without celebrating
           await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
         }
-      } else if (!profile!.badge) {
-        // First time — set initial badge
-        await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
       }
+      // If storedBadge === newBadge.label, do nothing — already in sync
       if (ratingsRes.data) setRatings(ratingsRes.data)
       if (visitsRes.data) setVisitedShops(visitsRes.data)
       if (wishlistRes.data) setWishlist(wishlistRes.data)
