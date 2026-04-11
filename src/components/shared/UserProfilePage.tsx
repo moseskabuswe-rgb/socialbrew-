@@ -30,6 +30,43 @@ type Props = {
   onBack: () => void
 }
 
+
+// Standalone follow button with its own state
+function FollowButton({ targetId, meId }: { targetId: string; meId?: string }) {
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!meId) return
+    supabase.from('follows').select('*', { count: 'exact', head: true })
+      .eq('follower_id', meId).eq('following_id', targetId)
+      .then(({ count }) => setIsFollowing((count ?? 0) > 0))
+  }, [targetId, meId])
+
+  async function toggle(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!meId || isFollowing === null) return
+    if (isFollowing) {
+      await supabase.from('follows').delete().eq('follower_id', meId).eq('following_id', targetId)
+      setIsFollowing(false)
+    } else {
+      await supabase.from('follows').insert({ follower_id: meId, following_id: targetId })
+      await supabase.from('notifications').insert({ user_id: targetId, actor_id: meId, type: 'follow' })
+      setIsFollowing(true)
+    }
+  }
+
+  if (isFollowing === null) return <div className="w-16 h-7 bg-cream-200 rounded-full animate-pulse" />
+
+  return (
+    <button onClick={toggle}
+      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+        isFollowing ? 'bg-cream-100 text-coffee-600 border border-cream-300' : 'bg-caramel text-white'
+      }`}>
+      {isFollowing ? 'Following' : 'Follow'}
+    </button>
+  )
+}
+
 export default function UserProfilePage({ userId, onBack }: Props) {
   const { profile: me } = useAuth()
   const [user, setUser] = useState<any>(null)
@@ -108,6 +145,9 @@ export default function UserProfilePage({ userId, onBack }: Props) {
                 <p className="text-coffee-800 font-semibold text-sm">{u.username}</p>
                 <p className="text-coffee-400 text-xs">{u.badge || 'Coffee Curious'}</p>
               </div>
+              {me?.id !== u.id && (
+                <FollowButton targetId={u.id} meId={me?.id} />
+              )}
             </div>
           ))}
         </div>
