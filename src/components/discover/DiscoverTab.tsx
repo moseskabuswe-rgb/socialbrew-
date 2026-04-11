@@ -200,13 +200,27 @@ export default function DiscoverTab() {
     }
     searchDebounce.current = setTimeout(async () => {
       setSearching(true)
-      // Search DB first
-      const { data: dbData } = await supabase
+      const q = search.trim()
+      // Search by name OR city OR state — covers international searches like "Freiburg", "Osaka", "Kandern"
+      const { data: byName } = await supabase
         .from('coffee_shops').select('*').eq('is_active', true)
-        .ilike('name', `%${search}%`).limit(5)
-      // Then search OSM
-      const osmData = await searchAnywhere(search)
-      const dbRes = dbData || []
+        .ilike('name', `%${q}%`).limit(10)
+      const { data: byCity } = await supabase
+        .from('coffee_shops').select('*').eq('is_active', true)
+        .ilike('city', `%${q}%`).limit(10)
+      const { data: byState } = await supabase
+        .from('coffee_shops').select('*').eq('is_active', true)
+        .ilike('state', `%${q}%`).limit(10)
+
+      // Merge, deduplicate by id
+      const seen = new Set<string>()
+      const dbRes: any[] = []
+      for (const shop of [...(byName || []), ...(byCity || []), ...(byState || [])]) {
+        if (!seen.has(shop.id)) { seen.add(shop.id); dbRes.push(shop) }
+      }
+
+      // Also search OSM for anything not in our DB
+      const osmData = await searchAnywhere(q)
       setSearchResults([
         ...dbRes,
         ...osmData.filter(o => !dbRes.some(d => d.name.toLowerCase() === (o.name || '').toLowerCase()))
@@ -227,8 +241,13 @@ export default function DiscoverTab() {
         ),
       ].sort((a, b) => {
         if (!userLat || !userLng) return 0
-        const dA = a.lat && a.lng ? distanceMiles(userLat, userLng, a.lat, a.lng) : 999
-        const dB = b.lat && b.lng ? distanceMiles(userLat, userLng, b.lat, b.lng) : 999
+        const dA = a.lat && a.lng ? distanceMiles(userLat, userLng, a.lat, a.lng) : 9999
+        const dB = b.lat && b.lng ? distanceMiles(userLat, userLng, b.lat, b.lng) : 9999
+        // Shops within 100 miles — sort by distance
+        const aClose = dA < 100
+        const bClose = dB < 100
+        if (aClose && !bClose) return -1
+        if (!aClose && bClose) return 1
         return dA - dB
       })
 
