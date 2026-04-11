@@ -335,6 +335,61 @@ function PostMenu({ isOwn, onDelete, onEdit, onReport, onBlock, onClose }: {
 
 
 
+
+// ── SAVED POSTS PANEL ─────────────────────────────────────
+function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClose: () => void; onPostClick: (r: any) => void }) {
+  function getMugColor(fill: number) {
+    if (fill <= 20) return '#b0c4d4'
+    if (fill <= 40) return '#c8924a'
+    if (fill <= 60) return '#a06428'
+    if (fill <= 80) return '#7a3e10'
+    return '#4e2008'
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
+        <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
+        <h2 className="font-display text-xl font-bold text-coffee-800 flex-1">Saved Posts</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto pb-6">
+        {posts.length === 0 && (
+          <div className="text-center py-20">
+            <p className="text-4xl mb-3">🔖</p>
+            <p className="text-coffee-600 font-display text-lg">No saved posts yet</p>
+            <p className="text-coffee-400 text-sm mt-1">Tap the bookmark on any post to save it</p>
+          </div>
+        )}
+        <div className="px-4 pt-4 space-y-2">
+          {posts.map(r => {
+            const user = r.profiles as any
+            const shop = r.coffee_shops as any
+            const mugColor = getMugColor(r.fill_level)
+            return (
+              <button key={r.id} onClick={() => onPostClick(r)} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                  {user?.avatar_url
+                    ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-coffee-700 font-semibold text-sm">{user?.username}</p>
+                  <p className="text-coffee-400 text-xs truncate">{shop?.name ?? 'Moment'}{r.drink_name ? ` · ${r.drink_name}` : ''}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-coffee-700 font-bold text-sm">{r.fill_level}%</p>
+                  <div className="w-10 h-1.5 bg-cream-200 rounded-full overflow-hidden mt-1">
+                    <div className="h-full rounded-full" style={{ width: `${r.fill_level}%`, background: mugColor }} />
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function HomeTab({ refresh }: { refresh: number }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
@@ -351,6 +406,8 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [showMessages, setShowMessages] = useState(false)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
+  const [showSaved, setShowSaved] = useState(false)
+  const [savedPosts, setSavedPostsList] = useState<any[]>([])
 
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
@@ -369,6 +426,26 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setSavedIds(new Set(data.map((s: any) => s.rating_id))) })
       supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id).then(({ data }) => { if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id))) })
     }
+
+    // Realtime: new posts appear automatically
+    const channel = supabase
+      .channel('feed-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ratings' }, () => {
+        loadFeed()
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ratings' }, (payload) => {
+        setRatings(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ratings' }, (payload) => {
+        setRatings(prev => prev.filter(r => r.id !== payload.old.id))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'likes' }, () => {
+        // Refresh like counts
+        loadFeed()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [refresh, loadFeed, profile])
 
   async function toggleLike(ratingId: string) {
@@ -427,6 +504,17 @@ export default function HomeTab({ refresh }: { refresh: number }) {
     setActiveMenu(null)
   }
 
+  async function loadSavedPosts() {
+    if (!profile) return
+    setShowSaved(true)
+    const { data } = await supabase
+      .from('saved_posts')
+      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(*), coffee_shops(*))')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+    if (data) setSavedPostsList(data.map((s: any) => s.ratings).filter(Boolean))
+  }
+
   const visibleRatings = ratings.filter(r => !blockedUsers.has(r.profiles?.id))
 
   return (
@@ -438,7 +526,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
             <MessageCircle size={22} />
           </button>
           <NotificationBell />
-          <button onClick={() => {}} className="w-9 h-9 flex items-center justify-center text-coffee-500">
+          <button onClick={() => loadSavedPosts()} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <Bookmark size={22} />
           </button>
         </div>
@@ -654,6 +742,13 @@ export default function HomeTab({ refresh }: { refresh: number }) {
         <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
           <UserProfilePage userId={activeUserProfile} onBack={() => setActiveUserProfile(null)} />
         </div>
+      )}
+      {showSaved && (
+        <SavedPostsPanel
+          posts={savedPosts}
+          onClose={() => setShowSaved(false)}
+          onPostClick={(r) => { setShowSaved(false); setActivePost(r) }}
+        />
       )}
       {activePost && (
         <PostDetailModal
