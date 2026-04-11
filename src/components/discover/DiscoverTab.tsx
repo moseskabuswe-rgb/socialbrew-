@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, MapPin, Star, CheckCircle, PlusCircle, X, RefreshCw, Navigation } from 'lucide-react'
+import { Search, MapPin, Star, CheckCircle, X, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
 import ShopDetailModal from '../shared/ShopDetailModal'
@@ -258,14 +258,6 @@ export default function DiscoverTab() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="font-display text-2xl font-bold text-coffee-800">Discover</h1>
           <div className="flex gap-2">
-            <button onClick={getLocation}
-              className={`w-8 h-8 rounded-full bg-white border border-cream-200 flex items-center justify-center shadow-sm ${locating ? 'text-caramel' : 'text-coffee-500'}`}>
-              <Navigation size={14} className={locating ? 'animate-pulse' : ''} />
-            </button>
-            <button onClick={() => setShowSuggest(true)}
-              className="w-8 h-8 rounded-full bg-white border border-cream-200 flex items-center justify-center text-coffee-500 shadow-sm">
-              <PlusCircle size={15} />
-            </button>
             <button onClick={() => userLat && userLng && loadNearby(userLat, userLng)}
               className="w-8 h-8 rounded-full bg-white border border-cream-200 flex items-center justify-center text-coffee-500 shadow-sm">
               <RefreshCw size={14} className={loadingNearby ? 'animate-spin' : ''} />
@@ -358,9 +350,6 @@ export default function DiscoverTab() {
             <p className="text-coffee-400 text-sm mt-1">
               {isSearching ? 'Try a different spelling or city name' : 'Try refreshing or suggest a missing shop'}
             </p>
-            <button onClick={() => setShowSuggest(true)} className="mt-3 text-caramel text-sm underline">
-              Suggest a shop →
-            </button>
           </div>
         )}
 
