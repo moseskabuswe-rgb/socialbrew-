@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Search, MapPin, Star, CheckCircle, X, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
-import ShopDetailModal from '../shared/ShopDetailModal'
+import ShopDetailPage from '../shared/ShopDetailPage'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
 
@@ -449,7 +449,7 @@ export default function DiscoverTab() {
       </div>
 
       {selectedShop && (
-        <ShopDetailModal shop={selectedShop} onClose={() => setSelectedShop(null)} />
+        <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />
       )}
     </div>
   )
