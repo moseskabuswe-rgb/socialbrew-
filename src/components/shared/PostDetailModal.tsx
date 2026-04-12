@@ -63,6 +63,24 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       setLoading(false)
     }
     load()
+
+    // Realtime comments
+    const channel = supabase
+      .channel('comments-' + rating.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `rating_id=eq.${rating.id}` }, async (payload) => {
+        // Fetch with profile data
+        const { data } = await supabase.from('comments').select('*, profiles(username, avatar_url)').eq('id', payload.new.id).single()
+        if (data) setComments(prev => {
+          if (prev.find(c => c.id === data.id)) return prev
+          return [...prev, data]
+        })
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments', filter: `rating_id=eq.${rating.id}` }, (payload) => {
+        setComments(prev => prev.filter(c => c.id !== payload.old.id))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [rating.id, profile])
 
   async function toggleLike() {
