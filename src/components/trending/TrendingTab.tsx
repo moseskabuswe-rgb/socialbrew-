@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Zap, Crown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
-import ShopDetailModal from '../shared/ShopDetailModal'
+import ShopDetailPage from '../shared/ShopDetailPage'
 
 export default function TrendingTab() {
   const [shops, setShops] = useState<CoffeeShop[]>([])
@@ -163,7 +163,7 @@ export default function TrendingTab() {
       </div>
 
       {selectedShop && (
-        <ShopDetailModal shop={selectedShop} onClose={() => setSelectedShop(null)} />
+        <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />
       )}
     </div>
   )
