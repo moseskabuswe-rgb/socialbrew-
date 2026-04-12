@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import PostDetailModal from './PostDetailModal'
+import ShopDetailPage from './ShopDetailPage'
 import { ArrowLeft, UserPlus, Check, MapPin, Coffee, Gift } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -80,6 +81,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
   const [nestedUserId, setNestedUserId] = useState<string | null>(null)
+  const [selectedShop, setSelectedShop] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -257,26 +259,25 @@ export default function UserProfilePage({ userId, onBack }: Props) {
             {ratings.map(r => {
               const shop = r.coffee_shops as any
               return (
-                <button key={r.id} onClick={() => setActivePost(r)} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
+                <div key={r.id} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
+                  <button onClick={() => shop && setSelectedShop(shop)} className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
                     {shop?.photo_url
                       ? <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
+                  </button>
+                  <button onClick={() => setActivePost(r)} className="flex-1 min-w-0 text-left">
                     <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name ?? 'Moment'}</p>
                     {r.drink_name && <p className="text-coffee-400 text-xs">{r.drink_name}</p>}
                     {r.visit_time && <p className="text-coffee-300 text-xs">🕐 {r.visit_time}</p>}
                     {r.photo_url && <p className="text-caramel text-xs">📷 Photo</p>}
-                  </div>
+                  </button>
                   <div className="text-right flex-shrink-0">
                     <p className="text-coffee-800 font-bold text-sm">{r.fill_level}%</p>
                     <div className="w-12 h-1.5 bg-cream-200 rounded-full overflow-hidden mt-1">
                       <div className="h-full rounded-full" style={{ width: `${r.fill_level}%`, background: getMugColor(r.fill_level) }} />
                     </div>
-                    <p className="text-coffee-300 text-xs mt-0.5">→</p>
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>
@@ -360,7 +361,8 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           </div>
         )}
       </div>
-    {activePost && <PostDetailModal rating={activePost} onClose={() => setActivePost(null)} />}
+    {activePost && <PostDetailModal rating={activePost} onClose={() => setActivePost(null)} onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }} />}
+    {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
     {nestedUserId && (
       <div className="fixed inset-0 z-[80] bg-cream-100 overflow-y-auto">
         <UserProfilePage userId={nestedUserId} onBack={() => setNestedUserId(null)} />
