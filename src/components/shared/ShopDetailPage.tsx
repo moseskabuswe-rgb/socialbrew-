@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, MapPin, Star, Users, Coffee } from 'lucide-react'
+import { ArrowLeft, MapPin, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
@@ -151,10 +151,10 @@ export default function ShopDetailPage({ shop, onBack }: Props) {
 
   const avgFill = allRatings.length > 0
     ? Math.round(allRatings.reduce((s, r) => s + r.fill_level, 0) / allRatings.length)
-    : resolvedShop.avg_rating ? Math.round(resolvedShop.avg_rating * 20) : 0
+    : (resolvedShop.avg_fill ?? 0)
 
   const tabs = [
-    { key: 'overview' as Tab, icon: <Star size={13} />, label: `All${allRatings.length > 0 ? ` (${allRatings.length})` : ''}` },
+    { key: 'overview' as Tab, icon: <span className="text-sm">☕</span>, label: `All${allRatings.length > 0 ? ` (${allRatings.length})` : ''}` },
     { key: 'my-brews' as Tab, icon: <Coffee size={13} />, label: `Mine${myRatings.length > 0 ? ` (${myRatings.length})` : ''}` },
     { key: 'friends' as Tab, icon: <Users size={13} />, label: `Friends${friendRatings.length > 0 ? ` (${friendRatings.length})` : ''}` },
   ]
