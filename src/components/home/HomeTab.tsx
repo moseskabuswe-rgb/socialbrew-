@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft, Share2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
@@ -412,7 +412,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
       .from('ratings')
-      .select('*, profiles!ratings_user_id_fkey(*), coffee_shops(*)')
+      .select('*, profiles!ratings_user_id_fkey(*), coffee_shops(*), comments(id, content, created_at, user_id, profiles(username, avatar_url))')
       .order('created_at', { ascending: false })
       .limit(50)
     setRatings(data || [])
@@ -513,6 +513,19 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
     if (data) setSavedPostsList(data.map((s: any) => s.ratings).filter(Boolean))
+  }
+
+  async function sharePost(rating: any) {
+    const shop = rating.coffee_shops as any
+    const user = rating.profiles as any
+    const text = `${user?.username} brewed at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% on Social Brew`
+    const url = 'https://socialbrew-ani.pages.dev'
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Social Brew', text, url }) } catch { /* dismissed */ }
+    } else {
+      await navigator.clipboard.writeText(`${text} ${url}`)
+      alert('Link copied to clipboard!')
+    }
   }
 
   const visibleRatings = ratings.filter(r => !blockedUsers.has(r.profiles?.id))
@@ -700,11 +713,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
               <div className="flex items-center px-4 pb-2 gap-4">
                 <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1.5 active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                   <Heart size={20} fill={isLiked ? '#e05a5a' : 'none'} />
-                  {rating.likes_count > 0 && <span className="text-sm font-medium">{rating.likes_count}</span>}
+                  <span className="text-sm font-medium">{rating.likes_count || 0}</span>
                 </button>
-                <button onClick={() => setActiveComments(rating.id)} className="flex items-center gap-1.5 text-coffee-500 active:scale-90">
+                <button onClick={() => setActivePost(rating)} className="flex items-center gap-1.5 text-coffee-500 active:scale-90">
                   <MessageCircle size={20} />
-                  {rating.comments_count > 0 && <span className="text-sm">{rating.comments_count}</span>}
+                  <span className="text-sm">{rating.comments_count || 0}</span>
                 </button>
                 <button onClick={() => setWishlistRating(rating)} className="flex items-center gap-1.5 text-coffee-400 active:scale-90">
                   <Plus size={18} /><span className="text-xs">Wishlist</span>
@@ -715,7 +728,33 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                 <button onClick={() => toggleSave(rating.id)} className="active:scale-90" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
                   <Bookmark size={18} fill={isSaved ? '#c8853a' : 'none'} />
                 </button>
+                <button onClick={() => sharePost(rating)} className="active:scale-90 text-coffee-400">
+                  <Share2 size={18} />
+                </button>
               </div>
+              {/* Top 2 comments preview */}
+              {(rating.comments as any)?.length > 0 && (
+                <div className="px-4 pb-3 space-y-1.5">
+                  {(rating.comments as any).slice(0, 2).map((cm: any) => (
+                    <div key={cm.id} className="flex gap-2 items-start">
+                      <div className="w-5 h-5 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mt-0.5">
+                        {cm.profiles?.avatar_url
+                          ? <img src={cm.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs" style={{fontSize:8}}>{cm.profiles?.username?.[0]?.toUpperCase()}</span></div>}
+                      </div>
+                      <p className="text-coffee-600 text-xs leading-snug flex-1">
+                        <span className="font-semibold text-coffee-700">{cm.profiles?.username} </span>
+                        {cm.content}
+                      </p>
+                    </div>
+                  ))}
+                  {(rating.comments as any).length > 2 && (
+                    <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
+                      View all {rating.comments_count} comments →
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="px-4 pb-3">
                 <p className="text-coffee-300 text-xs">{formatDate(rating.created_at)}</p>
               </div>
