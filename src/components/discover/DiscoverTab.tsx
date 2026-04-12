@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, MapPin, Star, CheckCircle, X, RefreshCw } from 'lucide-react'
+import { Search, MapPin, CheckCircle, X, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
 import ShopDetailPage from '../shared/ShopDetailPage'
@@ -400,10 +400,10 @@ export default function DiscoverTab() {
                     </span>
                   </div>
                 )}
-                {(shop.avg_rating ?? 0) > 0 && (
+                {(shop as any).avg_fill > 0 && (
                   <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
-                    <Star size={11} className="text-caramel fill-caramel" />
-                    <span className="text-coffee-800 text-xs font-bold">{shop.avg_rating}</span>
+                    <span className="text-base">☕</span>
+                    <span className="text-coffee-800 text-xs font-bold">{(shop as any).avg_fill}%</span>
                   </div>
                 )}
               </div>
