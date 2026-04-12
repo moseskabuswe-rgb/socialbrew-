@@ -426,21 +426,42 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id).then(({ data }) => { if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id))) })
     }
 
-    // Realtime: new posts appear automatically
+    // Realtime: new posts, likes, comments update automatically
     const channel = supabase
       .channel('feed-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ratings' }, () => {
         loadFeed()
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ratings' }, (payload) => {
-        setRatings(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r))
+        // Surgically update counts and other fields without full reload
+        setRatings(prev => prev.map(r => r.id === payload.new.id
+          ? { ...r, likes_count: payload.new.likes_count, comments_count: payload.new.comments_count }
+          : r))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ratings' }, (payload) => {
         setRatings(prev => prev.filter(r => r.id !== payload.old.id))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'likes' }, () => {
-        // Refresh like counts
-        loadFeed()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, (payload) => {
+        // Immediately update like count in local state
+        setRatings(prev => prev.map(r => r.id === payload.new.rating_id
+          ? { ...r, likes_count: (r.likes_count || 0) + 1 }
+          : r))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, (payload) => {
+        setRatings(prev => prev.map(r => r.id === payload.old.rating_id
+          ? { ...r, likes_count: Math.max(0, (r.likes_count || 0) - 1) }
+          : r))
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, (payload) => {
+        // Immediately update comment count in local state
+        setRatings(prev => prev.map(r => r.id === payload.new.rating_id
+          ? { ...r, comments_count: (r.comments_count || 0) + 1 }
+          : r))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, (payload) => {
+        setRatings(prev => prev.map(r => r.id === payload.old.rating_id
+          ? { ...r, comments_count: Math.max(0, (r.comments_count || 0) - 1) }
+          : r))
       })
       .subscribe()
 
