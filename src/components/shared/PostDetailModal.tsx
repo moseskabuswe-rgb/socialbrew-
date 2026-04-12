@@ -146,10 +146,14 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   async function sharePost() {
     const shop = rating.coffee_shops as any
     const user = rating.profiles as any
-    const text = `${user?.username} brewed at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% on Social Brew`
+    const text = `Check out ${user?.username}'s brew at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% ☕`
     const url = 'https://socialbrew-ani.pages.dev'
     if (navigator.share) {
-      try { await navigator.share({ title: 'Social Brew', text, url }) } catch { /* dismissed */ }
+      try { await navigator.share({ title: 'Social Brew', text, url }) } catch {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(`${text} ${url}`)
+        alert('Link copied!')
+      }
     } else {
       await navigator.clipboard.writeText(`${text} ${url}`)
       alert('Link copied!')
