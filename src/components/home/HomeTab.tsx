@@ -188,7 +188,6 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
     const { data } = await supabase.from('comments').insert({ user_id: profile.id, rating_id: ratingId, content }).select('*, profiles(username, avatar_url)').single()
     if (data) {
       setComments(prev => [...prev, data])
-      await supabase.from('ratings').update({ comments_count: comments.length + 1 }).eq('id', ratingId)
       // Notify post owner of comment
       const { data: rating } = await supabase.from('ratings').select('user_id').eq('id', ratingId).single()
       if (rating?.user_id) sendNotification({ userId: rating.user_id, actorId: profile.id, type: 'comment', ratingId })
