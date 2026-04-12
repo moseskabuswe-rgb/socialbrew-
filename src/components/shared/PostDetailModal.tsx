@@ -45,6 +45,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [posting, setPosting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set())
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionUsers, setMentionUsers] = useState<any[]>([])
   const [mentionStart, setMentionStart] = useState(-1)
@@ -55,14 +56,16 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
 
   useEffect(() => {
     async function load() {
-      const [commentsRes, likeRes, saveRes] = await Promise.all([
+      const [commentsRes, likeRes, saveRes, commentLikesRes] = await Promise.all([
         supabase.from('comments').select('*, profiles(username, avatar_url)').eq('rating_id', rating.id).order('created_at', { ascending: true }),
         profile ? supabase.from('likes').select('id').eq('user_id', profile.id).eq('rating_id', rating.id).single() : Promise.resolve({ data: null }),
         profile ? supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).eq('rating_id', rating.id).single() : Promise.resolve({ data: null }),
+        profile ? supabase.from('comment_likes').select('comment_id').eq('user_id', profile.id) : Promise.resolve({ data: [] }),
       ])
       if (commentsRes.data) setComments(commentsRes.data)
       setIsLiked(!!likeRes.data)
       setIsSaved(!!saveRes.data)
+      if (commentLikesRes.data) setLikedComments(new Set(commentLikesRes.data.map((l: any) => l.comment_id)))
       setLoading(false)
     }
     load()
@@ -150,6 +153,19 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     } else {
       await navigator.clipboard.writeText(`${text} ${url}`)
       alert('Link copied!')
+    }
+  }
+
+  async function toggleCommentLike(commentId: string) {
+    if (!profile) return
+    if (likedComments.has(commentId)) {
+      await supabase.from('comment_likes').delete().eq('user_id', profile.id).eq('comment_id', commentId)
+      setLikedComments(prev => { const n = new Set(prev); n.delete(commentId); return n })
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, likes_count: Math.max(0, (c.likes_count || 0) - 1) } : c))
+    } else {
+      await supabase.from('comment_likes').insert({ user_id: profile.id, comment_id: commentId })
+      setLikedComments(prev => new Set([...prev, commentId]))
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, likes_count: (c.likes_count || 0) + 1 } : c))
     }
   }
 
@@ -323,12 +339,20 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                       <p className="text-coffee-700 text-sm mt-0.5">{comment.content}</p>
                     </div>
                   )}
-                  {comment.user_id === profile?.id && editingId !== comment.id && (
-                    <div className="flex gap-3 mt-1 px-1">
-                      <button onClick={() => { setEditingId(comment.id); setEditText(comment.content) }} className="text-coffee-400 text-xs flex items-center gap-1"><Edit2 size={10} /> Edit</button>
-                      <button onClick={() => deleteComment(comment.id)} className="text-red-400 text-xs flex items-center gap-1"><Trash2 size={10} /> Delete</button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3 mt-1 px-1">
+                    {comment.user_id === profile?.id && editingId !== comment.id && (
+                      <>
+                        <button onClick={() => { setEditingId(comment.id); setEditText(comment.content) }} className="text-coffee-400 text-xs flex items-center gap-1"><Edit2 size={10} /> Edit</button>
+                        <button onClick={() => deleteComment(comment.id)} className="text-red-400 text-xs flex items-center gap-1"><Trash2 size={10} /> Delete</button>
+                      </>
+                    )}
+                    <button onClick={() => toggleCommentLike(comment.id)}
+                      className="flex items-center gap-1 text-xs ml-auto"
+                      style={{ color: likedComments.has(comment.id) ? '#e05a5a' : '#9b7a45' }}>
+                      <Heart size={11} fill={likedComments.has(comment.id) ? '#e05a5a' : 'none'} />
+                      {(comment.likes_count || 0) > 0 && <span>{comment.likes_count}</span>}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
