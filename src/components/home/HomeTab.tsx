@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 import { sendNotification, notifyMentions } from '../../lib/push'
-import ShopDetailModal from '../shared/ShopDetailModal'
+import ShopDetailPage from '../shared/ShopDetailPage'
 import PostDetailModal from '../shared/PostDetailModal'
 import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
@@ -724,7 +724,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
         })}
       </div>
 
-      {selectedShop && <ShopDetailModal shop={selectedShop} onClose={() => setSelectedShop(null)} />}
+      {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
       {activeComments && <CommentsSection ratingId={activeComments} onClose={() => setActiveComments(null)} />}
       {showMessages && <MessagesPanel onClose={() => setShowMessages(false)} />}
       {activeMenu && (
