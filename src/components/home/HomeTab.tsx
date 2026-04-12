@@ -335,6 +335,70 @@ function PostMenu({ isOwn, onDelete, onEdit, onReport, onBlock, onClose }: {
 
 
 
+
+// ── SHARE SHEET ───────────────────────────────────────────
+function ShareSheet({ rating, onClose, onExternal, onDM }: {
+  rating: any
+  onClose: () => void
+  onExternal: () => void
+  onDM: () => void
+}) {
+  const shop = rating.coffee_shops as any
+  const user = rating.profiles as any
+  const mugColor = rating.fill_level >= 80 ? '#4e2008' : rating.fill_level >= 60 ? '#7a3e10' : rating.fill_level >= 40 ? '#a06428' : '#c8924a'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-sm bg-white rounded-t-3xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
+        {/* Post preview */}
+        <div className="flex items-center gap-3 bg-cream-50 rounded-2xl p-3 mb-4 border border-cream-200">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+            {user?.avatar_url
+              ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span></div>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-coffee-700 font-semibold text-sm">{user?.username}</p>
+            <p className="text-coffee-400 text-xs truncate">{shop?.name ?? 'Moment'} · {rating.fill_level}%</p>
+          </div>
+          <svg viewBox="0 0 56 68" width="32" height="38">
+            <defs><clipPath id="ss-mug"><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
+            <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#c8b090" strokeWidth="1.5" />
+            <g clipPath="url(#ss-mug)">
+              <rect x="5" y={58-(46*rating.fill_level/100)} width="38" height={46*rating.fill_level/100} fill={mugColor} />
+            </g>
+            <rect x="3" y="8" width="42" height="8" rx="4" fill="#d4b890" />
+            <path d="M43 22 Q56 22 56 33 Q56 44 43 44" stroke="#c8b090" strokeWidth="5" fill="none" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        {/* Share options */}
+        <div className="space-y-2">
+          <button onClick={() => { onDM(); onClose() }}
+            className="w-full flex items-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors rounded-xl px-4 py-3.5 text-left border border-cream-200">
+            <span className="text-xl">💬</span>
+            <div>
+              <p className="text-coffee-800 font-semibold text-sm">Send via Message</p>
+              <p className="text-coffee-400 text-xs">Share with someone on Social Brew</p>
+            </div>
+          </button>
+          <button onClick={() => { onExternal(); onClose() }}
+            className="w-full flex items-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors rounded-xl px-4 py-3.5 text-left border border-cream-200">
+            <span className="text-xl">🔗</span>
+            <div>
+              <p className="text-coffee-800 font-semibold text-sm">Share Link</p>
+              <p className="text-coffee-400 text-xs">Send to WhatsApp, Instagram, etc.</p>
+            </div>
+          </button>
+        </div>
+
+        <button onClick={onClose} className="w-full mt-3 py-3 text-coffee-500 text-sm font-medium">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
 // ── SAVED POSTS PANEL ─────────────────────────────────────
 function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClose: () => void; onPostClick: (r: any) => void }) {
   function getMugColor(fill: number) {
@@ -407,6 +471,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [activePost, setActivePost] = useState<any>(null)
   const [showSaved, setShowSaved] = useState(false)
   const [savedPosts, setSavedPostsList] = useState<any[]>([])
+  const [sharingPost, setSharingPost] = useState<any>(null)
 
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
@@ -536,15 +601,19 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   }
 
   async function sharePost(rating: any) {
+    setSharingPost(rating)
+  }
+
+  async function shareExternal(rating: any) {
     const shop = rating.coffee_shops as any
     const user = rating.profiles as any
-    const text = `${user?.username} brewed at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% on Social Brew`
+    const text = `Check out ${user?.username}'s brew at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% ☕`
     const url = 'https://socialbrew-ani.pages.dev'
     if (navigator.share) {
       try { await navigator.share({ title: 'Social Brew', text, url }) } catch { /* dismissed */ }
     } else {
       await navigator.clipboard.writeText(`${text} ${url}`)
-      alert('Link copied to clipboard!')
+      alert('Link copied!')
     }
   }
 
@@ -718,15 +787,15 @@ export default function HomeTab({ refresh }: { refresh: number }) {
               </button>
 
               {shop && (
-                <button onClick={() => setSelectedShop(shop)} className="mx-4 mb-3 flex items-center gap-3 bg-cream-50 rounded-xl p-2.5 border border-cream-200 w-full text-left hover:bg-cream-100 transition-colors">
+                <button onClick={() => setSelectedShop(shop)} className="mx-4 mb-3 w-[calc(100%-2rem)] flex items-center gap-3 bg-cream-50 rounded-xl p-2.5 border border-cream-200 text-left hover:bg-cream-100 transition-colors overflow-hidden">
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
                     {shop.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
-                    <p className="text-coffee-400 text-xs truncate">{shop.address}{shop.city ? `, ${shop.city}` : ''}</p>
+                    <p className="text-coffee-400 text-xs truncate">{shop.city ? shop.city : shop.address}</p>
                   </div>
-                  <span className="text-caramel text-xs font-medium flex-shrink-0">View →</span>
+                  <span className="text-caramel text-xs font-semibold flex-shrink-0 ml-1">View</span>
                 </button>
               )}
 
@@ -801,6 +870,14 @@ export default function HomeTab({ refresh }: { refresh: number }) {
         <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
           <UserProfilePage userId={activeUserProfile} onBack={() => setActiveUserProfile(null)} />
         </div>
+      )}
+      {sharingPost && (
+        <ShareSheet
+          rating={sharingPost}
+          onClose={() => setSharingPost(null)}
+          onExternal={() => shareExternal(sharingPost)}
+          onDM={() => { setSharingPost(null); setShowMessages(true) }}
+        />
       )}
       {showSaved && (
         <SavedPostsPanel
