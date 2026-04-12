@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2 } from 'lucide-react'
+import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Share2 } from 'lucide-react'
 import { sendNotification, notifyMentions } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -45,6 +45,9 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [posting, setPosting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionUsers, setMentionUsers] = useState<any[]>([])
+  const [mentionStart, setMentionStart] = useState(-1)
 
   const user = rating.profiles as any
   const shop = rating.coffee_shops as any
@@ -102,6 +105,46 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     } else {
       await supabase.from('saved_posts').insert({ user_id: profile.id, rating_id: rating.id })
       setIsSaved(true)
+    }
+  }
+
+  async function handleCommentChange(val: string) {
+    setNewComment(val)
+    // Detect @mention trigger
+    const lastAt = val.lastIndexOf('@')
+    if (lastAt >= 0) {
+      const query = val.slice(lastAt + 1).split(' ')[0]
+      if (query.length >= 1) {
+        setMentionStart(lastAt)
+        setMentionQuery(query)
+        const { data } = await supabase.from('profiles').select('id, username, avatar_url')
+          .ilike('username', `${query}%`).neq('id', profile?.id ?? '').limit(5)
+        setMentionUsers(data || [])
+        return
+      }
+    }
+    setMentionUsers([])
+    setMentionStart(-1)
+  }
+
+  function insertMention(username: string) {
+    const before = newComment.slice(0, mentionStart)
+    const after = newComment.slice(mentionStart + mentionQuery.length + 1)
+    setNewComment(`${before}@${username} ${after}`)
+    setMentionUsers([])
+    setMentionStart(-1)
+  }
+
+  async function sharePost() {
+    const shop = rating.coffee_shops as any
+    const user = rating.profiles as any
+    const text = `${user?.username} brewed at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% on Social Brew`
+    const url = 'https://socialbrew-ani.pages.dev'
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Social Brew', text, url }) } catch { /* dismissed */ }
+    } else {
+      await navigator.clipboard.writeText(`${text} ${url}`)
+      alert('Link copied!')
     }
   }
 
@@ -235,6 +278,9 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                 <MessageCircle size={22} />
                 {comments.length > 0 && <span className="text-sm">{comments.length}</span>}
               </div>
+              <button onClick={sharePost} className="active:scale-90 transition-transform text-coffee-400">
+                <Share2 size={20} />
+              </button>
               <button onClick={toggleSave} className="ml-auto active:scale-90 transition-transform" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
                 <Bookmark size={20} fill={isSaved ? '#c8853a' : 'none'} />
               </button>
@@ -286,15 +332,36 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       </div>
 
       {/* Comment input */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-cream-200 px-4 py-3 flex gap-2 max-w-lg mx-auto">
-        <input value={newComment} onChange={e => setNewComment(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && postComment()}
-          placeholder="Add a comment... use @username to mention"
-          className="flex-1 bg-cream-100 rounded-full px-4 py-2 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200" />
-        <button onClick={postComment} disabled={!newComment.trim() || posting}
-          className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40">
-          <Send size={15} className="text-white" />
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-cream-200 max-w-lg mx-auto">
+        {/* @mention autocomplete */}
+        {mentionUsers.length > 0 && (
+          <div className="border-b border-cream-200">
+            {mentionUsers.map(u => (
+              <button key={u.id} onClick={() => insertMention(u.username)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cream-50 transition-colors text-left">
+                <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                  {u.avatar_url
+                    ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username?.[0]?.toUpperCase()}</span></div>}
+                </div>
+                <span className="text-coffee-800 text-sm font-medium">@{u.username}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="px-4 py-3 flex gap-2 items-center">
+          <button onClick={sharePost} className="text-coffee-400 flex-shrink-0">
+            <Share2 size={20} />
+          </button>
+          <input value={newComment} onChange={e => handleCommentChange(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !mentionUsers.length && postComment()}
+            placeholder="Add a comment... @mention someone"
+            className="flex-1 bg-cream-100 rounded-full px-4 py-2 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200" />
+          <button onClick={postComment} disabled={!newComment.trim() || posting}
+            className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40 flex-shrink-0">
+            <Send size={15} className="text-white" />
+          </button>
+        </div>
       </div>
     </div>
   )
