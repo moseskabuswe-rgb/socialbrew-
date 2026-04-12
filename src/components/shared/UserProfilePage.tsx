@@ -79,6 +79,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<Section>('sips')
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
+  const [nestedUserId, setNestedUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -136,15 +137,17 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           {list.length === 0 && <div className="text-center py-16"><p className="text-coffee-400">No {showFollowers} yet</p></div>}
           {list.map((u: any) => (
             <div key={u.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                {u.avatar_url
-                  ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-coffee-800 font-semibold text-sm">{u.username}</p>
-                <p className="text-coffee-400 text-xs">{u.badge || 'Coffee Curious'}</p>
-              </div>
+              <button onClick={() => setNestedUserId(u.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                  {u.avatar_url
+                    ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-coffee-800 font-semibold text-sm">{u.username}</p>
+                  <p className="text-coffee-400 text-xs">{u.badge || 'Coffee Curious'}</p>
+                </div>
+              </button>
               {me?.id !== u.id && (
                 <FollowButton targetId={u.id} meId={me?.id} />
               )}
@@ -358,6 +361,11 @@ export default function UserProfilePage({ userId, onBack }: Props) {
         )}
       </div>
     {activePost && <PostDetailModal rating={activePost} onClose={() => setActivePost(null)} />}
+    {nestedUserId && (
+      <div className="fixed inset-0 z-[80] bg-cream-100 overflow-y-auto">
+        <UserProfilePage userId={nestedUserId} onBack={() => setNestedUserId(null)} />
+      </div>
+    )}
     </div>
   )
 }
