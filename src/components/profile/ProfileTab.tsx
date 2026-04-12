@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
 import PostDetailModal from '../shared/PostDetailModal'
+import ShopDetailPage from '../shared/ShopDetailPage'
 
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 
@@ -114,7 +115,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
 }
 
 // ── VISITED SHOPS MODAL ──────────────────────────────────
-function VisitedShopsModal({ visits, onClose }: { visits: any[]; onClose: () => void }) {
+function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; onClose: () => void; onShopClick: (shop: any) => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)', backdropFilter: 'blur(6px)' }}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '70vh' }}>
@@ -127,7 +128,7 @@ function VisitedShopsModal({ visits, onClose }: { visits: any[]; onClose: () => 
           {visits.map(v => {
             const shop = v.coffee_shops
             return (
-              <div key={v.shop_id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100">
+              <button key={v.shop_id} onClick={() => { onClose(); onShopClick(shop) }} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors text-left">
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
                   {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
                 </div>
@@ -138,8 +139,9 @@ function VisitedShopsModal({ visits, onClose }: { visits: any[]; onClose: () => 
                 <div className="text-right flex-shrink-0">
                   <p className="text-caramel font-bold text-sm">{v.visit_count}x</p>
                   <p className="text-coffee-400 text-xs">visited</p>
+                  <span className="text-coffee-300 text-xs">→</span>
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -400,6 +402,7 @@ export default function ProfileTab() {
   const [showFindFriends, setShowFindFriends] = useState(false)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
+  const [selectedShop, setSelectedShop] = useState<any>(null)
   const [showAddWishlist, setShowAddWishlist] = useState(false)
   const [newDrink, setNewDrink] = useState('')
   const [newShop, setNewShop] = useState('')
@@ -574,25 +577,24 @@ export default function ProfileTab() {
               {ratings.map(rating => {
                 const shop = rating.coffee_shops as any
                 return (
-                  <button key={rating.id} onClick={() => setActivePost(rating)} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
-                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
+                  <div key={rating.id} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
+                    <button onClick={() => shop && setSelectedShop(shop)} className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
                       {shop?.photo_url
-                        ? <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
+                        ? <img src={shop.photo_url} alt={shop?.name} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
+                    </button>
+                    <button onClick={() => setActivePost(rating)} className="flex-1 min-w-0 text-left">
                       <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name ?? 'Moment'}</p>
                       {rating.drink_name && <p className="text-coffee-400 text-xs">{rating.drink_name}</p>}
                       {rating.photo_url && <p className="text-caramel text-xs">📷 Photo</p>}
-                    </div>
+                    </button>
                     <div className="text-right flex-shrink-0">
                       <p className="text-coffee-800 font-bold text-sm">{rating.fill_level}%</p>
                       <div className="w-12 h-1.5 bg-cream-200 rounded-full overflow-hidden mt-1">
                         <div className="h-full rounded-full bg-caramel" style={{ width: `${rating.fill_level}%` }} />
                       </div>
-                      <p className="text-coffee-300 text-xs mt-0.5">→</p>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -698,7 +700,7 @@ export default function ProfileTab() {
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showFollowers && <FollowersModal userId={profile.id} type={showFollowers} onClose={() => setShowFollowers(null)} />}
-      {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} />}
+      {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} onShopClick={(s) => setSelectedShop(s)} />}
       {celebrateBadge && <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />}
       {showFindFriends && <FindFriendsModal onClose={() => setShowFindFriends(false)} onViewProfile={(id) => { setShowFindFriends(false); setViewingUserId(id) }} />}
       {viewingUserId && (
@@ -710,8 +712,10 @@ export default function ProfileTab() {
         <PostDetailModal
           rating={activePost}
           onClose={() => setActivePost(null)}
+          onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }}
         />
       )}
+      {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
     </div>
   )
 }
