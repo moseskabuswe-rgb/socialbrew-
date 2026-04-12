@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSwipeDown } from '../../lib/useSwipeDown'
 import { X, MapPin, Star, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -42,35 +43,42 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
 
+  const swipe = useSwipeDown(onClose)
   const isInDb = !String(shop.id).startsWith('osm-') && !String(shop.id).startsWith('fsq-') && !String(shop.id).startsWith('gpl-')
 
   useEffect(() => {
-    if (!isInDb || !profile?.id) { setLoading(false); return }
     async function load() {
-      // Get all ratings for this shop
+      // Determine the real shop ID — if from OSM, look up by name in our DB
+      let shopId = isInDb ? shop.id : null
+      if (!isInDb && shop.name) {
+        const { data: dbMatch } = await supabase
+          .from('coffee_shops').select('id').ilike('name', shop.name).eq('is_active', true).maybeSingle()
+        if (dbMatch) shopId = dbMatch.id
+      }
+
+      if (!shopId) { setLoading(false); return }
+
+      // Load ratings for this shop
       const { data: ratings } = await supabase
         .from('ratings')
         .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url)')
-        .eq('shop_id', shop.id)
+        .eq('shop_id', shopId)
         .order('created_at', { ascending: false })
         .limit(30)
 
       if (ratings) {
         setAllRatings(ratings)
-        // My brews
-        setMyRatings(ratings.filter((r: any) => r.user_id === profile!.id))
-        // Friends — people I follow
-        const { data: follows } = await supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', profile!.id)
-        const followingIds = new Set((follows || []).map((f: any) => f.following_id))
-        setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
+        if (profile?.id) {
+          setMyRatings(ratings.filter((r: any) => r.user_id === profile.id))
+          const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', profile.id)
+          const followingIds = new Set((follows || []).map((f: any) => f.following_id))
+          setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
+        }
       }
       setLoading(false)
     }
     load()
-  }, [shop.id, isInDb, profile])
+  }, [shop.id, shop.name, isInDb, profile])
 
   const avgFill = allRatings.length > 0
     ? Math.round(allRatings.reduce((s: number, r: any) => s + r.fill_level, 0) / allRatings.length)
@@ -127,7 +135,8 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '88vh' }}>
+      <div ref={swipe.ref} className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '88vh' }}>
+        <div className="flex justify-center pt-3 pb-1 cursor-grab flex-shrink-0" onTouchStart={swipe.onTouchStart} onTouchMove={swipe.onTouchMove} onTouchEnd={swipe.onTouchEnd}><div className="w-10 h-1 bg-cream-300 rounded-full" /></div>
 
         {/* Header image */}
         <div className="relative flex-shrink-0" style={{ height: 160 }}>
