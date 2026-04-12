@@ -889,7 +889,17 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       {activePost && (
         <PostDetailModal
           rating={activePost}
-          onClose={() => setActivePost(null)}
+          onClose={(commentCount, likeCount) => {
+            // Sync counts back to feed when modal closes
+            if (commentCount !== undefined || likeCount !== undefined) {
+              setRatings(prev => prev.map(r => r.id === activePost.id ? {
+                ...r,
+                comments_count: commentCount ?? r.comments_count,
+                likes_count: likeCount ?? r.likes_count,
+              } : r))
+            }
+            setActivePost(null)
+          }}
           onUserClick={(id) => { setActivePost(null); setActiveUserProfile(id) }}
           onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }}
         />
