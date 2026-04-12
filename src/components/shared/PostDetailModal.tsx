@@ -94,6 +94,11 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     } else {
       await supabase.from('likes').insert({ user_id: profile.id, rating_id: rating.id })
       setIsLiked(true); setLikesCount((n: number) => n + 1)
+      // Notify post owner
+      const ownerId = rating.profiles?.id || rating.user_id
+      if (ownerId && ownerId !== profile.id) {
+        sendNotification({ userId: ownerId, actorId: profile.id, type: 'like', ratingId: rating.id })
+      }
     }
   }
 
