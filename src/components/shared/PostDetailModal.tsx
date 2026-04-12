@@ -29,7 +29,7 @@ function timeAgo(d: string) {
 
 type Props = {
   rating: any
-  onClose: () => void
+  onClose: (finalCommentCount?: number, finalLikeCount?: number) => void
   onUserClick?: (userId: string) => void
   onShopClick?: (shop: any) => void
 }
@@ -209,7 +209,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-cream-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
+        <button onClick={() => onClose(comments.length, likesCount)} className="text-coffee-500"><ArrowLeft size={22} /></button>
         <div className="flex items-center gap-2 flex-1">
           <button onClick={() => onUserClick?.(user?.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
             {user?.avatar_url
@@ -221,7 +221,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             <p className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</p>
           </div>
         </div>
-        <button onClick={onClose} className="text-coffee-400"><X size={20} /></button>
+        <button onClick={() => onClose(comments.length, likesCount)} className="text-coffee-400"><X size={20} /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-20">
