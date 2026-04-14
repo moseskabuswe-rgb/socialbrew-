@@ -38,98 +38,129 @@ type Props = {
 
 // ── PINCH-TO-ZOOM PHOTO VIEWER ────────────────────────────
 function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) {
-  const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const lastTouches = useRef<React.Touch[]>([])
-  const lastScale = useRef(1)
-  const lastOffset = useRef({ x: 0, y: 0 })
-  const isDragging = useRef(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+  // All transform state lives in refs — applied directly to DOM via style
+  // This avoids React re-renders on every touch frame (which caused shaking)
+  const scaleRef = useRef(1)
+  const offsetRef = useRef({ x: 0, y: 0 })
+  const startTouchesRef = useRef<{ x: number; y: number }[]>([])
+  const startScaleRef = useRef(1)
+  const startOffsetRef = useRef({ x: 0, y: 0 })
+  const lastTapRef = useRef(0)
 
-  function getDistance(touches: React.TouchList | React.Touch[]) {
-    const t = Array.from(touches as any)
-    if (t.length < 2) return 0
-    const dx = (t[0] as any).clientX - (t[1] as any).clientX
-    const dy = (t[0] as any).clientY - (t[1] as any).clientY
-    return Math.sqrt(dx * dx + dy * dy)
+  function applyTransform(scale: number, x: number, y: number) {
+    if (!imgRef.current) return
+    imgRef.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
   }
 
-  function getMidpoint(touches: React.TouchList | React.Touch[]) {
-    const t = Array.from(touches as any)
-    return {
-      x: ((t[0] as any).clientX + (t[1] as any).clientX) / 2,
-      y: ((t[0] as any).clientY + (t[1] as any).clientY) / 2,
-    }
+  function getTouches(e: React.TouchEvent) {
+    return Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }))
+  }
+
+  function dist(a: {x:number,y:number}, b: {x:number,y:number}) {
+    return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2)
+  }
+
+  function mid(a: {x:number,y:number}, b: {x:number,y:number}) {
+    return { x: (a.x+b.x)/2, y: (a.y+b.y)/2 }
   }
 
   function onTouchStart(e: React.TouchEvent) {
-    lastTouches.current = Array.from(e.touches) as any
-    lastScale.current = scale
-    lastOffset.current = offset
-    isDragging.current = e.touches.length === 1
+    e.preventDefault()
+    const touches = getTouches(e)
+    startTouchesRef.current = touches
+    startScaleRef.current = scaleRef.current
+    startOffsetRef.current = { ...offsetRef.current }
+
+    // Double tap to reset
+    if (touches.length === 1) {
+      const now = Date.now()
+      if (now - lastTapRef.current < 300) {
+        scaleRef.current = 1
+        offsetRef.current = { x: 0, y: 0 }
+        applyTransform(1, 0, 0)
+      }
+      lastTapRef.current = now
+    }
   }
 
   function onTouchMove(e: React.TouchEvent) {
     e.preventDefault()
-    if (e.touches.length === 2) {
-      // Pinch zoom
-      const newDist = getDistance(e.touches)
-      const oldDist = getDistance(lastTouches.current)
-      if (oldDist === 0) return
-      const newScale = Math.min(5, Math.max(1, lastScale.current * (newDist / oldDist)))
-      setScale(newScale)
-      // Pan to midpoint
-      const mid = getMidpoint(e.touches)
-      const oldMid = getMidpoint(lastTouches.current)
-      setOffset(prev => ({
-        x: prev.x + (mid.x - oldMid.x),
-        y: prev.y + (mid.y - oldMid.y),
-      }))
-    } else if (e.touches.length === 1 && scale > 1) {
-      // Pan when zoomed in
-      const dx = e.touches[0].clientX - lastTouches.current[0].clientX
-      const dy = e.touches[0].clientY - lastTouches.current[0].clientY
-      setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+    const touches = getTouches(e)
+    const start = startTouchesRef.current
+
+    if (touches.length === 2 && start.length === 2) {
+      // Pinch: compare current finger distance to start distance
+      const startDist = dist(start[0], start[1])
+      const curDist = dist(touches[0], touches[1])
+      if (startDist === 0) return
+
+      const newScale = Math.min(6, Math.max(1, startScaleRef.current * (curDist / startDist)))
+
+      // Pan based on midpoint movement
+      const startMid = mid(start[0], start[1])
+      const curMid = mid(touches[0], touches[1])
+      const newX = startOffsetRef.current.x + (curMid.x - startMid.x)
+      const newY = startOffsetRef.current.y + (curMid.y - startMid.y)
+
+      scaleRef.current = newScale
+      offsetRef.current = { x: newX, y: newY }
+      applyTransform(newScale, newX, newY)
+
+    } else if (touches.length === 1 && start.length >= 1 && scaleRef.current > 1) {
+      // Single finger pan (only when zoomed)
+      const newX = startOffsetRef.current.x + (touches[0].x - start[0].x)
+      const newY = startOffsetRef.current.y + (touches[0].y - start[0].y)
+      offsetRef.current = { x: newX, y: newY }
+      applyTransform(scaleRef.current, newX, newY)
     }
-    lastTouches.current = Array.from(e.touches) as any
   }
 
   function onTouchEnd(e: React.TouchEvent) {
-    if (scale < 1.1) {
-      setScale(1)
-      setOffset({ x: 0, y: 0 })
+    e.preventDefault()
+    // Snap back if under-zoomed
+    if (scaleRef.current < 1.05) {
+      scaleRef.current = 1
+      offsetRef.current = { x: 0, y: 0 }
+      if (imgRef.current) {
+        imgRef.current.style.transition = 'transform 0.25s ease'
+        applyTransform(1, 0, 0)
+        setTimeout(() => { if (imgRef.current) imgRef.current.style.transition = 'none' }, 260)
+      }
     }
-    // Double tap to reset
-    if (e.changedTouches.length === 1 && scale > 1.5) {
-      setScale(1)
-      setOffset({ x: 0, y: 0 })
-    }
+    // Update start refs for next gesture
+    startTouchesRef.current = getTouches(e)
+    startScaleRef.current = scaleRef.current
+    startOffsetRef.current = { ...offsetRef.current }
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center"
+    <div
+      className="fixed inset-0 z-[70] bg-black flex items-center justify-center overflow-hidden"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}>
+      onTouchEnd={onTouchEnd}
+      style={{ touchAction: 'none' }}>
       <img
+        ref={imgRef}
         src={src}
         alt="photo"
+        draggable={false}
         style={{
-          transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`,
-          transformOrigin: 'center center',
-          transition: scale === 1 ? 'transform 0.2s ease' : 'none',
           maxWidth: '100vw',
           maxHeight: '100vh',
           objectFit: 'contain',
-          touchAction: 'none',
+          transformOrigin: 'center center',
+          transform: 'translate(0px,0px) scale(1)',
+          transition: 'none',
           userSelect: 'none',
+          willChange: 'transform',
         }}
-        draggable={false}
       />
       <button onClick={onClose}
-        className="absolute top-safe-top top-4 right-4 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-sm z-10">
+        className="absolute top-4 right-4 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-sm z-10">
         ✕
       </button>
-      <p className="absolute bottom-8 text-white/50 text-xs">Pinch to zoom · Double tap to reset</p>
     </div>
   )
 }
