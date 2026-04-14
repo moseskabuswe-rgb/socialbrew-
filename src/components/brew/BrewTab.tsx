@@ -5,7 +5,7 @@ import MugRating from './MugRating'
 import ShareMoment from './ShareMoment'
 import QuickSip from './QuickSip'
 
-type Props = { onPostCreated: (shopName?: string) => void }
+type Props = { onPostCreated: (shopName?: string, wasFirst?: boolean) => void }
 type BrewAction = 'rate' | 'share' | 'quicksip' | 'gift'
 
 export default function BrewTab({ onPostCreated }: Props) {
@@ -132,7 +132,7 @@ export default function BrewTab({ onPostCreated }: Props) {
         <ShopSelector onSelect={handleShopSelect} onClose={handleClose} />
       )}
       {action === 'rate' && selectedShop && (
-        <MugRating shop={selectedShop} onClose={handleClose} onComplete={onPostCreated} />
+        <MugRating shop={selectedShop} onClose={handleClose} onComplete={(name, wasFirst) => onPostCreated(name, wasFirst)} />
       )}
       {action === 'quicksip' && (
         <QuickSip onClose={handleClose} onComplete={onPostCreated} />
