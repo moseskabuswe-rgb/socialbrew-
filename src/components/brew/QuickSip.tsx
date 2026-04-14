@@ -73,7 +73,9 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     setSubmitting(true)
 
     // Check if first rating for this shop
-    const shopId = shop?.id || null
+    // Exclude OSM/fallback IDs — only real DB shop UUIDs count
+    const isOsmShop = shop?.id?.startsWith?.('osm-') || shop?.id?.startsWith?.('fb-')
+    const shopId = shop?.id && !isOsmShop ? shop.id : null
     let willBeFirst = false
     if (shopId) {
       const { count } = await supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('shop_id', shopId)
