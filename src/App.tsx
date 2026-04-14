@@ -21,6 +21,7 @@ function AppContent() {
   const [feedRefresh, setFeedRefresh] = useState(0)
   const [shopToast, setShopToast] = useState<string | null>(null)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
+  const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
 
   if (loading) {
     return (
@@ -36,7 +37,8 @@ function AppContent() {
 
   if (!profile) return <AuthForm />
 
-  async function handlePostCreated(shopName?: string) {
+  async function handlePostCreated(shopName?: string, wasFirst?: boolean) {
+    if (wasFirst && shopName) setFirstRatingShop(shopName)
     setFeedRefresh(n => n + 1)
     setActiveTab('home')
     if (shopName) setShopToast(shopName)
@@ -77,6 +79,23 @@ function AppContent() {
       <BottomNav active={activeTab} onChange={setActiveTab} />
       <FeedbackWidget />
       {shopToast && <ShopToast shopName={shopToast} onDone={() => setShopToast(null)} />}
+      {firstRatingShop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setFirstRatingShop(null)}>
+          <div className="mx-6 bg-white rounded-3xl p-8 text-center shadow-2xl">
+            <div className="text-6xl mb-4">⭐</div>
+            <h2 className="font-display text-2xl font-bold mb-2" style={{ color: '#3d1a06' }}>First Brew!</h2>
+            <p className="text-sm mb-1" style={{ color: '#6b4c2a' }}>You're the first person to rate</p>
+            <p className="font-bold text-lg mb-4" style={{ color: '#c8853a' }}>{firstRatingShop}</p>
+            <p className="text-xs mb-6" style={{ color: '#9b7a45' }}>on Social Brew — you'll always be the pioneer ⭐</p>
+            <button onClick={() => setFirstRatingShop(null)}
+              className="w-full py-3.5 rounded-2xl text-white font-semibold text-base"
+              style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}>
+              Let's go! ☕
+            </button>
+          </div>
+        </div>
+      )}
       {celebrateBadge && <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />}
     </div>
   )
