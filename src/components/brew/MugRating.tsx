@@ -21,7 +21,6 @@ function getMugStyle(fill: number) {
 }
 
 export default function MugRating({ shop, onClose, onComplete }: Props) {
-  const [isFirstRating, setIsFirstRating] = useState(false)
   const { profile } = useAuth()
   const [fill, setFill] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -104,7 +103,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         notifyFollowersOfPost(profile.id, newRating.id)
         if (caption) notifyMentions(caption, profile.id, newRating.id)
       }
-      if (willBeFirst) setIsFirstRating(true)
       setStep('done')
       setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
     }
