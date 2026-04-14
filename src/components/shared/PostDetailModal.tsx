@@ -5,11 +5,12 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
 function getMugColor(fill: number) {
-  if (fill <= 20) return '#b0c4d4'
-  if (fill <= 40) return '#c8924a'
-  if (fill <= 60) return '#a06428'
-  if (fill <= 80) return '#7a3e10'
-  return '#4e2008'
+  if (fill <= 20) return '#d4b896'
+  if (fill <= 40) return '#c49a6c'
+  if (fill <= 60) return '#b87333'
+  if (fill <= 75) return '#9b5e1a'
+  if (fill <= 90) return '#6b3410'
+  return '#3d1a06'
 }
 function getFillLabel(fill: number) {
   if (fill <= 20) return 'Just a Sip'
@@ -49,6 +50,8 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionUsers, setMentionUsers] = useState<any[]>([])
   const [mentionStart, setMentionStart] = useState(-1)
+  const [showShareSheet, setShowShareSheet] = useState(false)
+  const [zoomedPhoto, setZoomedPhoto] = useState(false)
 
   const user = rating.profiles as any
   const shop = rating.coffee_shops as any
@@ -143,21 +146,18 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     setMentionStart(-1)
   }
 
-  async function sharePost() {
+  async function shareExternal() {
     const shop = rating.coffee_shops as any
     const user = rating.profiles as any
     const text = `Check out ${user?.username}'s brew at ${shop?.name ?? 'Social Brew'} — ${rating.fill_level}% ☕`
     const url = 'https://socialbrew-ani.pages.dev'
     if (navigator.share) {
-      try { await navigator.share({ title: 'Social Brew', text, url }) } catch {
-        // Fallback to clipboard
-        await navigator.clipboard.writeText(`${text} ${url}`)
-        alert('Link copied!')
-      }
+      try { await navigator.share({ title: 'Social Brew', text, url }) } catch { /* dismissed */ }
     } else {
       await navigator.clipboard.writeText(`${text} ${url}`)
       alert('Link copied!')
     }
+    setShowShareSheet(false)
   }
 
   async function toggleCommentLike(commentId: string) {
@@ -229,8 +229,31 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
         <div className="bg-white mx-4 mt-4 rounded-2xl shadow-sm border border-cream-200 overflow-hidden">
           {/* Photo */}
           {rating.photo_url && (
-            <div className="h-64">
-              <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
+            <div className="relative">
+              <button onClick={() => setZoomedPhoto(true)} className="w-full">
+                <div className="h-64 overflow-hidden">
+                  <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
+                </div>
+                <div className="absolute top-2 right-2 bg-black/40 rounded-full p-1.5 backdrop-blur-sm">
+                  <span className="text-white text-xs">🔍</span>
+                </div>
+              </button>
+              {/* Tagged users display */}
+              {(rating.tagged_users as any)?.length > 0 && (
+                <div className="absolute bottom-2 left-2 flex gap-1 flex-wrap">
+                  {(rating.tagged_users as any).map((u: any) => (
+                    <span key={u} className="bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">@{u}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Full screen photo zoom */}
+          {zoomedPhoto && rating.photo_url && (
+            <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center" onClick={() => setZoomedPhoto(false)}>
+              <img src={rating.photo_url} alt="moment" className="w-full h-full object-contain" />
+              <button onClick={() => setZoomedPhoto(false)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-lg">✕</button>
             </div>
           )}
 
@@ -303,7 +326,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                 <MessageCircle size={22} />
                 {comments.length > 0 && <span className="text-sm">{comments.length}</span>}
               </div>
-              <button onClick={sharePost} className="active:scale-90 transition-transform text-coffee-400">
+              <button onClick={() => setShowShareSheet(true)} className="active:scale-90 transition-transform text-coffee-400">
                 <Share2 size={20} />
               </button>
               <button onClick={toggleSave} className="ml-auto active:scale-90 transition-transform" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
@@ -383,7 +406,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           </div>
         )}
         <div className="px-4 py-3 flex gap-2 items-center">
-          <button onClick={sharePost} className="text-coffee-400 flex-shrink-0">
+          <button onClick={() => setShowShareSheet(true)} className="text-coffee-400 flex-shrink-0">
             <Share2 size={20} />
           </button>
           <input value={newComment} onChange={e => handleCommentChange(e.target.value)}
@@ -396,6 +419,45 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           </button>
         </div>
       </div>
+
+      {/* Share Sheet */}
+      {showShareSheet && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setShowShareSheet(false)}>
+          <div className="w-full max-w-sm bg-white rounded-t-3xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 bg-cream-50 rounded-2xl p-3 mb-4 border border-cream-200">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                {(rating.profiles as any)?.avatar_url
+                  ? <img src={(rating.profiles as any).avatar_url} alt="" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{(rating.profiles as any)?.username?.[0]?.toUpperCase()}</span></div>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-coffee-700 font-semibold text-sm">{(rating.profiles as any)?.username}</p>
+                <p className="text-coffee-400 text-xs">{(rating.coffee_shops as any)?.name ?? 'Moment'} · {rating.fill_level}%</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button onClick={() => setShowShareSheet(false)}
+                className="w-full flex items-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors rounded-xl px-4 py-3.5 text-left border border-cream-200">
+                <span className="text-xl">💬</span>
+                <div>
+                  <p className="text-coffee-800 font-semibold text-sm">Send via Message</p>
+                  <p className="text-coffee-400 text-xs">Share with someone on Social Brew</p>
+                </div>
+              </button>
+              <button onClick={shareExternal}
+                className="w-full flex items-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors rounded-xl px-4 py-3.5 text-left border border-cream-200">
+                <span className="text-xl">🔗</span>
+                <div>
+                  <p className="text-coffee-800 font-semibold text-sm">Share Link</p>
+                  <p className="text-coffee-400 text-xs">Send to WhatsApp, Instagram, etc.</p>
+                </div>
+              </button>
+            </div>
+            <button onClick={() => setShowShareSheet(false)} className="w-full mt-3 py-3 text-coffee-500 text-sm font-medium">Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
