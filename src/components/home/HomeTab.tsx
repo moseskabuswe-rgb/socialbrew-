@@ -491,7 +491,6 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
       if (rxData) {
         const counts: Record<string, Record<string, number>> = {}
-        const mine: Record<string, Record<string, boolean>> = {}
         rxData.forEach((rx: any) => {
           if (!counts[rx.rating_id]) counts[rx.rating_id] = {}
           counts[rx.rating_id][rx.type] = (counts[rx.rating_id][rx.type] || 0) + 1
