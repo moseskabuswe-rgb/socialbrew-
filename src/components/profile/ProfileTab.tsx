@@ -547,6 +547,25 @@ export default function ProfileTab() {
             </div>
           )}
 
+          {/* Brew Streak */}
+          {(profile as any).current_streak > 0 && (
+            <div className="mt-4 pt-3 border-t border-cream-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{(profile as any).current_streak >= 7 ? '🔥' : '☕'}</span>
+                <div>
+                  <p className="text-coffee-800 font-bold text-sm">{(profile as any).current_streak}-day streak</p>
+                  <p className="text-coffee-400 text-xs">Best: {(profile as any).longest_streak || (profile as any).current_streak} days</p>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(7, (profile as any).current_streak) }).map((_, i) => (
+                  <div key={i} className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#b87333' }}>
+                    <span style={{ fontSize: 10 }}>☕</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
 
