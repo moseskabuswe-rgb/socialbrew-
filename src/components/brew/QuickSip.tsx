@@ -5,7 +5,7 @@ import { notifyFollowersOfPost } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
 
-type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
+type Props = { onClose: () => void; onComplete: (shopName?: string, wasFirst?: boolean) => void }
 
 function getMugStyle(fill: number) {
   if (fill === 0)  return { liquid: 'transparent', crema: 'transparent', glow: 'none', label: 'Slide to rate', color: '#9b7a45' }
@@ -71,19 +71,27 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   async function handleSubmit() {
     if (!profile || fill === 0) return
     setSubmitting(true)
+
+    // Check if first rating for this shop
+    const shopId = shop?.id || null
+    let willBeFirst = false
+    if (shopId) {
+      const { count } = await supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('shop_id', shopId)
+      willBeFirst = (count || 0) === 0
+    }
+
     await supabase.from('ratings').insert({
       user_id: profile.id,
-      shop_id: shop?.id || null,
+      shop_id: shopId,
       fill_level: fill,
       is_quick_sip: true,
       vibe_tags: [],
     })
     trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
-    // Notify followers
     const { data: newRating } = await supabase.from('ratings').select('id').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(1).single()
     if (newRating) notifyFollowersOfPost(profile.id, newRating.id)
     setDone(true)
-    setTimeout(() => { onComplete(shop?.name); onClose() }, 1400)
+    setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 2800 : 1400)
   }
 
   // SVG mug — slightly smaller, cleaner

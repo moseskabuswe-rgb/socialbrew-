@@ -44,7 +44,7 @@ export default function BrewTab({ onPostCreated }: Props) {
       id: 'quicksip' as BrewAction,
       icon: Zap,
       label: 'Quick Sip',
-      sub: 'Log in seconds',
+      sub: 'Drive-through? Quick stop? Log it fast',
       color: '#7ab0c8',
       available: true,
       badge: '⚡ Fast',
@@ -123,7 +123,7 @@ export default function BrewTab({ onPostCreated }: Props) {
           <div className="flex-1 text-center">
             <div className="text-lg mb-1">⚡</div>
             <p className="text-coffee-700 font-semibold text-xs">Quick Sip</p>
-            <p className="text-coffee-400 text-xs mt-0.5">Fill the mug, done in 3 seconds</p>
+            <p className="text-coffee-400 text-xs mt-0.5">Drive-through, quick stop, or can't remember what you got</p>
           </div>
         </div>
       </div>
@@ -135,7 +135,7 @@ export default function BrewTab({ onPostCreated }: Props) {
         <MugRating shop={selectedShop} onClose={handleClose} onComplete={(name, wasFirst) => onPostCreated(name, wasFirst)} />
       )}
       {action === 'quicksip' && (
-        <QuickSip onClose={handleClose} onComplete={onPostCreated} />
+        <QuickSip onClose={handleClose} onComplete={(name, wasFirst) => onPostCreated(name, wasFirst)} />
       )}
       {action === 'share' && (
         <ShareMoment onClose={handleClose} onComplete={onPostCreated} />
