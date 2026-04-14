@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Share2 } from 'lucide-react'
 import { sendNotification, notifyMentions } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
@@ -33,6 +33,105 @@ type Props = {
   onClose: (finalCommentCount?: number, finalLikeCount?: number) => void
   onUserClick?: (userId: string) => void
   onShopClick?: (shop: any) => void
+}
+
+
+// ── PINCH-TO-ZOOM PHOTO VIEWER ────────────────────────────
+function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const lastTouches = useRef<React.Touch[]>([])
+  const lastScale = useRef(1)
+  const lastOffset = useRef({ x: 0, y: 0 })
+  const isDragging = useRef(false)
+
+  function getDistance(touches: React.TouchList | React.Touch[]) {
+    const t = Array.from(touches as any)
+    if (t.length < 2) return 0
+    const dx = (t[0] as any).clientX - (t[1] as any).clientX
+    const dy = (t[0] as any).clientY - (t[1] as any).clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  function getMidpoint(touches: React.TouchList | React.Touch[]) {
+    const t = Array.from(touches as any)
+    return {
+      x: ((t[0] as any).clientX + (t[1] as any).clientX) / 2,
+      y: ((t[0] as any).clientY + (t[1] as any).clientY) / 2,
+    }
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    lastTouches.current = Array.from(e.touches) as any
+    lastScale.current = scale
+    lastOffset.current = offset
+    isDragging.current = e.touches.length === 1
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    e.preventDefault()
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      const newDist = getDistance(e.touches)
+      const oldDist = getDistance(lastTouches.current)
+      if (oldDist === 0) return
+      const newScale = Math.min(5, Math.max(1, lastScale.current * (newDist / oldDist)))
+      setScale(newScale)
+      // Pan to midpoint
+      const mid = getMidpoint(e.touches)
+      const oldMid = getMidpoint(lastTouches.current)
+      setOffset(prev => ({
+        x: prev.x + (mid.x - oldMid.x),
+        y: prev.y + (mid.y - oldMid.y),
+      }))
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Pan when zoomed in
+      const dx = e.touches[0].clientX - lastTouches.current[0].clientX
+      const dy = e.touches[0].clientY - lastTouches.current[0].clientY
+      setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+    }
+    lastTouches.current = Array.from(e.touches) as any
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    if (scale < 1.1) {
+      setScale(1)
+      setOffset({ x: 0, y: 0 })
+    }
+    // Double tap to reset
+    if (e.changedTouches.length === 1 && scale > 1.5) {
+      setScale(1)
+      setOffset({ x: 0, y: 0 })
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}>
+      <img
+        src={src}
+        alt="photo"
+        style={{
+          transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`,
+          transformOrigin: 'center center',
+          transition: scale === 1 ? 'transform 0.2s ease' : 'none',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          objectFit: 'contain',
+          touchAction: 'none',
+          userSelect: 'none',
+        }}
+        draggable={false}
+      />
+      <button onClick={onClose}
+        className="absolute top-safe-top top-4 right-4 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-sm z-10">
+        ✕
+      </button>
+      <p className="absolute bottom-8 text-white/50 text-xs">Pinch to zoom · Double tap to reset</p>
+    </div>
+  )
 }
 
 export default function PostDetailModal({ rating, onClose, onUserClick, onShopClick }: Props) {
@@ -234,11 +333,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                 <div className="h-64 overflow-hidden">
                   <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
                 </div>
-                <div className="absolute top-2 right-2 bg-black/40 rounded-full p-1.5 backdrop-blur-sm">
-                  <span className="text-white text-xs">🔍</span>
-                </div>
               </button>
-              {/* Tagged users display */}
               {(rating.tagged_users as any)?.length > 0 && (
                 <div className="absolute bottom-2 left-2 flex gap-1 flex-wrap">
                   {(rating.tagged_users as any).map((u: any) => (
@@ -249,12 +344,9 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             </div>
           )}
 
-          {/* Full screen photo zoom */}
+          {/* Full screen pinch-to-zoom photo viewer */}
           {zoomedPhoto && rating.photo_url && (
-            <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center" onClick={() => setZoomedPhoto(false)}>
-              <img src={rating.photo_url} alt="moment" className="w-full h-full object-contain" />
-              <button onClick={() => setZoomedPhoto(false)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-lg">✕</button>
-            </div>
+            <PinchZoomPhoto src={rating.photo_url} onClose={() => setZoomedPhoto(false)} />
           )}
 
           <div className="p-4">
