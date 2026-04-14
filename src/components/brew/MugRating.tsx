@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { notifyFollowersOfPost, notifyMentions } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
-type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string) => void }
+type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string, wasFirst?: boolean) => void }
 
 const VIBE_OPTIONS = ['☕ Cozy', '⚡ Energizing', '❤️ Loved', '📚 Quiet', '🎉 Social', '🌙 Date Night', '💻 Work-friendly', '✨ Aesthetic']
 const TIME_OPTIONS = ['Early Morning (5–8am)', 'Morning (8–10am)', 'Mid-Morning (10–12pm)', 'Lunch (12–2pm)', 'Afternoon (2–5pm)', 'Evening (5–8pm)', 'Night (8pm+)']
@@ -73,9 +73,18 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     }
 
     const captionParts = [caption].filter(Boolean)
+    const shopId = shop?.id?.startsWith?.('osm-') || shop?.id?.startsWith?.('fb-') ? null : shop.id
+
+    // Check if first rating for this shop
+    let willBeFirst = false
+    if (shopId) {
+      const { count } = await supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('shop_id', shopId)
+      willBeFirst = (count || 0) === 0
+    }
+
     const { error } = await supabase.from('ratings').insert({
       user_id: profile.id,
-      shop_id: shop?.id?.startsWith?.('osm-') || shop?.id?.startsWith?.('fb-') ? null : shop.id,
+      shop_id: shopId,
       fill_level: fill,
       drink_name: drinkName || null,
       vibe_tags: selectedVibes,
@@ -84,7 +93,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       visit_time: visitTime || null,
     })
     if (!error) {
-      // Get the new rating id to reference in notifications
       const { data: newRating } = await supabase
         .from('ratings')
         .select('id')
@@ -96,8 +104,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         notifyFollowersOfPost(profile.id, newRating.id)
         if (caption) notifyMentions(caption, profile.id, newRating.id)
       }
+      if (willBeFirst) setIsFirstRating(true)
       setStep('done')
-      setTimeout(() => { onComplete(shop?.name); onClose() }, 1600)
+      setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
     }
     else { setStep('details'); alert('Something went wrong. Please try again.') }
   }
