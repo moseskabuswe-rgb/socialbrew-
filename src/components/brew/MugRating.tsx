@@ -10,13 +10,15 @@ const VIBE_OPTIONS = ['☕ Cozy', '⚡ Energizing', '❤️ Loved', '📚 Quiet'
 const TIME_OPTIONS = ['Early Morning (5–8am)', 'Morning (8–10am)', 'Mid-Morning (10–12pm)', 'Lunch (12–2pm)', 'Afternoon (2–5pm)', 'Evening (5–8pm)', 'Night (8pm+)']
 
 function getMugStyle(fill: number) {
-  if (fill === 0)  return { liquid: 'transparent', crema: 'transparent', glow: 'none', label: 'Slide to rate', sub: '' }
-  if (fill <= 20)  return { liquid: '#b0c4d4', crema: '#ccdde8', glow: 'rgba(176,196,212,0.25)', label: 'Just a Sip', sub: 'Not quite right' }
-  if (fill <= 40)  return { liquid: '#c8924a', crema: '#dba96a', glow: 'rgba(200,146,74,0.3)', label: 'Getting There', sub: 'Room to improve' }
-  if (fill <= 60)  return { liquid: '#a06428', crema: '#c07c38', glow: 'rgba(160,100,40,0.35)', label: 'Half Cup', sub: 'Decent visit' }
-  if (fill <= 80)  return { liquid: '#7a3e10', crema: '#9a5420', glow: 'rgba(122,62,16,0.4)', label: 'Good Pour', sub: 'Really enjoyed it' }
-  if (fill <= 95)  return { liquid: '#4e2008', crema: '#6e3410', glow: 'rgba(210,140,60,0.55)', label: 'Almost Perfect', sub: 'Loved it' }
-  return             { liquid: '#2e1004', crema: '#4e2008', glow: 'rgba(230,160,60,0.75)', label: '✨ Perfect Brew', sub: 'Absolute favorite' }
+  // Palette: weak/milky → latte → caramel → amber → dark roast → espresso gold
+  // Each stage feels progressively richer, warmer, more rewarding — true to coffee
+  if (fill === 0)   return { liquid: 'transparent',  crema: 'transparent',  glow: 'none',                        label: 'Slide to rate',   sub: '' }
+  if (fill <= 20)   return { liquid: '#d4b896',       crema: '#e8d4bc',      glow: 'rgba(212,184,150,0.2)',       label: 'Weak Brew',        sub: 'Needs work' }
+  if (fill <= 40)   return { liquid: '#c49a6c',       crema: '#d9b48c',      glow: 'rgba(196,154,108,0.3)',       label: 'Latte Vibes',      sub: 'Getting there' }
+  if (fill <= 60)   return { liquid: '#b87333',       crema: '#d4894a',      glow: 'rgba(184,115,51,0.35)',       label: 'Caramel Pour',     sub: 'Decent visit' }
+  if (fill <= 75)   return { liquid: '#9b5e1a',       crema: '#c07830',      glow: 'rgba(155,94,26,0.4)',         label: 'Amber Roast',      sub: 'Really enjoyed it' }
+  if (fill <= 90)   return { liquid: '#6b3410',       crema: '#9b5520',      glow: 'rgba(200,130,50,0.5)',        label: 'Dark & Rich',      sub: 'Loved it' }
+  return              { liquid: '#3d1a06',       crema: '#c8853a',      glow: 'rgba(220,160,60,0.7)',        label: '✨ Perfect Brew',  sub: 'Absolute favorite' }
 }
 
 export default function MugRating({ shop, onClose, onComplete }: Props) {
