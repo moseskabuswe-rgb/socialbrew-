@@ -10,11 +10,12 @@ import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 
 function getMugColor(fill: number) {
-  if (fill <= 20) return '#b0c4d4'
-  if (fill <= 40) return '#c8924a'
-  if (fill <= 60) return '#a06428'
-  if (fill <= 80) return '#7a3e10'
-  return '#4e2008'
+  if (fill <= 20) return '#d4b896'
+  if (fill <= 40) return '#c49a6c'
+  if (fill <= 60) return '#b87333'
+  if (fill <= 75) return '#9b5e1a'
+  if (fill <= 90) return '#6b3410'
+  return '#3d1a06'
 }
 function getFillLabel(fill: number) {
   if (fill <= 15) return 'Just a Sip'
