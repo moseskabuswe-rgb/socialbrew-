@@ -697,6 +697,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-700 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
+                      {rating.is_first_rating && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full border border-amber-200 font-medium flex items-center gap-0.5">
+                          ⭐ First Brew
+                        </span>
+                      )}
                       <span className="text-coffee-400 text-xs">had a quick sip</span>
                       {shop && <button onClick={() => setSelectedShop(shop)} className="text-caramel text-xs font-semibold hover:underline">@ {shop.name}</button>}
                     </div>
