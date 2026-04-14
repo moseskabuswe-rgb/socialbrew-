@@ -473,6 +473,9 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   const [showSaved, setShowSaved] = useState(false)
   const [savedPosts, setSavedPostsList] = useState<any[]>([])
   const [sharingPost, setSharingPost] = useState<any>(null)
+  const [reactions, setReactions] = useState<Record<string, Record<string, boolean>>>({})
+  const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({})
+  const [showReactions, setShowReactions] = useState<string | null>(null)
 
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
@@ -482,6 +485,20 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       .limit(50)
     setRatings(data || [])
     setLoading(false)
+    // Load reaction counts
+    if (data && data.length > 0) {
+      const ratingIds = data.map((r: any) => r.id)
+      const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
+      if (rxData) {
+        const counts: Record<string, Record<string, number>> = {}
+        const mine: Record<string, Record<string, boolean>> = {}
+        rxData.forEach((rx: any) => {
+          if (!counts[rx.rating_id]) counts[rx.rating_id] = {}
+          counts[rx.rating_id][rx.type] = (counts[rx.rating_id][rx.type] || 0) + 1
+        })
+        setReactionCounts(counts)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -599,6 +616,21 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
     if (data) setSavedPostsList(data.map((s: any) => s.ratings).filter(Boolean))
+  }
+
+  async function toggleReaction(ratingId: string, type: string) {
+    if (!profile) return
+    const hasIt = reactions[ratingId]?.[type]
+    if (hasIt) {
+      await supabase.from('reactions').delete().eq('user_id', profile.id).eq('rating_id', ratingId).eq('type', type)
+      setReactions(prev => ({ ...prev, [ratingId]: { ...prev[ratingId], [type]: false } }))
+      setReactionCounts(prev => ({ ...prev, [ratingId]: { ...prev[ratingId], [type]: Math.max(0, (prev[ratingId]?.[type] || 1) - 1) } }))
+    } else {
+      await supabase.from('reactions').insert({ user_id: profile.id, rating_id: ratingId, type })
+      setReactions(prev => ({ ...prev, [ratingId]: { ...prev[ratingId], [type]: true } }))
+      setReactionCounts(prev => ({ ...prev, [ratingId]: { ...prev[ratingId], [type]: (prev[ratingId]?.[type] || 0) + 1 } }))
+    }
+    setShowReactions(null)
   }
 
   async function sharePost(rating: any) {
@@ -719,6 +751,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-800 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
+                      {rating.is_first_rating && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full border border-amber-200 font-medium flex items-center gap-0.5">
+                          ⭐ First Brew
+                        </span>
+                      )}
                       {visitTime && (
                         <span className="text-coffee-400 text-xs bg-cream-100 px-1.5 py-0.5 rounded-full border border-cream-200">
                           🕐 {visitTime}
@@ -809,6 +846,33 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                   <MessageCircle size={20} />
                   <span className="text-sm">{rating.comments_count || 0}</span>
                 </button>
+                {/* Reactions */}
+                <div className="relative">
+                  <button onClick={() => setShowReactions(showReactions === rating.id ? null : rating.id)}
+                    className="flex items-center gap-1 active:scale-90 text-coffee-400">
+                    <span className="text-base leading-none">
+                      {reactions[rating.id]?.same ? '☕' : reactions[rating.id]?.fire ? '🔥' : reactions[rating.id]?.need_to_try ? '😮' : '☕'}
+                    </span>
+                    {Object.values(reactionCounts[rating.id] || {}).reduce((a, b) => a + b, 0) > 0 && (
+                      <span className="text-xs text-coffee-400">{Object.values(reactionCounts[rating.id] || {}).reduce((a, b) => a + b, 0)}</span>
+                    )}
+                  </button>
+                  {showReactions === rating.id && (
+                    <div className="absolute bottom-8 left-0 bg-white rounded-2xl shadow-xl border border-cream-200 p-2 flex gap-2 z-20 animate-fade-in">
+                      {[
+                        { type: 'same', emoji: '☕', label: 'Same' },
+                        { type: 'fire', emoji: '🔥', label: 'Fire' },
+                        { type: 'need_to_try', emoji: '😮', label: 'Need to try' },
+                      ].map(rx => (
+                        <button key={rx.type} onClick={() => toggleReaction(rating.id, rx.type)}
+                          className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 ${reactions[rating.id]?.[rx.type] ? 'bg-cream-100' : 'hover:bg-cream-50'}`}>
+                          <span className="text-xl">{rx.emoji}</span>
+                          <span className="text-xs text-coffee-400">{reactionCounts[rating.id]?.[rx.type] || 0}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setWishlistRating(rating)} className="flex items-center gap-1.5 text-coffee-400 active:scale-90">
                   <Plus size={18} /><span className="text-xs">Wishlist</span>
                 </button>
