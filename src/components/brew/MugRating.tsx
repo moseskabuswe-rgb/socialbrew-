@@ -21,6 +21,7 @@ function getMugStyle(fill: number) {
 }
 
 export default function MugRating({ shop, onClose, onComplete }: Props) {
+  const [isFirstRating, setIsFirstRating] = useState(false)
   const { profile } = useAuth()
   const [fill, setFill] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
