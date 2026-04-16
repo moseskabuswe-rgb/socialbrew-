@@ -1,122 +1,150 @@
+// src/lib/push.ts
+
 import { supabase } from './supabase'
 
-export async function requestPushPermission(userId: string): Promise<boolean> {
-  if (!('Notification' in window)) return false
-  if (!('serviceWorker' in navigator)) return false
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAyo_95tISPnqA1U8Q53JaFaomGc7meWYk",
+  authDomain: "social-brew-206d3.firebaseapp.com",
+  projectId: "social-brew-206d3",
+  storageBucket: "social-brew-206d3.firebasestorage.app",
+  messagingSenderId: "783967513849",
+  appId: "1:783967513849:web:668f29777b863a8e8cc628"
+}
 
+const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
+
+let messagingInstance: any = null
+
+async function getMessaging() {
+  if (messagingInstance) return messagingInstance
+  const { initializeApp, getApps } = await import('firebase/app')
+  const { getMessaging: getFCMMessaging } = await import('firebase/messaging')
+  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
+  messagingInstance = getFCMMessaging(app)
+  return messagingInstance
+}
+
+export async function registerPushNotifications(userId: string): Promise<boolean> {
   try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return false
+
+    // iOS must be installed as PWA (Add to Home Screen)
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    const isIOSPWA = (window.navigator as any).standalone === true
+    if (isIOS && !isIOSPWA) {
+      alert('To receive notifications, tap the Share button in Safari and select "Add to Home Screen", then reopen the app.')
+      return false
+    }
+
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return false
 
-    // Register service worker
-    await navigator.serviceWorker.register('/sw.js')
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
     await navigator.serviceWorker.ready
 
-    // Subscribe to push (simplified - uses Notification API directly for now)
-    // Store that this user wants push notifications
-    await supabase.from('profiles').update({ 
-      push_subscription: { enabled: true, permission: 'granted' } 
-    }).eq('id', userId)
+    const messaging = await getMessaging()
+    const { getToken } = await import('firebase/messaging')
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg
+    })
+
+    if (!token) return false
+
+    await supabase
+      .from('profiles')
+      .update({ push_token: token, push_enabled: true })
+      .eq('id', userId)
 
     return true
   } catch (err) {
-    console.error('Push setup failed:', err)
+    console.error('Push registration failed:', err)
     return false
   }
 }
 
-// Show a local notification (works when app is open or in background)
-export async function showLocalNotification(title: string, body: string, url?: string) {
-  if (!('serviceWorker' in navigator)) return
-  if (Notification.permission !== 'granted') return
-  
+export async function unregisterPushNotifications(userId: string): Promise<void> {
   try {
-    const reg = await navigator.serviceWorker.getRegistration('/sw.js')
-    if (reg) {
-      await reg.showNotification(title, {
-        body,
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
-        vibrate: [100, 50, 100],
-        data: { url: url || '/' },
-      } as any)
-    } else {
-      // Fallback to basic Notification API
-      new Notification(title, { body, icon: '/icon-192.png' })
-    }
-  } catch {
-    try { new Notification(title, { body, icon: '/icon-192.png' }) } catch { /* silent */ }
+    const messaging = await getMessaging()
+    const { deleteToken } = await import('firebase/messaging')
+    await deleteToken(messaging)
+    await supabase
+      .from('profiles')
+      .update({ push_token: null, push_enabled: false })
+      .eq('id', userId)
+  } catch (err) {
+    console.error('Push unregister failed:', err)
   }
 }
 
-// Parse @mentions from text and return usernames
-export function extractMentions(text: string): string[] {
-  const matches = text.match(/@([a-z0-9_.]+)/gi) || []
-  return matches.map(m => m.slice(1).toLowerCase())
-}
-
-// Send in-app notification
-export async function sendNotification(params: {
-  userId: string
-  actorId: string
-  type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention'
-  ratingId?: string
-  message?: string
-}) {
-  if (params.userId === params.actorId) return // Don't notify yourself
+// Called by the app to send a notification to another user via Edge Function
+export async function sendPushToUser(
+  targetUserId: string,
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<void> {
   try {
-    await supabase.from('notifications').insert({
-      user_id: params.userId,
-      actor_id: params.actorId,
-      type: params.type,
-      rating_id: params.ratingId || null,
+    await supabase.functions.invoke('send-notification', {
+      body: { targetUserId, title, body, data }
     })
-  } catch { /* silent */ }
+  } catch (err) {
+    console.error('sendPushToUser failed:', err)
+  }
 }
 
-// Notify all followers when someone posts
-export async function notifyFollowersOfPost(actorId: string, ratingId: string) {
+// Broadcast to all users (admin only)
+export async function sendBroadcastNotification(
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<void> {
   try {
-    const { data: follows } = await supabase
-      .from('follows')
-      .select('follower_id')
-      .eq('following_id', actorId)
-    
-    if (!follows || follows.length === 0) return
-    
-    // Insert notifications for all followers
-    const notifications = follows.map((f: any) => ({
-      user_id: f.follower_id,
-      actor_id: actorId,
-      type: 'new_post',
-      rating_id: ratingId,
-    }))
-    
-    await supabase.from('notifications').insert(notifications)
-  } catch { /* silent */ }
+    await supabase.functions.invoke('send-notification', {
+      body: { broadcast: true, title, body, data }
+    })
+  } catch (err) {
+    console.error('sendBroadcastNotification failed:', err)
+  }
 }
 
-// Notify mentioned users
-export async function notifyMentions(text: string, actorId: string, ratingId?: string) {
-  const usernames = extractMentions(text)
-  if (usernames.length === 0) return
-  
-  try {
-    const { data: users } = await supabase
-      .from('profiles')
-      .select('id')
-      .in('username', usernames)
-      .neq('id', actorId)
-    
-    if (!users || users.length === 0) return
-    
-    const notifications = users.map((u: any) => ({
-      user_id: u.id,
-      actor_id: actorId,
-      type: 'mention',
-      rating_id: ratingId || null,
-    }))
-    
-    await supabase.from('notifications').insert(notifications)
-  } catch { /* silent */ }
+// Notification helpers — called throughout the app
+export async function notifyLike(postOwnerId: string, likerUsername: string) {
+  if (!postOwnerId) return
+  await sendPushToUser(
+    postOwnerId,
+    'Someone liked your brew ☕',
+    `${likerUsername} liked your post`,
+    { type: 'like', tag: 'like' }
+  )
+}
+
+export async function notifyComment(postOwnerId: string, commenterUsername: string, commentPreview: string) {
+  if (!postOwnerId) return
+  await sendPushToUser(
+    postOwnerId,
+    `${commenterUsername} commented`,
+    commentPreview.slice(0, 100),
+    { type: 'comment', tag: 'comment' }
+  )
+}
+
+export async function notifyFollow(followedUserId: string, followerUsername: string) {
+  if (!followedUserId) return
+  await sendPushToUser(
+    followedUserId,
+    'New follower!',
+    `${followerUsername} started following you`,
+    { type: 'follow', tag: 'follow' }
+  )
+}
+
+export async function notifyMention(mentionedUserId: string, mentionerUsername: string, context: string) {
+  if (!mentionedUserId) return
+  await sendPushToUser(
+    mentionedUserId,
+    `${mentionerUsername} mentioned you`,
+    context.slice(0, 100),
+    { type: 'mention', tag: 'mention' }
+  )
 }
