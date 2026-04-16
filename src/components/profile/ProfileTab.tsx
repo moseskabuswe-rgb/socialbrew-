@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Search, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { notifyFollow } from '../../lib/push'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
 import PostDetailModal from '../shared/PostDetailModal'
@@ -64,6 +65,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
     } else {
       await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId })
       await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow' })
+      notifyFollow(targetId, me.username || 'Someone')
       setFollowing(prev => new Set([...prev, targetId]))
     }
   }
@@ -324,6 +326,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
     } else {
       await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId })
       await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow' })
+      notifyFollow(userId, profile.username || 'Someone')
       setFollowing(prev => new Set([...prev, userId]))
     }
   }
