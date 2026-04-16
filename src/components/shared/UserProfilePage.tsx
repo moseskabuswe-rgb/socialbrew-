@@ -1,3 +1,4 @@
+import { useSwipeBack } from '../../lib/useSwipeBack'
 import { useState, useEffect, lazy, Suspense } from 'react'
 import PostDetailModal from './PostDetailModal'
 import ShopDetailPage from './ShopDetailPage'
