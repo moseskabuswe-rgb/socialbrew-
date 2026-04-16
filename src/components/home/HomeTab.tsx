@@ -3,7 +3,7 @@ import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX,
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
-import { sendNotification, notifyMentions } from '../../lib/push'
+import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import PostDetailModal from '../shared/PostDetailModal'
 import UserProfilePage from '../shared/UserProfilePage'
@@ -191,9 +191,20 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
       setComments(prev => [...prev, data])
       // Notify post owner of comment
       const { data: rating } = await supabase.from('ratings').select('user_id').eq('id', ratingId).single()
-      if (rating?.user_id) sendNotification({ userId: rating.user_id, actorId: profile.id, type: 'comment', ratingId })
+      if (rating?.user_id && rating.user_id !== profile.id) {
+        notifyComment(rating.user_id, profile.username || 'Someone', content)
+      }
       // Notify @mentions in comment
-      notifyMentions(content, profile.id, ratingId)
+      const mentioned = content.match(/@(\w+)/g)
+      if (mentioned) {
+        for (const handle of mentioned) {
+          const username = handle.slice(1)
+          const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
+          if (mentionedUser?.id && mentionedUser.id !== profile.id) {
+            notifyMention(mentionedUser.id, profile.username || 'Someone', content)
+          }
+        }
+      }
     }
     setNewComment(''); setPosting(false)
   }
@@ -454,7 +465,7 @@ function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClos
   )
 }
 
-export default function HomeTab({ refresh }: { refresh: number }) {
+export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLogoTap?: () => void }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
@@ -563,7 +574,9 @@ export default function HomeTab({ refresh }: { refresh: number }) {
       trackEvent('post_liked')
       // Notify post owner
       const rating = ratings.find(r => r.id === ratingId)
-      if (rating?.profiles?.id) sendNotification({ userId: rating.profiles.id, actorId: profile.id, type: 'like', ratingId })
+      if (rating?.profiles?.id && rating.profiles.id !== profile.id) {
+        notifyLike(rating.profiles.id, profile.username || 'Someone')
+      }
     }
   }
 
@@ -654,7 +667,7 @@ export default function HomeTab({ refresh }: { refresh: number }) {
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
+        <h1 className="font-display text-2xl font-bold text-coffee-800" onClick={onLogoTap} style={{ userSelect: 'none' }}>Social Brew</h1>
         <div className="flex items-center gap-1">
           <button onClick={() => setShowMessages(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <MessageCircle size={22} />
