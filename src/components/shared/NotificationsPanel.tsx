@@ -8,6 +8,8 @@ type Notification = {
   type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention'
   read: boolean
   created_at: string
+  actor_id: string
+  rating_id?: string
   actor: { username: string; avatar_url: string | null }
   rating?: { fill_level: number; coffee_shops: { name: string } | null }
 }
@@ -42,7 +44,7 @@ function notifText(n: Notification) {
   return shop ? `posted at ${shop}` : 'posted a new brew'
 }
 
-export function NotificationBell() {
+export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, id: string) => void }) {
   const { profile } = useAuth()
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
@@ -152,8 +154,14 @@ export function NotificationBell() {
               </div>
             )}
             {notifications.map(n => (
-              <div key={n.id}
-                className={`flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors ${!n.read ? 'bg-amber-50' : 'bg-white'}`}>
+              <button key={n.id}
+                onClick={() => {
+                  setOpen(false)
+                  if (!onNavigate) return
+                  if (n.type === 'follow') onNavigate('profile', n.actor_id)
+                  else if (n.rating_id) onNavigate('post', n.rating_id)
+                }}
+                className={`w-full flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors text-left ${!n.read ? 'bg-amber-50' : 'bg-white'} hover:bg-cream-50`}>
                 <div className="relative flex-shrink-0">
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200">
                     {n.actor?.avatar_url
@@ -174,7 +182,7 @@ export function NotificationBell() {
                   <p className="text-coffee-400 text-xs mt-0.5">{timeAgo(n.created_at)}</p>
                 </div>
                 {!n.read && <div className="w-2 h-2 rounded-full bg-caramel mt-1.5 flex-shrink-0" />}
-              </div>
+              </button>
             ))}
           </div>
         </div>
