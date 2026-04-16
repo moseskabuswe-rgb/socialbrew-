@@ -659,7 +659,19 @@ export default function HomeTab({ refresh }: { refresh: number }) {
           <button onClick={() => setShowMessages(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <MessageCircle size={22} />
           </button>
-          <NotificationBell />
+          <NotificationBell onNavigate={async (type, id) => {
+            if (type === 'profile') {
+              setActiveUserProfile(id)
+            } else if (type === 'post') {
+              // Load the rating and open PostDetailModal
+              const { data } = await supabase
+                .from('ratings')
+                .select('*, profiles!ratings_user_id_fkey(*), coffee_shops(*), comments(id, content, created_at, user_id, profiles(username, avatar_url))')
+                .eq('id', id)
+                .single()
+              if (data) setActivePost(data)
+            }
+          }} />
           <button onClick={() => loadSavedPosts()} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <Bookmark size={22} />
           </button>
@@ -690,10 +702,10 @@ export default function HomeTab({ refresh }: { refresh: number }) {
             return (
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                  <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                     {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
-                  </div>
+                  </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-700 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
@@ -726,11 +738,11 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                 <div className="flex items-center px-4 pb-3 gap-3 border-t border-cream-50">
                   <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1 mt-2 active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                     <Heart size={16} fill={isLiked ? '#e05a5a' : 'none'} />
-                    {rating.likes_count > 0 && <span className="text-xs">{rating.likes_count}</span>}
+                    <span className="text-xs">{rating.likes_count || 0}</span>
                   </button>
-                  <button onClick={() => setActiveComments(rating.id)} className="flex items-center gap-1 text-coffee-400 mt-2">
+                  <button onClick={() => setActivePost(rating)} className="flex items-center gap-1 text-coffee-400 mt-2 active:scale-90">
                     <MessageCircle size={16} />
-                    {rating.comments_count > 0 && <span className="text-xs">{rating.comments_count}</span>}
+                    <span className="text-xs">{rating.comments_count || 0}</span>
                   </button>
                   <button onClick={() => setWishlistRating(rating)} className="flex items-center gap-1 text-coffee-400 mt-2 active:scale-90">
                     <Plus size={16} /><span className="text-xs">Wishlist</span>
@@ -740,6 +752,29 @@ export default function HomeTab({ refresh }: { refresh: number }) {
                   </button>
                   <p className="text-coffee-300 text-xs mt-2">{formatDate(rating.created_at)}</p>
                 </div>
+                {/* Top 2 comments preview on Quick Sip */}
+                {(rating.comments as any)?.length > 0 && (
+                  <div className="px-4 pb-3 space-y-1.5 border-t border-cream-50 pt-2">
+                    {(rating.comments as any).slice(0, 2).map((cm: any) => (
+                      <div key={cm.id} className="flex gap-2 items-start">
+                        <div className="w-5 h-5 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mt-0.5">
+                          {cm.profiles?.avatar_url
+                            ? <img src={cm.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white" style={{fontSize:8}}>{cm.profiles?.username?.[0]?.toUpperCase()}</span></div>}
+                        </div>
+                        <p className="text-coffee-600 text-xs leading-snug flex-1">
+                          <span className="font-semibold text-coffee-700">{cm.profiles?.username} </span>
+                          {cm.content}
+                        </p>
+                      </div>
+                    ))}
+                    {(rating.comments as any).length > 2 && (
+                      <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
+                        View all {rating.comments_count} comments →
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )
           }
