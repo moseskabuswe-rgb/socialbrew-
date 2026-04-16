@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSwipeBack } from '../../lib/useSwipeBack'
 import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Share2 } from 'lucide-react'
 import { sendNotification, notifyMentions } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
@@ -181,6 +182,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [mentionUsers, setMentionUsers] = useState<any[]>([])
   const [mentionStart, setMentionStart] = useState(-1)
   const [showShareSheet, setShowShareSheet] = useState(false)
+  const swipeBack = useSwipeBack(() => onClose(comments.length, likesCount))
   const [zoomedPhoto, setZoomedPhoto] = useState(false)
 
   const user = rating.profiles as any
@@ -336,7 +338,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const cleanCaption = rating.caption?.split('🕐')[0]?.replace(/\s*·\s*$/, '').trim()
 
   return (
-    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+    <div ref={swipeBack.ref} onTouchStart={swipeBack.onTouchStart} onTouchMove={swipeBack.onTouchMove} onTouchEnd={swipeBack.onTouchEnd} className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-cream-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
         <button onClick={() => onClose(comments.length, likesCount)} className="text-coffee-500"><ArrowLeft size={22} /></button>
