@@ -503,8 +503,8 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
   const [editingPost, setEditingPost] = useState<any>(null)
   const [editCaption, setEditCaption] = useState('')
   const [showMessages, setShowMessages] = useState(false)
-  const [unreadDMs, setUnreadDMs] = useState(0)
   const [unreadPerSender, setUnreadPerSender] = useState<Record<string, number>>({})
+  const unreadDMs = Object.values(unreadPerSender).reduce((a, b) => a + b, 0)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
   const [showSaved, setShowSaved] = useState(false)
@@ -600,7 +600,6 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
         const perSender: Record<string, number> = {}
         data.forEach((m: any) => { perSender[m.from_id] = (perSender[m.from_id] || 0) + 1 })
         setUnreadPerSender(perSender)
-        setUnreadDMs(data.length)
       }
     }
     loadUnread()
@@ -612,7 +611,6 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
         table: 'direct_messages',
         filter: `to_id=eq.${profile.id}`
       }, (payload) => {
-        setUnreadDMs(prev => prev + 1)
         setUnreadPerSender(prev => ({
           ...prev,
           [payload.new.from_id]: (prev[payload.new.from_id] || 0) + 1
@@ -730,7 +728,7 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
       <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800" onClick={onLogoTap} style={{ userSelect: 'none' }}>Social Brew</h1>
         <div className="flex items-center gap-1">
-          <button onClick={() => { setShowMessages(true); setUnreadDMs(0) }} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+          <button onClick={() => setShowMessages(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <MessageCircle size={22} />
             {unreadDMs > 0 && (
               <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
@@ -1040,7 +1038,7 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
       {showMessages && <MessagesPanel
         onClose={() => { setShowMessages(false) }}
         unreadPerSender={unreadPerSender}
-        onMarkRead={(senderId) => setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; setUnreadDMs(Object.values(n).reduce((a,b) => a+b, 0)); return n })}
+        onMarkRead={(senderId) => setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; return n })}
       />}
       {activeMenu && (
         <PostMenu
