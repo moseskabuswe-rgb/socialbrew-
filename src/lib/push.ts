@@ -148,3 +148,13 @@ export async function notifyMention(mentionedUserId: string, mentionerUsername: 
     { type: 'mention', tag: 'mention' }
   )
 }
+
+export async function notifyDM(toUserId: string, fromUsername: string, messagePreview: string) {
+  if (!toUserId) return
+  await sendPushToUser(
+    toUserId,
+    `${fromUsername} sent you a message ☕`,
+    messagePreview.slice(0, 100),
+    { type: 'dm', tag: 'dm' }
+  )
+}
