@@ -3,7 +3,7 @@ import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX,
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
-import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
+import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import PostDetailModal from '../shared/PostDetailModal'
 import UserProfilePage from '../shared/UserProfilePage'
@@ -83,7 +83,10 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
     const { data } = await supabase.from('direct_messages')
       .insert({ from_id: profile.id, to_id: activeConvo.id, content: newMsg.trim() })
       .select('*, profiles!direct_messages_from_id_fkey(username,avatar_url)').single()
-    if (data) setMessages(prev => [...prev, data as any])
+    if (data) {
+      setMessages(prev => [...prev, data as any])
+      notifyDM(activeConvo.id, profile.username || 'Someone', newMsg.trim())
+    }
     setNewMsg(''); setSending(false)
   }
 
@@ -95,7 +98,11 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-cream-100 flex flex-col"
+      onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
+      onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) onClose() }}
+    >
       <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
           <div className="flex items-center gap-2">
             {activeConvo && <button onClick={() => { setActiveConvo(null); setMessages([]) }} className="text-coffee-500 mr-1"><ArrowLeft size={22} /></button>}
