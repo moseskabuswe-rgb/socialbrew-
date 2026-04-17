@@ -146,7 +146,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
                 <p className="text-coffee-500 font-medium text-sm">No notifications yet</p>
                 <p className="text-coffee-400 text-xs mt-1">Activity from friends will appear here</p>
                 {'Notification' in window && Notification.permission === 'default' && (
-                  <button onClick={async () => { const { requestPushPermission } = await import('../../lib/push'); if (profile) await requestPushPermission(profile.id) }}
+                  <button onClick={async () => { const { registerPushNotifications } = await import('../../lib/push'); if (profile) await registerPushNotifications(profile.id) }}
                     className="mt-4 px-4 py-2 bg-caramel text-white rounded-full text-xs font-semibold">
                     Enable push notifications 🔔
                   </button>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSwipeBack } from '../../lib/useSwipeBack'
 import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Share2 } from 'lucide-react'
-import { sendNotification, notifyMentions } from '../../lib/push'
+import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -235,7 +235,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       // Notify post owner
       const ownerId = rating.profiles?.id || rating.user_id
       if (ownerId && ownerId !== profile.id) {
-        sendNotification({ userId: ownerId, actorId: profile.id, type: 'like', ratingId: rating.id })
+        notifyLike(ownerId, profile.username || 'Someone')
       }
     }
   }
@@ -316,9 +316,18 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       setComments(prev => [...prev, data])
       // Notify post owner
       const ownerId = rating.profiles?.id || rating.user_id
-      if (ownerId) sendNotification({ userId: ownerId, actorId: profile.id, type: 'comment', ratingId: rating.id })
+      if (ownerId && ownerId !== profile.id) notifyComment(ownerId, profile.username || 'Someone', content)
       // Notify @mentions
-      notifyMentions(content, profile.id, rating.id)
+      const mentioned = content.match(/@(\w+)/g)
+      if (mentioned) {
+        for (const handle of mentioned) {
+          const username = handle.slice(1)
+          const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
+          if (mentionedUser?.id && mentionedUser.id !== profile.id) {
+            notifyMention(mentionedUser.id, profile.username || 'Someone', content)
+          }
+        }
+      }
     }
     setNewComment(''); setPosting(false)
   }
