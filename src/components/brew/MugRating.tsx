@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { notifyComment, notifyMention } from '../../lib/push'
+import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
 type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string, wasFirst?: boolean) => void }
