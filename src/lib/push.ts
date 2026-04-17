@@ -46,7 +46,7 @@ export async function registerPushNotifications(userId: string): Promise<boolean
   try {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return false
 
-    // iOS must be installed as PWA (Add to Home Screen)
+    // iOS must be installed as PWA
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
     const isIOSPWA = (window.navigator as any).standalone === true
     if (isIOS && !isIOSPWA) {
@@ -57,15 +57,44 @@ export async function registerPushNotifications(userId: string): Promise<boolean
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return false
 
-    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
-    await navigator.serviceWorker.ready
+    // Register service worker with timeout
+    let swReg: ServiceWorkerRegistration
+    try {
+      swReg = await Promise.race([
+        navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 8000))
+      ]) as ServiceWorkerRegistration
+    } catch (e) {
+      console.error('Service worker registration failed:', e)
+      return false
+    }
 
-    const messaging = await getMessaging()
-    const { getToken } = await import('firebase/messaging')
-    const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swReg
-    })
+    // Wait for SW to be ready with timeout
+    try {
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 8000))
+      ])
+    } catch (e) {
+      console.error('Service worker ready timeout:', e)
+      return false
+    }
+
+    // Get FCM token with timeout
+    let token: string
+    try {
+      const { initializeApp, getApps } = await import('firebase/app')
+      const { getMessaging: getFCMMessaging, getToken } = await import('firebase/messaging')
+      const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
+      const messaging = getFCMMessaging(app)
+      token = await Promise.race([
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Token timeout')), 10000))
+      ]) as string
+    } catch (e) {
+      console.error('FCM token fetch failed:', e)
+      return false
+    }
 
     if (!token) return false
 
@@ -73,6 +102,13 @@ export async function registerPushNotifications(userId: string): Promise<boolean
       .from('profiles')
       .update({ push_token: token, push_enabled: true })
       .eq('id', userId)
+
+    return true
+  } catch (err) {
+    console.error('Push registration failed:', err)
+    return false
+  }
+}
 
     return true
   } catch (err) {
