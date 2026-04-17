@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Enable Notifications — Social Brew</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: white;
+    border-radius: 28px;
+    padding: 40px 28px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+  }
+  .icon { font-size: 56px; margin-bottom: 20px; }
+  h1 { color: #3d1a06; font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+  p { color: #9b7a45; font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
+  button {
+    width: 100%;
+    padding: 16px;
+    background: #c8853a;
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .status {
+    margin-top: 18px;
+    font-size: 14px;
+    color: #9b7a45;
+    min-height: 22px;
+    line-height: 1.4;
+  }
+  .error { color: #d94f4f; }
+  .success { color: #5a9e6a; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🔔</div>
+  <h1>Stay in the Loop</h1>
+  <p>Get notified when someone likes your brew, leaves a comment, or starts following you.</p>
+  <button id="btn">Enable Notifications</button>
+  <div class="status" id="status"></div>
+</div>
+
+<script type="module">
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAyo_95tISPnqA1U8Q53JaFaomGc7meWYk",
+  authDomain: "social-brew-206d3.firebaseapp.com",
+  projectId: "social-brew-206d3",
+  storageBucket: "social-brew-206d3.firebasestorage.app",
+  messagingSenderId: "783967513849",
+  appId: "1:783967513849:web:668f29777b863a8e8cc628"
+}
+const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
+const EDGE_FN_URL = "https://pifpkfuulfnweeiqufbq.supabase.co/functions/v1/send-notification"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw"
+
+const btn = document.getElementById('btn')
+const status = document.getElementById('status')
+
+function setStatus(msg, type) {
+  status.textContent = msg
+  status.className = 'status ' + (type || '')
+}
+
+// Get userId from URL
+const params = new URLSearchParams(window.location.search)
+const userId = params.get('uid')
+
+if (!userId) {
+  setStatus('Error: Missing user ID. Please go back to the app.', 'error')
+  btn.disabled = true
+}
+
+btn.addEventListener('click', async () => {
+  btn.disabled = true
+  setStatus('Requesting permission...')
+
+  try {
+    // Step 1: Request notification permission
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      setStatus('Permission denied. Please allow notifications and try again.', 'error')
+      btn.disabled = false
+      return
+    }
+
+    // Step 2: Register service worker
+    setStatus('Setting up...')
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+    await navigator.serviceWorker.ready
+
+    // Step 3: Load Firebase and get token (same as test page that worked)
+    setStatus('Getting your token...')
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js')
+    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js')
+
+    const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
+    const messaging = getMessaging(app)
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg
+    })
+
+    if (!token) {
+      setStatus('Could not get token. Please try again.', 'error')
+      btn.disabled = false
+      return
+    }
+
+    // Step 4: Save token via Edge Function (uses service role key — bypasses RLS)
+    setStatus('Saving...')
+    const res = await fetch(EDGE_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ action: 'save-token', userId, token })
+    })
+
+    const result = await res.json()
+
+    if (!res.ok || result.error) {
+      setStatus('Save failed: ' + (result.error || res.status), 'error')
+      btn.disabled = false
+      return
+    }
+
+    // Step 5: Success — go back to app
+    setStatus('✅ Notifications enabled!', 'success')
+    btn.textContent = 'Done! ☕'
+
+    setTimeout(() => {
+      window.location.href = 'https://socialbrew-ani.pages.dev'
+    }, 1500)
+
+  } catch (err) {
+    setStatus('Error: ' + err.message, 'error')
+    btn.disabled = false
+  }
+})
+</script>
+</body>
+</html>
