@@ -80,7 +80,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   const [activeSection, setActiveSection] = useState<Section>('sips')
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
-  const [nestedUserId, setNestedUserId] = useState<string | null>(null)
+  const [profileStack, setProfileStack] = useState<string[]>([])
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -130,7 +130,11 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   if (showFollowers) {
     const list = showFollowers === 'followers' ? followers : following
     return (
-      <div className="min-h-screen bg-cream-100 flex flex-col">
+      <div
+        className="min-h-screen bg-cream-100 flex flex-col"
+        onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
+        onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) { if (nestedUserId) setNestedUserId(null); else setShowFollowers(null) } }}
+      >
         <div className="sticky top-0 z-10 bg-white border-b border-cream-200 px-5 py-4 flex items-center gap-3">
           <button onClick={() => setShowFollowers(null)} className="text-coffee-500"><ArrowLeft size={22} /></button>
           <h2 className="font-display text-xl font-bold text-coffee-800 capitalize">{showFollowers}</h2>
@@ -139,7 +143,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           {list.length === 0 && <div className="text-center py-16"><p className="text-coffee-400">No {showFollowers} yet</p></div>}
           {list.map((u: any) => (
             <div key={u.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white">
-              <button onClick={() => setNestedUserId(u.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+              <button onClick={() => setProfileStack(prev => [...prev, u.id])} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {u.avatar_url
                     ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -162,7 +166,11 @@ export default function UserProfilePage({ userId, onBack }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream-100 flex flex-col">
+      <div
+        className="min-h-screen bg-cream-100 flex flex-col"
+        onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
+        onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) onBack() }}
+      >
         <div className="sticky top-0 z-10 bg-white border-b border-cream-200 px-5 py-4 flex items-center gap-3">
           <button onClick={onBack} className="text-coffee-500"><ArrowLeft size={22} /></button>
         </div>
@@ -172,7 +180,11 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-cream-100 flex flex-col">
+    <div
+      className="min-h-screen bg-cream-100 flex flex-col"
+      onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
+      onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) onBack() }}
+    >
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-cream-200 px-5 py-4 flex items-center gap-3">
         <button onClick={onBack} className="text-coffee-500"><ArrowLeft size={22} /></button>
@@ -363,9 +375,12 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       </div>
     {activePost && <PostDetailModal rating={activePost} onClose={() => setActivePost(null)} onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }} />}
     {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
-    {nestedUserId && (
+    {profileStack.length > 0 && (
       <div className="fixed inset-0 z-[80] bg-cream-100 overflow-y-auto">
-        <UserProfilePage userId={nestedUserId} onBack={() => setNestedUserId(null)} />
+        <UserProfilePage
+          userId={profileStack[profileStack.length - 1]}
+          onBack={() => setProfileStack(prev => prev.slice(0, -1))}
+        />
       </div>
     )}
     </div>

@@ -162,7 +162,11 @@ export default function ShopDetailPage({ shop, onBack }: Props) {
   const activeList = tab === 'overview' ? allRatings : tab === 'my-brews' ? myRatings : friendRatings
 
   return (
-    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-cream-100 flex flex-col"
+      onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
+      onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) onBack() }}
+    >
       {/* Hero image with back button */}
       <div className="relative flex-shrink-0" style={{ height: 220 }}>
         {resolvedShop.photo_url && !imgError ? (
