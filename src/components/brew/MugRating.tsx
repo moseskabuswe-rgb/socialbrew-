@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { notifyFollowersOfPost, notifyMentions } from '../../lib/push'
+import { notifyComment, notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
 type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string, wasFirst?: boolean) => void }
@@ -100,8 +100,19 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         .limit(1)
         .single()
       if (newRating) {
-        notifyFollowersOfPost(profile.id, newRating.id)
-        if (caption) notifyMentions(caption, profile.id, newRating.id)
+        // Notify @mentions in caption
+        if (caption) {
+          const mentioned = caption.match(/@(\w+)/g)
+          if (mentioned) {
+            for (const handle of mentioned) {
+              const username = handle.slice(1)
+              const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
+              if (mentionedUser?.id && mentionedUser.id !== profile.id) {
+                notifyMention(mentionedUser.id, profile.username || 'Someone', caption)
+              }
+            }
+          }
+        }
       }
       setStep('done')
       setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
