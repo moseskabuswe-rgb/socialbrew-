@@ -1,25 +1,9 @@
 // src/lib/push.ts
 
 import { supabase } from './supabase'
-import { initializeApp, getApps } from 'firebase/app'
-import { getMessaging, getToken, deleteToken } from 'firebase/messaging'
-
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAyo_95tISPnqA1U8Q53JaFaomGc7meWYk",
-  authDomain: "social-brew-206d3.firebaseapp.com",
-  projectId: "social-brew-206d3",
-  storageBucket: "social-brew-206d3.firebasestorage.app",
-  messagingSenderId: "783967513849",
-  appId: "1:783967513849:web:668f29777b863a8e8cc628"
-}
 
 const SUPABASE_URL = 'https://pifpkfuulfnweeiqufbq.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw'
-const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
-
-function getFirebaseApp() {
-  return getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
-}
 
 async function callEdgeFunction(body: object): Promise<void> {
   try {
@@ -37,6 +21,37 @@ async function callEdgeFunction(body: object): Promise<void> {
   }
 }
 
+// Get FCM token via hidden iframe — isolates Firebase from React context
+// This is the only approach that avoids Firebase crashing the React app
+function getFCMTokenViaIframe(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const iframe = document.createElement('iframe')
+    iframe.src = '/get-token.html'
+    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none'
+
+    const timeout = setTimeout(() => {
+      cleanup()
+      resolve(null)
+    }, 20000)
+
+    function cleanup() {
+      clearTimeout(timeout)
+      window.removeEventListener('message', onMessage)
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
+    }
+
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type !== 'fcm-token') return
+      cleanup()
+      resolve(event.data.token || null)
+    }
+
+    window.addEventListener('message', onMessage)
+    document.body.appendChild(iframe)
+  })
+}
+
 export async function registerPushNotifications(userId: string): Promise<boolean> {
   try {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return false
@@ -51,41 +66,17 @@ export async function registerPushNotifications(userId: string): Promise<boolean
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return false
 
-    let swReg: ServiceWorkerRegistration
-    try {
-      swReg = await Promise.race([
-        navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('SW timeout')), 8000)
-        )
-      ]) as ServiceWorkerRegistration
-      await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('SW ready timeout')), 8000)
-        )
-      ])
-    } catch (e) {
-      console.error('SW failed:', e)
+    // Register service worker — iframe will use this
+    await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+    await navigator.serviceWorker.ready
+
+    // Get token via iframe (Firebase runs isolated from React)
+    const token = await getFCMTokenViaIframe()
+
+    if (!token) {
+      console.error('No FCM token received')
       return false
     }
-
-    let token: string = ''
-    try {
-      const app = getFirebaseApp()
-      const messaging = getMessaging(app)
-      token = await Promise.race([
-        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Token timeout')), 15000)
-        )
-      ]) as string
-    } catch (e) {
-      console.error('Token failed:', e)
-      return false
-    }
-
-    if (!token) return false
 
     const { error } = await supabase
       .from('profiles')
@@ -97,6 +88,7 @@ export async function registerPushNotifications(userId: string): Promise<boolean
       return false
     }
 
+    console.log('Push token saved successfully')
     return true
   } catch (err) {
     console.error('Push registration failed:', err)
@@ -106,41 +98,21 @@ export async function registerPushNotifications(userId: string): Promise<boolean
 
 export async function unregisterPushNotifications(userId: string): Promise<void> {
   try {
-    const app = getFirebaseApp()
-    const messaging = getMessaging(app)
-    await deleteToken(messaging)
-    await supabase
-      .from('profiles')
-      .update({ push_token: null, push_enabled: false })
-      .eq('id', userId)
+    const swReg = await navigator.serviceWorker.ready
+    const subscription = await swReg.pushManager.getSubscription()
+    if (subscription) await subscription.unsubscribe()
+    await supabase.from('profiles').update({ push_token: null, push_enabled: false }).eq('id', userId)
   } catch (err) {
     console.error('Push unregister failed:', err)
   }
 }
 
-export async function sendPushToUser(
-  targetUserId: string,
-  title: string,
-  body: string,
-  data?: Record<string, string>
-): Promise<void> {
-  try {
-    await callEdgeFunction({ targetUserId, title, body, data })
-  } catch (err) {
-    console.error('sendPushToUser failed:', err)
-  }
+export async function sendPushToUser(targetUserId: string, title: string, body: string, data?: Record<string, string>): Promise<void> {
+  try { await callEdgeFunction({ targetUserId, title, body, data }) } catch (err) { console.error('sendPushToUser failed:', err) }
 }
 
-export async function sendBroadcastNotification(
-  title: string,
-  body: string,
-  data?: Record<string, string>
-): Promise<void> {
-  try {
-    await callEdgeFunction({ broadcast: true, title, body, data })
-  } catch (err) {
-    console.error('sendBroadcastNotification failed:', err)
-  }
+export async function sendBroadcastNotification(title: string, body: string, data?: Record<string, string>): Promise<void> {
+  try { await callEdgeFunction({ broadcast: true, title, body, data }) } catch (err) { console.error('sendBroadcastNotification failed:', err) }
 }
 
 export async function notifyLike(postOwnerId: string, likerUsername: string) {
