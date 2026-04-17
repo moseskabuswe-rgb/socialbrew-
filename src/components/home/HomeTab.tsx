@@ -39,7 +39,11 @@ function timeAgo(d: string) {
 }
 
 // ── MESSAGES ─────────────────────────────────────────────
-function MessagesPanel({ onClose }: { onClose: () => void }) {
+function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
+  onClose: () => void
+  unreadPerSender?: Record<string, number>
+  onMarkRead?: (senderId: string) => void
+}) {
   const { profile } = useAuth()
   const [conversations, setConversations] = useState<any[]>([])
   const [activeConvo, setActiveConvo] = useState<any>(null)
@@ -81,6 +85,7 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
       .eq('to_id', profile?.id)
       .eq('from_id', partner.id)
       .eq('read', false)
+    onMarkRead?.(partner.id)
   }
 
   async function sendMsg() {
@@ -142,11 +147,17 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
               )}
               {conversations.map(c => (
                 <button key={c.id} onClick={() => openConvo(c)} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                     {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{c.username?.[0]?.toUpperCase()}</span></div>}
+                    {(unreadPerSender[c.id] || 0) > 0 && (
+                      <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                        <span className="text-white font-bold" style={{ fontSize: 9 }}>{unreadPerSender[c.id] > 9 ? '9+' : unreadPerSender[c.id]}</span>
+                      </span>
+                    )}
                   </div>
-                  <p className="text-coffee-700 font-semibold text-sm">{c.username}</p>
+                  <p className={`text-sm flex-1 text-left ${(unreadPerSender[c.id] || 0) > 0 ? 'text-coffee-800 font-bold' : 'text-coffee-700 font-semibold'}`}>{c.username}</p>
+                  {(unreadPerSender[c.id] || 0) > 0 && <div className="w-2 h-2 rounded-full bg-caramel flex-shrink-0" />}
                 </button>
               ))}
             </div>
@@ -493,6 +504,7 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
   const [editCaption, setEditCaption] = useState('')
   const [showMessages, setShowMessages] = useState(false)
   const [unreadDMs, setUnreadDMs] = useState(0)
+  const [unreadPerSender, setUnreadPerSender] = useState<Record<string, number>>({})
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
   const [showSaved, setShowSaved] = useState(false)
@@ -575,16 +587,21 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
     return () => { supabase.removeChannel(channel) }
   }, [refresh, loadFeed, profile])
 
-  // Unread DM count — loads on mount and subscribes to new messages
+  // Unread DM count — per sender
   useEffect(() => {
     if (!profile) return
     async function loadUnread() {
-      const { count } = await supabase
+      const { data } = await supabase
         .from('direct_messages')
-        .select('*', { count: 'exact', head: true })
+        .select('from_id')
         .eq('to_id', profile!.id)
         .eq('read', false)
-      setUnreadDMs(count || 0)
+      if (data) {
+        const perSender: Record<string, number> = {}
+        data.forEach((m: any) => { perSender[m.from_id] = (perSender[m.from_id] || 0) + 1 })
+        setUnreadPerSender(perSender)
+        setUnreadDMs(data.length)
+      }
     }
     loadUnread()
     const channel = supabase
@@ -594,8 +611,12 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
         schema: 'public',
         table: 'direct_messages',
         filter: `to_id=eq.${profile.id}`
-      }, () => {
+      }, (payload) => {
         setUnreadDMs(prev => prev + 1)
+        setUnreadPerSender(prev => ({
+          ...prev,
+          [payload.new.from_id]: (prev[payload.new.from_id] || 0) + 1
+        }))
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -1016,7 +1037,11 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
 
       {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
       {activeComments && <CommentsSection ratingId={activeComments} onClose={() => setActiveComments(null)} />}
-      {showMessages && <MessagesPanel onClose={() => setShowMessages(false)} />}
+      {showMessages && <MessagesPanel
+        onClose={() => { setShowMessages(false) }}
+        unreadPerSender={unreadPerSender}
+        onMarkRead={(senderId) => setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; setUnreadDMs(Object.values(n).reduce((a,b) => a+b, 0)); return n })}
+      />}
       {activeMenu && (
         <PostMenu
           isOwn={activeMenu._isOwn}
