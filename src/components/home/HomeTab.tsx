@@ -75,6 +75,12 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
       .or(`and(from_id.eq.${profile?.id},to_id.eq.${partner.id}),and(from_id.eq.${partner.id},to_id.eq.${profile?.id})`)
       .order('created_at', { ascending: true })
     setMessages((data || []) as any)
+    // Mark incoming messages as read
+    await supabase.from('direct_messages')
+      .update({ read: true })
+      .eq('to_id', profile?.id)
+      .eq('from_id', partner.id)
+      .eq('read', false)
   }
 
   async function sendMsg() {
@@ -486,6 +492,7 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
   const [editingPost, setEditingPost] = useState<any>(null)
   const [editCaption, setEditCaption] = useState('')
   const [showMessages, setShowMessages] = useState(false)
+  const [unreadDMs, setUnreadDMs] = useState(0)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
   const [showSaved, setShowSaved] = useState(false)
@@ -567,6 +574,32 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
 
     return () => { supabase.removeChannel(channel) }
   }, [refresh, loadFeed, profile])
+
+  // Unread DM count — loads on mount and subscribes to new messages
+  useEffect(() => {
+    if (!profile) return
+    async function loadUnread() {
+      const { count } = await supabase
+        .from('direct_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('to_id', profile!.id)
+        .eq('read', false)
+      setUnreadDMs(count || 0)
+    }
+    loadUnread()
+    const channel = supabase
+      .channel('dm-unread-' + profile.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `to_id=eq.${profile.id}`
+      }, () => {
+        setUnreadDMs(prev => prev + 1)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [profile])
 
   async function toggleLike(ratingId: string) {
     if (!profile) return
@@ -676,8 +709,13 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
       <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800" onClick={onLogoTap} style={{ userSelect: 'none' }}>Social Brew</h1>
         <div className="flex items-center gap-1">
-          <button onClick={() => setShowMessages(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+          <button onClick={() => { setShowMessages(true); setUnreadDMs(0) }} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <MessageCircle size={22} />
+            {unreadDMs > 0 && (
+              <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                <span className="text-white font-bold" style={{ fontSize: 9 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
+              </span>
+            )}
           </button>
           <NotificationBell onNavigate={async (type, id) => {
             if (type === 'profile') {
