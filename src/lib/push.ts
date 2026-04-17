@@ -110,13 +110,6 @@ export async function registerPushNotifications(userId: string): Promise<boolean
   }
 }
 
-    return true
-  } catch (err) {
-    console.error('Push registration failed:', err)
-    return false
-  }
-}
-
 export async function unregisterPushNotifications(userId: string): Promise<void> {
   try {
     const messaging = await getMessaging()
