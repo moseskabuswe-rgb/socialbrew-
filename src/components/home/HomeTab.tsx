@@ -79,6 +79,10 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
       .or(`and(from_id.eq.${profile?.id},to_id.eq.${partner.id}),and(from_id.eq.${partner.id},to_id.eq.${profile?.id})`)
       .order('created_at', { ascending: true })
     setMessages((data || []) as any)
+    setTimeout(() => {
+      const el = document.getElementById('msg-list')
+      if (el) el.scrollTop = el.scrollHeight
+    }, 50)
     // Mark incoming messages as read
     await supabase.from('direct_messages')
       .update({ read: true })
@@ -97,6 +101,10 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
     if (data) {
       setMessages(prev => [...prev, data as any])
       notifyDM(activeConvo.id, profile.username || 'Someone', newMsg.trim())
+      setTimeout(() => {
+        const el = document.getElementById('msg-list')
+        if (el) el.scrollTop = el.scrollHeight
+      }, 50)
     }
     setNewMsg(''); setSending(false)
   }
@@ -165,23 +173,65 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
         )}
         {activeConvo && (
           <>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-              {messages.length === 0 && <p className="text-center text-coffee-400 text-sm py-6">Say hi! ☕</p>}
-              {messages.map(msg => {
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 min-h-0" id="msg-list">
+              {messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full py-10">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 mb-3">
+                    {activeConvo.avatar_url
+                      ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-lg">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
+                  </div>
+                  <p className="text-coffee-700 font-semibold text-sm">{activeConvo.username}</p>
+                  <p className="text-coffee-400 text-xs mt-1">Say hi! ☕</p>
+                </div>
+              )}
+              {messages.map((msg, i) => {
                 const isMe = msg.from_id === profile?.id
+                const prevMsg = messages[i - 1]
+                const showAvatar = !isMe && (!prevMsg || prevMsg.from_id !== msg.from_id)
+                const showTime = !messages[i + 1] || 
+                  new Date(messages[i + 1].created_at).getTime() - new Date(msg.created_at).getTime() > 5 * 60 * 1000
+                const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 return (
-                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-caramel text-white rounded-br-sm' : 'bg-cream-100 text-coffee-800 rounded-bl-sm'}`}>
-                      {msg.content}
+                  <div key={msg.id}>
+                    <div className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      {!isMe && (
+                        <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mb-0.5">
+                          {showAvatar
+                            ? activeConvo.avatar_url
+                              ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold" style={{ fontSize: 11 }}>{activeConvo.username?.[0]?.toUpperCase()}</span></div>
+                            : <div className="w-full h-full" />}
+                        </div>
+                      )}
+                      <div className={`max-w-[72%] px-4 py-2.5 text-sm leading-relaxed ${
+                        isMe
+                          ? 'bg-caramel text-white rounded-2xl rounded-br-md'
+                          : 'bg-cream-200 text-coffee-800 rounded-2xl rounded-bl-md'
+                      }`} style={isMe ? {} : { background: '#ede0cc' }}>
+                        {msg.content}
+                      </div>
                     </div>
+                    {showTime && (
+                      <p className={`text-xs text-coffee-300 mt-1 mb-2 ${isMe ? 'text-right pr-1' : 'text-left pl-9'}`}>{time}</p>
+                    )}
                   </div>
                 )
               })}
             </div>
-            <div className="px-4 py-3 border-t border-cream-200 flex gap-2">
-              <input value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMsg()}
-                placeholder="Send a message..." className="flex-1 bg-cream-50 rounded-full px-4 py-2 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200" />
-              <button onClick={sendMsg} disabled={!newMsg.trim() || sending} className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40">
+            <div className="px-4 py-3 border-t border-cream-200 bg-white flex gap-2 items-center flex-shrink-0">
+              <input
+                value={newMsg}
+                onChange={e => setNewMsg(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMsg()}
+                placeholder="Message..."
+                className="flex-1 bg-cream-50 rounded-full px-4 py-2.5 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200 focus:border-caramel transition-colors"
+              />
+              <button
+                onClick={sendMsg}
+                disabled={!newMsg.trim() || sending}
+                className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40 flex-shrink-0 transition-opacity"
+              >
                 <Send size={15} className="text-white" />
               </button>
             </div>
@@ -636,8 +686,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
       .eq('id', editingPost.id)
       .eq('user_id', profile.id)
     if (error) {
-      console.error('Edit post failed:', error)
-      alert('Could not save edit. Please try again.')
+      console.error('Edit failed:', error)
+      alert('Could not save — please try again.')
       return
     }
     setRatings(prev => prev.map(r => r.id === editingPost.id ? { ...r, caption: trimmed } : r))
