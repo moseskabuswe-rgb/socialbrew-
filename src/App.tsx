@@ -14,7 +14,7 @@ import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import { supabase } from './lib/supabase'
-import { registerPushNotifications, notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
+import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
 // Re-export notification helpers so other components can import from App
 export { notifyLike, notifyComment, notifyFollow, notifyMention }
@@ -34,7 +34,7 @@ function AppContent() {
   const [showPushPrompt, setShowPushPrompt] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   // Secret tap counter on logo — 5 taps opens admin panel
-  const [logoTaps, setLogoTaps] = useState(0)
+  const [_logoTaps, setLogoTaps] = useState(0)
 
   // Show push prompt once, 3 seconds after login
   useEffect(() => {
