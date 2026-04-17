@@ -7,11 +7,13 @@ import { registerPushNotifications } from '../../lib/push'
 interface Props {
   userId: string
   onDismiss: () => void
+  onSuccess: () => void
 }
 
-export default function PushPrompt({ userId, onDismiss }: Props) {
+export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
   const isIOSPWA = (window.navigator as any).standalone === true
@@ -50,13 +52,14 @@ export default function PushPrompt({ userId, onDismiss }: Props) {
 
   async function handleEnable() {
     setLoading(true)
+    setFailed(false)
     const success = await registerPushNotifications(userId)
     setLoading(false)
     if (success) {
       setDone(true)
-      setTimeout(onDismiss, 1800)
+      setTimeout(onSuccess, 1800) // only mark as done on success
     } else {
-      onDismiss()
+      setFailed(true) // show error, keep prompt visible
     }
   }
 
@@ -74,13 +77,16 @@ export default function PushPrompt({ userId, onDismiss }: Props) {
       <p className="text-coffee-500 text-xs mb-3 leading-relaxed">
         Get notified when someone likes your brew, leaves a comment, or starts following you.
       </p>
+      {failed && (
+        <p className="text-red-400 text-xs mb-2">Something went wrong — please try again.</p>
+      )}
       <div className="flex gap-2">
         <button
           onClick={handleEnable}
           disabled={loading}
           className="flex-1 bg-caramel text-white rounded-xl py-2 text-sm font-semibold disabled:opacity-60"
         >
-          {loading ? 'Enabling...' : 'Enable notifications'}
+          {loading ? 'Enabling...' : failed ? 'Try again' : 'Enable notifications'}
         </button>
         <button onClick={onDismiss} className="px-3 text-coffee-400 text-sm">Not now</button>
       </div>
