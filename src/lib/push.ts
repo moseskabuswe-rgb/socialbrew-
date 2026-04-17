@@ -1,6 +1,8 @@
 // src/lib/push.ts
 
 import { supabase } from './supabase'
+import { initializeApp, getApps } from 'firebase/app'
+import { getMessaging, getToken, deleteToken } from 'firebase/messaging'
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyAyo_95tISPnqA1U8Q53JaFaomGc7meWYk",
@@ -14,6 +16,10 @@ const FIREBASE_CONFIG = {
 const SUPABASE_URL = 'https://pifpkfuulfnweeiqufbq.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw'
 const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
+
+function getFirebaseApp() {
+  return getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
+}
 
 async function callEdgeFunction(body: object): Promise<void> {
   try {
@@ -31,43 +37,10 @@ async function callEdgeFunction(body: object): Promise<void> {
   }
 }
 
-// Load Firebase from CDN — same approach as the test page that worked
-async function loadFirebaseFromCDN() {
-  return new Promise<any>((resolve, reject) => {
-    // Check if already loaded
-    if ((window as any).__firebaseMessaging) {
-      resolve((window as any).__firebaseMessaging)
-      return
-    }
-
-    const appScript = document.createElement('script')
-    appScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
-    appScript.onload = () => {
-      const msgScript = document.createElement('script')
-      msgScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js'
-      msgScript.onload = () => {
-        const fb = (window as any).firebase
-        if (!fb.apps.length) fb.initializeApp(FIREBASE_CONFIG)
-        const messaging = fb.messaging()
-        ;(window as any).__firebaseMessaging = messaging
-        resolve(messaging)
-      }
-      msgScript.onerror = reject
-      document.head.appendChild(msgScript)
-    }
-    appScript.onerror = reject
-    document.head.appendChild(appScript)
-  })
-}
-
 export async function registerPushNotifications(userId: string): Promise<boolean> {
   try {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      console.log('Push not supported')
-      return false
-    }
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return false
 
-    // iOS must be installed as PWA
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
     const isIOSPWA = (window.navigator as any).standalone === true
     if (isIOS && !isIOSPWA) {
@@ -76,38 +49,37 @@ export async function registerPushNotifications(userId: string): Promise<boolean
     }
 
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') {
-      console.log('Permission denied:', permission)
-      return false
-    }
+    if (permission !== 'granted') return false
 
-    // Register service worker
     let swReg: ServiceWorkerRegistration
     try {
       swReg = await Promise.race([
         navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('SW registration timeout')), 8000)
+          setTimeout(() => reject(new Error('SW timeout')), 8000)
         )
       ]) as ServiceWorkerRegistration
-      await navigator.serviceWorker.ready
-      console.log('SW ready')
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SW ready timeout')), 8000)
+        )
+      ])
     } catch (e) {
       console.error('SW failed:', e)
       return false
     }
 
-    // Load Firebase from CDN (same as test page)
     let token: string
     try {
-      const messaging = await loadFirebaseFromCDN()
+      const app = getFirebaseApp()
+      const messaging = getMessaging(app)
       token = await Promise.race([
-        messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }),
+        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Token timeout')), 15000)
         )
       ]) as string
-      console.log('Token obtained:', token ? 'yes' : 'no')
     } catch (e) {
       console.error('Token failed:', e)
       return false
@@ -125,7 +97,6 @@ export async function registerPushNotifications(userId: string): Promise<boolean
       return false
     }
 
-    console.log('Token saved successfully')
     return true
   } catch (err) {
     console.error('Push registration failed:', err)
@@ -135,9 +106,9 @@ export async function registerPushNotifications(userId: string): Promise<boolean
 
 export async function unregisterPushNotifications(userId: string): Promise<void> {
   try {
-    if ((window as any).__firebaseMessaging) {
-      await (window as any).__firebaseMessaging.deleteToken()
-    }
+    const app = getFirebaseApp()
+    const messaging = getMessaging(app)
+    await deleteToken(messaging)
     await supabase
       .from('profiles')
       .update({ push_token: null, push_enabled: false })
@@ -174,50 +145,25 @@ export async function sendBroadcastNotification(
 
 export async function notifyLike(postOwnerId: string, likerUsername: string) {
   if (!postOwnerId) return
-  await sendPushToUser(
-    postOwnerId,
-    'Someone liked your brew ☕',
-    `${likerUsername} liked your post`,
-    { type: 'like', tag: 'like' }
-  )
+  await sendPushToUser(postOwnerId, 'Someone liked your brew ☕', `${likerUsername} liked your post`, { type: 'like', tag: 'like' })
 }
 
 export async function notifyComment(postOwnerId: string, commenterUsername: string, commentPreview: string) {
   if (!postOwnerId) return
-  await sendPushToUser(
-    postOwnerId,
-    `${commenterUsername} commented`,
-    commentPreview.slice(0, 100),
-    { type: 'comment', tag: 'comment' }
-  )
+  await sendPushToUser(postOwnerId, `${commenterUsername} commented`, commentPreview.slice(0, 100), { type: 'comment', tag: 'comment' })
 }
 
 export async function notifyFollow(followedUserId: string, followerUsername: string) {
   if (!followedUserId) return
-  await sendPushToUser(
-    followedUserId,
-    'New follower!',
-    `${followerUsername} started following you`,
-    { type: 'follow', tag: 'follow' }
-  )
+  await sendPushToUser(followedUserId, 'New follower!', `${followerUsername} started following you`, { type: 'follow', tag: 'follow' })
 }
 
 export async function notifyMention(mentionedUserId: string, mentionerUsername: string, context: string) {
   if (!mentionedUserId) return
-  await sendPushToUser(
-    mentionedUserId,
-    `${mentionerUsername} mentioned you`,
-    context.slice(0, 100),
-    { type: 'mention', tag: 'mention' }
-  )
+  await sendPushToUser(mentionedUserId, `${mentionerUsername} mentioned you`, context.slice(0, 100), { type: 'mention', tag: 'mention' })
 }
 
 export async function notifyDM(toUserId: string, fromUsername: string, messagePreview: string) {
   if (!toUserId) return
-  await sendPushToUser(
-    toUserId,
-    `${fromUsername} sent you a message ☕`,
-    messagePreview.slice(0, 100),
-    { type: 'dm', tag: 'dm' }
-  )
+  await sendPushToUser(toUserId, `${fromUsername} sent you a message ☕`, messagePreview.slice(0, 100), { type: 'dm', tag: 'dm' })
 }
