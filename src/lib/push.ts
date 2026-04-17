@@ -21,87 +21,21 @@ async function callEdgeFunction(body: object): Promise<void> {
   }
 }
 
-// Get FCM token via hidden iframe — isolates Firebase from React context
-// This is the only approach that avoids Firebase crashing the React app
-function getFCMTokenViaIframe(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const iframe = document.createElement('iframe')
-    iframe.src = '/get-token.html'
-    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none'
-
-    const timeout = setTimeout(() => {
-      cleanup()
-      resolve(null)
-    }, 20000)
-
-    function cleanup() {
-      clearTimeout(timeout)
-      window.removeEventListener('message', onMessage)
-      if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
-    }
-
-    function onMessage(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return
-      if (event.data?.type !== 'fcm-token') return
-      cleanup()
-      resolve(event.data.token || null)
-    }
-
-    window.addEventListener('message', onMessage)
-    document.body.appendChild(iframe)
-  })
-}
-
 export async function registerPushNotifications(userId: string): Promise<boolean> {
-  try {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return false
-
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
-    const isIOSPWA = (window.navigator as any).standalone === true
-    if (isIOS && !isIOSPWA) {
-      alert('To receive notifications, tap the Share button in Safari and select "Add to Home Screen", then reopen the app.')
-      return false
-    }
-
-    const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return false
-
-    // Register service worker — iframe will use this
-    await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
-    await navigator.serviceWorker.ready
-
-    // Get token via iframe (Firebase runs isolated from React)
-    const token = await getFCMTokenViaIframe()
-
-    if (!token) {
-      console.error('No FCM token received')
-      return false
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ push_token: token, push_enabled: true })
-      .eq('id', userId)
-
-    if (error) {
-      console.error('Token save failed:', error)
-      return false
-    }
-
-    console.log('Push token saved successfully')
-    return true
-  } catch (err) {
-    console.error('Push registration failed:', err)
-    return false
-  }
+  // Navigate to standalone registration page.
+  // Firebase Messaging crashes React when called in the main thread.
+  // The standalone page uses the same Firebase CDN approach as test-push.html
+  // which is proven to work, and saves the token via Edge Function (service role key).
+  window.location.href = `/enable-notifications.html?uid=${encodeURIComponent(userId)}`
+  return false
 }
 
 export async function unregisterPushNotifications(userId: string): Promise<void> {
   try {
-    const swReg = await navigator.serviceWorker.ready
-    const subscription = await swReg.pushManager.getSubscription()
-    if (subscription) await subscription.unsubscribe()
-    await supabase.from('profiles').update({ push_token: null, push_enabled: false }).eq('id', userId)
+    await supabase
+      .from('profiles')
+      .update({ push_token: null, push_enabled: false })
+      .eq('id', userId)
   } catch (err) {
     console.error('Push unregister failed:', err)
   }
