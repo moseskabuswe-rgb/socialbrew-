@@ -16,7 +16,6 @@ import AdminBroadcast from './components/shared/AdminBroadcast'
 import { supabase } from './lib/supabase'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
-// Re-export notification helpers so other components can import from App
 export { notifyLike, notifyComment, notifyFollow, notifyMention }
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
@@ -33,11 +32,44 @@ function AppContent() {
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
   const [showPushPrompt, setShowPushPrompt] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
-  // Secret tap counter on logo — 5 taps opens admin panel
   const [_logoTaps, setLogoTaps] = useState(0)
 
-  // Show push prompt once, 3 seconds after login
+  // ── Unread DM state — lives here so it survives tab switches ──
+  const [unreadPerSender, setUnreadPerSender] = useState<Record<string, number>>({})
+  const unreadDMs = Object.values(unreadPerSender).reduce((a, b) => a + b, 0)
+
   useEffect(() => {
+    if (!profile) return
+    // Load initial unread counts from DB
+    supabase
+      .from('direct_messages')
+      .select('from_id')
+      .eq('to_id', profile.id)
+      .eq('read', false)
+      .then(({ data }) => {
+        if (data) {
+          const perSender: Record<string, number> = {}
+          data.forEach((m: any) => { perSender[m.from_id] = (perSender[m.from_id] || 0) + 1 })
+          setUnreadPerSender(perSender)
+        }
+      })
+    // Subscribe to new incoming messages
+    const channel = supabase
+      .channel('app-dm-unread-' + profile.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `to_id=eq.${profile.id}`
+      }, (payload) => {
+        setUnreadPerSender(prev => ({
+          ...prev,
+          [payload.new.from_id]: (prev[payload.new.from_id] || 0) + 1
+        }))
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [profile])
     if (!profile) return
     const already = localStorage.getItem(PUSH_PROMPT_KEY)
     if (already) return
@@ -127,7 +159,18 @@ function AppContent() {
                 onDismiss={dismissPushPrompt}
               />
             )}
-            <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} />
+            <HomeTab
+              refresh={feedRefresh}
+              onLogoTap={handleLogoTap}
+              unreadPerSender={unreadPerSender}
+              onMarkRead={(senderId) => {
+                if (senderId === '__all__') {
+                  setUnreadPerSender({})
+                } else {
+                  setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; return n })
+                }
+              }}
+            />
           </>
         )}
         {activeTab === 'discover' && <DiscoverTab />}
