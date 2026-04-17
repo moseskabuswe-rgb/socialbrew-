@@ -20,7 +20,6 @@ export { notifyLike, notifyComment, notifyFollow, notifyMention }
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
-const PUSH_PROMPT_KEY = 'sb_push_prompted'
 const ADMIN_USER_ID = '47e5480e-e592-44bc-9b34-1111af76ea0e'
 
 function AppContent() {
@@ -70,23 +69,18 @@ function AppContent() {
     return () => { supabase.removeChannel(channel) }
   }, [profile])
 
-  // Show push prompt — show if not yet prompted AND (permission not granted OR token not saved)
+  // Show push prompt whenever token is not saved — simple and reliable
   useEffect(() => {
     if (!profile) return
-    const already = localStorage.getItem(PUSH_PROMPT_KEY) || sessionStorage.getItem(PUSH_PROMPT_KEY)
-    if (already) return
-    // Check if token is actually saved — if not, show prompt regardless of permission state
     const hasToken = !!(profile as any).push_token
     if (hasToken) return
+    // Small delay so the feed loads first
     const timer = setTimeout(() => setShowPushPrompt(true), 3000)
     return () => clearTimeout(timer)
   }, [profile])
 
   function dismissPushPrompt() {
     setShowPushPrompt(false)
-    // Use sessionStorage so prompt goes away for this session
-    // but returns next time they open the app if they never enabled
-    sessionStorage.setItem(PUSH_PROMPT_KEY, '1')
   }
 
   // Secret logo tap handler — 5 taps within ~3s opens admin panel
@@ -161,10 +155,7 @@ function AppContent() {
             <PushPrompt
               userId={profile.id}
               onDismiss={dismissPushPrompt}
-              onSuccess={() => {
-                setShowPushPrompt(false)
-                localStorage.setItem(PUSH_PROMPT_KEY, '1')
-              }}
+              onSuccess={() => setShowPushPrompt(false)}
             />
           )}
           <HomeTab
