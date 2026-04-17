@@ -70,13 +70,14 @@ function AppContent() {
     return () => { supabase.removeChannel(channel) }
   }, [profile])
 
-  // Show push prompt once, 3 seconds after login
+  // Show push prompt — show if not yet prompted AND (permission not granted OR token not saved)
   useEffect(() => {
     if (!profile) return
     const already = localStorage.getItem(PUSH_PROMPT_KEY) || sessionStorage.getItem(PUSH_PROMPT_KEY)
     if (already) return
-    // Don't prompt if already granted
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return
+    // Check if token is actually saved — if not, show prompt regardless of permission state
+    const hasToken = !!(profile as any).push_token
+    if (hasToken) return
     const timer = setTimeout(() => setShowPushPrompt(true), 3000)
     return () => clearTimeout(timer)
   }, [profile])
