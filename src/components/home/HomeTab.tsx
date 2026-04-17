@@ -489,7 +489,12 @@ function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClos
   )
 }
 
-export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLogoTap?: () => void }) {
+export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead }: {
+  refresh: number
+  onLogoTap?: () => void
+  unreadPerSender?: Record<string, number>
+  onMarkRead?: (senderId: string) => void
+}) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
@@ -503,7 +508,6 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
   const [editingPost, setEditingPost] = useState<any>(null)
   const [editCaption, setEditCaption] = useState('')
   const [showMessages, setShowMessages] = useState(false)
-  const [unreadPerSender, setUnreadPerSender] = useState<Record<string, number>>({})
   const unreadDMs = Object.values(unreadPerSender).reduce((a, b) => a + b, 0)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
@@ -586,39 +590,6 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
 
     return () => { supabase.removeChannel(channel) }
   }, [refresh, loadFeed, profile])
-
-  // Unread DM count — per sender
-  useEffect(() => {
-    if (!profile) return
-    async function loadUnread() {
-      const { data } = await supabase
-        .from('direct_messages')
-        .select('from_id')
-        .eq('to_id', profile!.id)
-        .eq('read', false)
-      if (data) {
-        const perSender: Record<string, number> = {}
-        data.forEach((m: any) => { perSender[m.from_id] = (perSender[m.from_id] || 0) + 1 })
-        setUnreadPerSender(perSender)
-      }
-    }
-    loadUnread()
-    const channel = supabase
-      .channel('dm-unread-' + profile.id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'direct_messages',
-        filter: `to_id=eq.${profile.id}`
-      }, (payload) => {
-        setUnreadPerSender(prev => ({
-          ...prev,
-          [payload.new.from_id]: (prev[payload.new.from_id] || 0) + 1
-        }))
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [profile])
 
   async function toggleLike(ratingId: string) {
     if (!profile) return
@@ -1038,7 +1009,7 @@ export default function HomeTab({ refresh, onLogoTap }: { refresh: number; onLog
       {showMessages && <MessagesPanel
         onClose={() => { setShowMessages(false) }}
         unreadPerSender={unreadPerSender}
-        onMarkRead={(senderId) => setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; return n })}
+        onMarkRead={onMarkRead}
       />}
       {activeMenu && (
         <PostMenu
