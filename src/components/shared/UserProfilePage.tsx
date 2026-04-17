@@ -133,7 +133,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       <div
         className="min-h-screen bg-cream-100 flex flex-col"
         onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
-        onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) { if (nestedUserId) setNestedUserId(null); else setShowFollowers(null) } }}
+        onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) { if (profileStack.length > 0) setProfileStack(prev => prev.slice(0, -1)); else setShowFollowers(null) } }}
       >
         <div className="sticky top-0 z-10 bg-white border-b border-cream-200 px-5 py-4 flex items-center gap-3">
           <button onClick={() => setShowFollowers(null)} className="text-coffee-500"><ArrowLeft size={22} /></button>
