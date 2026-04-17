@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthForm from './components/auth/AuthForm'
 import HomeTab from './components/home/HomeTab'
@@ -30,6 +30,7 @@ function AppContent() {
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
   const [showPushPrompt, setShowPushPrompt] = useState(false)
+  const promptShown = useRef(false) // prevents showing more than once per session
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [_logoTaps, setLogoTaps] = useState(0)
 
@@ -69,12 +70,13 @@ function AppContent() {
     return () => { supabase.removeChannel(channel) }
   }, [profile])
 
-  // Show push prompt whenever token is not saved — simple and reliable
+  // Show push prompt once per session if token not saved
   useEffect(() => {
     if (!profile) return
+    if (promptShown.current) return
     const hasToken = !!(profile as any).push_token
     if (hasToken) return
-    // Small delay so the feed loads first
+    promptShown.current = true
     const timer = setTimeout(() => setShowPushPrompt(true), 3000)
     return () => clearTimeout(timer)
   }, [profile])
