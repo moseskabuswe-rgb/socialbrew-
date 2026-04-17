@@ -70,7 +70,7 @@ export async function registerPushNotifications(userId: string): Promise<boolean
       return false
     }
 
-    let token: string
+    let token: string = ''
     try {
       const app = getFirebaseApp()
       const messaging = getMessaging(app)
