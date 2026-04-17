@@ -154,33 +154,31 @@ function AppContent() {
       {profile && !profile.email_verified && <EmailVerificationBanner />}
 
       <div className="pb-20">
-        {activeTab === 'home' && (
-          <>
-            {/* Push prompt shows at top of home feed */}
-            {showPushPrompt && (
-              <PushPrompt
-                userId={profile.id}
-                onDismiss={dismissPushPrompt}
-                onSuccess={() => {
-                  setShowPushPrompt(false)
-                  localStorage.setItem(PUSH_PROMPT_KEY, '1')
-                }}
-              />
-            )}
-            <HomeTab
-              refresh={feedRefresh}
-              onLogoTap={handleLogoTap}
-              unreadPerSender={unreadPerSender}
-              onMarkRead={(senderId) => {
-                if (senderId === '__all__') {
-                  setUnreadPerSender({})
-                } else {
-                  setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; return n })
-                }
+        {/* Always mounted tabs — hidden with CSS to preserve state */}
+        <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
+          {showPushPrompt && (
+            <PushPrompt
+              userId={profile.id}
+              onDismiss={dismissPushPrompt}
+              onSuccess={() => {
+                setShowPushPrompt(false)
+                localStorage.setItem(PUSH_PROMPT_KEY, '1')
               }}
             />
-          </>
-        )}
+          )}
+          <HomeTab
+            refresh={feedRefresh}
+            onLogoTap={handleLogoTap}
+            unreadPerSender={unreadPerSender}
+            onMarkRead={(senderId) => {
+              if (senderId === '__all__') {
+                setUnreadPerSender({})
+              } else {
+                setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; return n })
+              }
+            }}
+          />
+        </div>
         {activeTab === 'discover' && <DiscoverTab />}
         {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
         {activeTab === 'trending' && <TrendingTab />}
