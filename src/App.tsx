@@ -70,6 +70,9 @@ function AppContent() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [profile])
+
+  // Show push prompt once, 3 seconds after login
+  useEffect(() => {
     if (!profile) return
     const already = localStorage.getItem(PUSH_PROMPT_KEY)
     if (already) return
