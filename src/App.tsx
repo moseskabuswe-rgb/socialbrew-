@@ -36,7 +36,6 @@ function AppContent() {
 
   // ── Unread DM state — lives here so it survives tab switches ──
   const [unreadPerSender, setUnreadPerSender] = useState<Record<string, number>>({})
-  const unreadDMs = Object.values(unreadPerSender).reduce((a, b) => a + b, 0)
 
   useEffect(() => {
     if (!profile) return
@@ -74,7 +73,7 @@ function AppContent() {
   // Show push prompt once, 3 seconds after login
   useEffect(() => {
     if (!profile) return
-    const already = localStorage.getItem(PUSH_PROMPT_KEY)
+    const already = localStorage.getItem(PUSH_PROMPT_KEY) || sessionStorage.getItem(PUSH_PROMPT_KEY)
     if (already) return
     // Don't prompt if already granted
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return
@@ -84,7 +83,9 @@ function AppContent() {
 
   function dismissPushPrompt() {
     setShowPushPrompt(false)
-    localStorage.setItem(PUSH_PROMPT_KEY, '1')
+    // Use sessionStorage so prompt goes away for this session
+    // but returns next time they open the app if they never enabled
+    sessionStorage.setItem(PUSH_PROMPT_KEY, '1')
   }
 
   // Secret logo tap handler — 5 taps within ~3s opens admin panel
@@ -160,6 +161,10 @@ function AppContent() {
               <PushPrompt
                 userId={profile.id}
                 onDismiss={dismissPushPrompt}
+                onSuccess={() => {
+                  setShowPushPrompt(false)
+                  localStorage.setItem(PUSH_PROMPT_KEY, '1')
+                }}
               />
             )}
             <HomeTab
