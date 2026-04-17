@@ -628,9 +628,19 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   }
 
   async function saveEditPost() {
-    if (!editingPost) return
-    await supabase.from('ratings').update({ caption: editCaption }).eq('id', editingPost.id)
-    setRatings(prev => prev.map(r => r.id === editingPost.id ? { ...r, caption: editCaption } : r))
+    if (!editingPost || !profile) return
+    const trimmed = editCaption.trim()
+    const { error } = await supabase
+      .from('ratings')
+      .update({ caption: trimmed })
+      .eq('id', editingPost.id)
+      .eq('user_id', profile.id)
+    if (error) {
+      console.error('Edit post failed:', error)
+      alert('Could not save edit. Please try again.')
+      return
+    }
+    setRatings(prev => prev.map(r => r.id === editingPost.id ? { ...r, caption: trimmed } : r))
     setEditingPost(null)
   }
 
