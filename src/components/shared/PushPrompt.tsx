@@ -53,13 +53,14 @@ export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
   async function handleEnable() {
     setLoading(true)
     setFailed(false)
+    // If permission already granted, skip the request and go straight to token
     const success = await registerPushNotifications(userId)
     setLoading(false)
     if (success) {
       setDone(true)
-      setTimeout(onSuccess, 1800) // only mark as done on success
+      setTimeout(onSuccess, 1800)
     } else {
-      setFailed(true) // show error, keep prompt visible
+      setFailed(true)
     }
   }
 
