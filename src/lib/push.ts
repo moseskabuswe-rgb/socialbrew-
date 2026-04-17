@@ -11,7 +11,25 @@ const FIREBASE_CONFIG = {
   appId: "1:783967513849:web:668f29777b863a8e8cc628"
 }
 
+const SUPABASE_URL = 'https://pifpkfuulfnweeiqufbq.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw'
 const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
+
+async function callEdgeFunction(body: object): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body)
+    })
+  } catch (err) {
+    console.error('Edge function call failed:', err)
+  }
+}
 
 let messagingInstance: any = null
 
@@ -85,9 +103,7 @@ export async function sendPushToUser(
   data?: Record<string, string>
 ): Promise<void> {
   try {
-    await supabase.functions.invoke('send-notification', {
-      body: { targetUserId, title, body, data }
-    })
+    await callEdgeFunction({ targetUserId, title, body, data })
   } catch (err) {
     console.error('sendPushToUser failed:', err)
   }
@@ -100,9 +116,7 @@ export async function sendBroadcastNotification(
   data?: Record<string, string>
 ): Promise<void> {
   try {
-    await supabase.functions.invoke('send-notification', {
-      body: { broadcast: true, title, body, data }
-    })
+    await callEdgeFunction({ broadcast: true, title, body, data })
   } catch (err) {
     console.error('sendBroadcastNotification failed:', err)
   }
