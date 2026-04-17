@@ -31,20 +31,41 @@ async function callEdgeFunction(body: object): Promise<void> {
   }
 }
 
-let messagingInstance: any = null
+// Load Firebase from CDN — same approach as the test page that worked
+async function loadFirebaseFromCDN() {
+  return new Promise<any>((resolve, reject) => {
+    // Check if already loaded
+    if ((window as any).__firebaseMessaging) {
+      resolve((window as any).__firebaseMessaging)
+      return
+    }
 
-async function getMessaging() {
-  if (messagingInstance) return messagingInstance
-  const { initializeApp, getApps } = await import('firebase/app')
-  const { getMessaging: getFCMMessaging } = await import('firebase/messaging')
-  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
-  messagingInstance = getFCMMessaging(app)
-  return messagingInstance
+    const appScript = document.createElement('script')
+    appScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
+    appScript.onload = () => {
+      const msgScript = document.createElement('script')
+      msgScript.src = 'https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js'
+      msgScript.onload = () => {
+        const fb = (window as any).firebase
+        if (!fb.apps.length) fb.initializeApp(FIREBASE_CONFIG)
+        const messaging = fb.messaging()
+        ;(window as any).__firebaseMessaging = messaging
+        resolve(messaging)
+      }
+      msgScript.onerror = reject
+      document.head.appendChild(msgScript)
+    }
+    appScript.onerror = reject
+    document.head.appendChild(appScript)
+  })
 }
 
 export async function registerPushNotifications(userId: string): Promise<boolean> {
   try {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return false
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      console.log('Push not supported')
+      return false
+    }
 
     // iOS must be installed as PWA
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -55,54 +76,56 @@ export async function registerPushNotifications(userId: string): Promise<boolean
     }
 
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return false
+    if (permission !== 'granted') {
+      console.log('Permission denied:', permission)
+      return false
+    }
 
-    // Register service worker with timeout
+    // Register service worker
     let swReg: ServiceWorkerRegistration
     try {
       swReg = await Promise.race([
         navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 8000))
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SW registration timeout')), 8000)
+        )
       ]) as ServiceWorkerRegistration
+      await navigator.serviceWorker.ready
+      console.log('SW ready')
     } catch (e) {
-      console.error('Service worker registration failed:', e)
+      console.error('SW failed:', e)
       return false
     }
 
-    // Wait for SW to be ready with timeout
-    try {
-      await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 8000))
-      ])
-    } catch (e) {
-      console.error('Service worker ready timeout:', e)
-      return false
-    }
-
-    // Get FCM token with timeout
+    // Load Firebase from CDN (same as test page)
     let token: string
     try {
-      const { initializeApp, getApps } = await import('firebase/app')
-      const { getMessaging: getFCMMessaging, getToken } = await import('firebase/messaging')
-      const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
-      const messaging = getFCMMessaging(app)
+      const messaging = await loadFirebaseFromCDN()
       token = await Promise.race([
-        getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Token timeout')), 10000))
+        messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Token timeout')), 15000)
+        )
       ]) as string
+      console.log('Token obtained:', token ? 'yes' : 'no')
     } catch (e) {
-      console.error('FCM token fetch failed:', e)
+      console.error('Token failed:', e)
       return false
     }
 
     if (!token) return false
 
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ push_token: token, push_enabled: true })
       .eq('id', userId)
 
+    if (error) {
+      console.error('Token save failed:', error)
+      return false
+    }
+
+    console.log('Token saved successfully')
     return true
   } catch (err) {
     console.error('Push registration failed:', err)
@@ -112,9 +135,9 @@ export async function registerPushNotifications(userId: string): Promise<boolean
 
 export async function unregisterPushNotifications(userId: string): Promise<void> {
   try {
-    const messaging = await getMessaging()
-    const { deleteToken } = await import('firebase/messaging')
-    await deleteToken(messaging)
+    if ((window as any).__firebaseMessaging) {
+      await (window as any).__firebaseMessaging.deleteToken()
+    }
     await supabase
       .from('profiles')
       .update({ push_token: null, push_enabled: false })
@@ -124,7 +147,6 @@ export async function unregisterPushNotifications(userId: string): Promise<void>
   }
 }
 
-// Called by the app to send a notification to another user via Edge Function
 export async function sendPushToUser(
   targetUserId: string,
   title: string,
@@ -138,7 +160,6 @@ export async function sendPushToUser(
   }
 }
 
-// Broadcast to all users (admin only)
 export async function sendBroadcastNotification(
   title: string,
   body: string,
@@ -151,7 +172,6 @@ export async function sendBroadcastNotification(
   }
 }
 
-// Notification helpers — called throughout the app
 export async function notifyLike(postOwnerId: string, likerUsername: string) {
   if (!postOwnerId) return
   await sendPushToUser(
