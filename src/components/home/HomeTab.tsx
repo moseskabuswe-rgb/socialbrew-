@@ -539,11 +539,12 @@ function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClos
   )
 }
 
-export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead }: {
+export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead, onNavigateToBrew }: {
   refresh: number
   onLogoTap?: () => void
   unreadPerSender?: Record<string, number>
   onMarkRead?: (senderId: string) => void
+  onNavigateToBrew?: (shop?: any) => void
 }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
@@ -1064,7 +1065,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         })}
       </div>
 
-      {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
+      {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} onNavigateToBrew={onNavigateToBrew} />}
       {activeComments && <CommentsSection ratingId={activeComments} onClose={() => setActiveComments(null)} />}
       {showMessages && <MessagesPanel
         onClose={() => { setShowMessages(false) }}
