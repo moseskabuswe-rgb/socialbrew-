@@ -1,5 +1,3 @@
-// src/components/shared/PushPrompt.tsx
-
 import { useState } from 'react'
 import { Bell, X } from 'lucide-react'
 import { registerPushNotifications } from '../../lib/push'
@@ -13,12 +11,11 @@ interface Props {
 export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
   const isIOSPWA = (window.navigator as any).standalone === true
 
-  // On iOS browser (not installed) — show install prompt instead
   if (isIOS && !isIOSPWA) {
     return (
       <div className="mx-4 mb-3 bg-white rounded-2xl border border-cream-200 shadow-sm p-4 animate-fade-in">
@@ -52,16 +49,19 @@ export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
 
   async function handleEnable() {
     setLoading(true)
-    setFailed(false)
-    // If permission already granted, skip the request and go straight to token
-    const success = await registerPushNotifications(userId)
-    setLoading(false)
-    if (success) {
-      setDone(true)
-      setTimeout(onSuccess, 1800)
-    } else {
-      setFailed(true)
+    setErrorMsg(null)
+    try {
+      const success = await registerPushNotifications(userId)
+      if (success) {
+        setDone(true)
+        setTimeout(onSuccess, 1800)
+      } else {
+        setErrorMsg('Could not enable — tap Try again')
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Something went wrong')
     }
+    setLoading(false)
   }
 
   return (
@@ -78,8 +78,8 @@ export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
       <p className="text-coffee-500 text-xs mb-3 leading-relaxed">
         Get notified when someone likes your brew, leaves a comment, or starts following you.
       </p>
-      {failed && (
-        <p className="text-red-400 text-xs mb-2">Something went wrong — please try again.</p>
+      {errorMsg && (
+        <p className="text-red-400 text-xs mb-2 font-medium">{errorMsg}</p>
       )}
       <div className="flex gap-2">
         <button
@@ -87,7 +87,7 @@ export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
           disabled={loading}
           className="flex-1 bg-caramel text-white rounded-xl py-2 text-sm font-semibold disabled:opacity-60"
         >
-          {loading ? 'Enabling...' : failed ? 'Try again' : 'Enable notifications'}
+          {loading ? 'Opening...' : errorMsg ? 'Try again' : 'Enable notifications'}
         </button>
         <button onClick={onDismiss} className="px-3 text-coffee-400 text-sm">Not now</button>
       </div>

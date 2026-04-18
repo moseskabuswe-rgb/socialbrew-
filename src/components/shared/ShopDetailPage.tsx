@@ -12,6 +12,34 @@ type Props = {
 
 type Tab = 'overview' | 'my-brews' | 'friends'
 
+function parseOpeningHours(raw: string | null): string | null {
+  if (!raw) return null
+  // If already human-readable (contains full words like "Monday"), return as-is
+  if (/monday|tuesday|wednesday|thursday|friday|saturday|sunday/i.test(raw)) return raw
+  const dayMap: Record<string, string> = {
+    'Mo': 'Mon', 'Tu': 'Tue', 'We': 'Wed', 'Th': 'Thu',
+    'Fr': 'Fri', 'Sa': 'Sat', 'Su': 'Sun'
+  }
+  function to12h(time: string): string {
+    const [h, m] = time.split(':').map(Number)
+    const ampm = h >= 12 ? 'pm' : 'am'
+    const h12 = h % 12 || 12
+    return m === 0 ? `${h12}${ampm}` : `${h12}:${m.toString().padStart(2, '0')}${ampm}`
+  }
+  try {
+    return raw.split(';').map(segment => {
+      segment = segment.trim()
+      const match = segment.match(/^([A-Za-z,\- ]+)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/)
+      if (!match) return segment
+      let days = match[1].trim()
+      Object.entries(dayMap).forEach(([k, v]) => { days = days.replace(new RegExp(k, 'g'), v) })
+      return `${days} ${to12h(match[2])}–${to12h(match[3])}`
+    }).join(' · ')
+  } catch {
+    return raw
+  }
+}
+
 function getMugColor(fill: number) {
   if (fill <= 20) return '#b0c4d4'
   if (fill <= 40) return '#c8924a'
@@ -222,6 +250,29 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         )}
       </div>
 
+      {/* Hours and website */}
+      {((resolvedShop as any).opening_hours || (resolvedShop as any).website) && (
+        <div className="bg-white border-b border-cream-200 px-4 py-2.5 flex flex-wrap gap-3 flex-shrink-0">
+          {(resolvedShop as any).opening_hours && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🕐</span>
+              <p className="text-coffee-600 text-xs">{parseOpeningHours((resolvedShop as any).opening_hours)}</p>
+            </div>
+          )}
+          {(resolvedShop as any).website && (
+            <a
+              href={(resolvedShop as any).website.startsWith('http') ? (resolvedShop as any).website : `https://${(resolvedShop as any).website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5"
+            >
+              <span className="text-sm">🌐</span>
+              <p className="text-caramel text-xs underline">Visit website</p>
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex bg-white border-b border-cream-200 flex-shrink-0">
         {tabs.map(t => (
@@ -270,16 +321,25 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         )}
       </div>
 
-      {/* Directions button */}
-      {(resolvedShop.lat && resolvedShop.lng) && (
-        <div className="px-4 py-3 bg-white border-t border-cream-200 flex-shrink-0">
+      {/* Directions button + Rate button */}
+      <div className="px-4 py-3 bg-white border-t border-cream-200 flex-shrink-0 flex gap-2">
+        {(resolvedShop.lat && resolvedShop.lng) && (
           <a href={`https://www.google.com/maps/dir/?api=1&destination=${resolvedShop.lat},${resolvedShop.lng}`}
             target="_blank" rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 bg-caramel text-white rounded-xl py-3 font-semibold text-sm">
-            <MapPin size={16} /> Get Directions
+            className="flex items-center justify-center gap-2 bg-cream-100 border border-cream-300 text-coffee-700 rounded-xl py-3 font-semibold text-sm px-4">
+            <MapPin size={16} /> Directions
           </a>
-        </div>
-      )}
+        )}
+        {onNavigateToBrew && (
+          <button
+            onClick={() => onNavigateToBrew(shop)}
+            className="flex-1 flex items-center justify-center gap-2 text-white rounded-xl py-3 font-semibold text-sm"
+            style={{ background: '#c8853a' }}>
+            ☕ Rate a Visit
+          </button>
+        )}
+        {!onNavigateToBrew && (resolvedShop.lat && resolvedShop.lng) && null}
+      </div>
     </div>
   )
 }
