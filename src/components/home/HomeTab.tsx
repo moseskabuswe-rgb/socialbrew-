@@ -39,6 +39,8 @@ function timeAgo(d: string) {
 }
 
 // ── MESSAGES ─────────────────────────────────────────────
+const REACTION_EMOJIS = ['☕', '❤️', '😂', '😮', '👍', '🔥']
+
 function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   onClose: () => void
   unreadPerSender?: Record<string, number>
@@ -55,8 +57,6 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [reactions, setReactions] = useState<Record<string, any[]>>({})
   const [reactionPicker, setReactionPicker] = useState<string | null>(null)
-
-  const REACTION_EMOJIS = ['☕', '❤️', '😂', '😮', '👍', '🔥']
 
   useEffect(() => {
     if (!profile) return
@@ -99,8 +99,9 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   // Realtime: update messages when partner reads them
   useEffect(() => {
     if (!profile || !activeConvo) return
+    const channelName = `dm-read-${[profile.id, activeConvo.id].sort().join('-')}`
     const channel = supabase
-      .channel('dm-read-' + activeConvo.id)
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -126,37 +127,45 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
 
   async function openConvo(partner: any) {
     setActiveConvo(partner)
+    setReactions({})
+    setReactionPicker(null)
+
     const { data } = await supabase.from('direct_messages')
       .select('*, profiles!direct_messages_from_id_fkey(username,avatar_url)')
       .or(`and(from_id.eq.${profile?.id},to_id.eq.${partner.id}),and(from_id.eq.${partner.id},to_id.eq.${profile?.id})`)
       .order('created_at', { ascending: true })
     setMessages((data || []) as any)
 
-    // Load reactions for these messages
-    if (data && data.length > 0) {
-      const ids = data.map((m: any) => m.id)
-      const { data: rxns } = await supabase.from('message_reactions')
-        .select('*').in('message_id', ids)
-      if (rxns) {
-        const grouped: Record<string, any[]> = {}
-        rxns.forEach((r: any) => {
-          if (!grouped[r.message_id]) grouped[r.message_id] = []
-          grouped[r.message_id].push(r)
-        })
-        setReactions(grouped)
-      }
-    }
-
     setTimeout(() => {
       const el = document.getElementById('msg-list')
       if (el) el.scrollTop = el.scrollHeight
     }, 50)
-    await supabase.from('direct_messages')
+
+    // Mark read and load reactions in parallel — non-blocking so UI doesn't freeze
+    supabase.from('direct_messages')
       .update({ read: true })
       .eq('to_id', profile?.id)
       .eq('from_id', partner.id)
       .eq('read', false)
-    onMarkRead?.(partner.id)
+      .then(() => onMarkRead?.(partner.id))
+
+    // Load reactions async — don't await, won't block UI
+    if (data && data.length > 0) {
+      const ids = data.map((m: any) => m.id)
+      supabase.from('message_reactions')
+        .select('*').in('message_id', ids)
+        .then(({ data: rxns }) => {
+          if (rxns && rxns.length > 0) {
+            const grouped: Record<string, any[]> = {}
+            rxns.forEach((r: any) => {
+              if (!grouped[r.message_id]) grouped[r.message_id] = []
+              grouped[r.message_id].push(r)
+            })
+            setReactions(grouped)
+          }
+        })
+        .catch(() => { /* message_reactions table may not exist yet */ })
+    }
   }
 
   async function sendMsg() {
@@ -178,23 +187,27 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
 
   async function toggleReaction(messageId: string, emoji: string) {
     if (!profile) return
-    const existing = reactions[messageId]?.find(r => r.user_id === profile.id && r.emoji === emoji)
-    if (existing) {
-      await supabase.from('message_reactions').delete().eq('id', existing.id)
-      setReactions(prev => ({
-        ...prev,
-        [messageId]: (prev[messageId] || []).filter(r => r.id !== existing.id)
-      }))
-    } else {
-      const { data } = await supabase.from('message_reactions')
-        .insert({ message_id: messageId, user_id: profile.id, emoji })
-        .select().single()
-      if (data) {
+    try {
+      const existing = reactions[messageId]?.find(r => r.user_id === profile.id && r.emoji === emoji)
+      if (existing) {
+        await supabase.from('message_reactions').delete().eq('id', existing.id)
         setReactions(prev => ({
           ...prev,
-          [messageId]: [...(prev[messageId] || []), data]
+          [messageId]: (prev[messageId] || []).filter(r => r.id !== existing.id)
         }))
+      } else {
+        const { data } = await supabase.from('message_reactions')
+          .insert({ message_id: messageId, user_id: profile.id, emoji })
+          .select().single()
+        if (data) {
+          setReactions(prev => ({
+            ...prev,
+            [messageId]: [...(prev[messageId] || []), data]
+          }))
+        }
       }
+    } catch {
+      // message_reactions table may not exist yet — silent fail
     }
     setReactionPicker(null)
   }
