@@ -138,7 +138,7 @@ const FALLBACK_PHOTOS = [
   'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800',
 ]
 
-export default function DiscoverTab() {
+export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop: any) => void }) {
   const [dbShops, setDbShops] = useState<CoffeeShop[]>([])
   const [nearbyShops, setNearbyShops] = useState<Partial<CoffeeShop>[]>([])
   const [searchResults, setSearchResults] = useState<Partial<CoffeeShop>[]>([])
@@ -449,7 +449,7 @@ export default function DiscoverTab() {
       </div>
 
       {selectedShop && (
-        <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />
+        <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} onNavigateToBrew={onNavigateToBrew} />
       )}
     </div>
   )
