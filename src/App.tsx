@@ -26,6 +26,12 @@ function AppContent() {
   const { profile, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [feedRefresh, setFeedRefresh] = useState(0)
+  const [brewShop, setBrewShop] = useState<any>(null)
+
+  function navigateToBrew(shop?: any) {
+    setBrewShop(shop || null)
+    setActiveTab('brew')
+  }
   const [shopToast, setShopToast] = useState<string | null>(null)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
@@ -116,6 +122,7 @@ function AppContent() {
 
   async function handlePostCreated(shopName?: string, wasFirst?: boolean) {
     if (wasFirst && shopName) setFirstRatingShop(shopName)
+    setBrewShop(null)
     setFeedRefresh(n => n + 1)
     setActiveTab('home')
     if (shopName) setShopToast(shopName)
@@ -164,6 +171,7 @@ function AppContent() {
             refresh={feedRefresh}
             onLogoTap={handleLogoTap}
             unreadPerSender={unreadPerSender}
+            onNavigateToBrew={navigateToBrew}
             onMarkRead={(senderId) => {
               if (senderId === '__all__') {
                 setUnreadPerSender({})
@@ -173,13 +181,16 @@ function AppContent() {
             }}
           />
         </div>
-        {activeTab === 'discover' && <DiscoverTab />}
-        {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
+        {activeTab === 'discover' && <DiscoverTab onNavigateToBrew={navigateToBrew} />}
+        {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} initialShop={brewShop} />}
         {activeTab === 'trending' && <TrendingTab />}
-        {activeTab === 'profile' && <ProfileTab />}
+        {activeTab === 'profile' && <ProfileTab onNavigateToBrew={navigateToBrew} />}
       </div>
 
-      <BottomNav active={activeTab} onChange={setActiveTab} />
+      <BottomNav active={activeTab} onChange={(tab) => {
+        if (tab === 'brew') setBrewShop(null)
+        setActiveTab(tab)
+      }} />
       <FeedbackWidget />
 
       {shopToast && <ShopToast shopName={shopToast} onDone={() => setShopToast(null)} />}
