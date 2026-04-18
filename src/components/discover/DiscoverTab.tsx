@@ -85,6 +85,8 @@ out body;`
         total_ratings: 0,
         weekly_visits: 0,
         is_certified: false,
+        website: el.tags['website'] || el.tags['contact:website'] || null,
+        opening_hours: el.tags['opening_hours'] || null,
       }))
   } catch (err) {
     console.error('OSM fetch error:', err)
@@ -125,6 +127,8 @@ out body 15;`
         total_ratings: 0,
         weekly_visits: 0,
         is_certified: false,
+        website: el.tags['website'] || el.tags['contact:website'] || null,
+        opening_hours: el.tags['opening_hours'] || null,
       }))
   } catch { return [] }
 }
