@@ -53,24 +53,76 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   const [sending, setSending] = useState(false)
   const [searchUser, setSearchUser] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
+  const [reactions, setReactions] = useState<Record<string, any[]>>({})
+  const [reactionPicker, setReactionPicker] = useState<string | null>(null)
+
+  const REACTION_EMOJIS = ['☕', '❤️', '😂', '😮', '👍', '🔥']
 
   useEffect(() => {
     if (!profile) return
     async function load() {
+      // Fetch sent and received with last message info
       const { data: sent } = await supabase.from('direct_messages')
-        .select('to_id, profiles!direct_messages_to_id_fkey(id,username,avatar_url)')
+        .select('to_id, created_at, content, profiles!direct_messages_to_id_fkey(id,username,avatar_url)')
         .eq('from_id', profile!.id).order('created_at', { ascending: false })
       const { data: received } = await supabase.from('direct_messages')
-        .select('from_id, profiles!direct_messages_from_id_fkey(id,username,avatar_url)')
+        .select('from_id, created_at, content, profiles!direct_messages_from_id_fkey(id,username,avatar_url)')
         .eq('to_id', profile!.id).order('created_at', { ascending: false })
-      const partners = new Map()
-      ;(sent || []).forEach((s: any) => { if (!partners.has(s.to_id)) partners.set(s.to_id, s.profiles) })
-      ;(received || []).forEach((r: any) => { if (!partners.has(r.from_id)) partners.set(r.from_id, r.profiles) })
-      setConversations(Array.from(partners.entries()).map(([id, p]) => ({ id, ...p })))
+
+      // Build conversation map with last message
+      const partners = new Map<string, any>()
+      ;(sent || []).forEach((s: any) => {
+        if (!partners.has(s.to_id)) partners.set(s.to_id, { ...s.profiles, lastMsg: s.content, lastAt: s.created_at })
+        else if (new Date(s.created_at) > new Date(partners.get(s.to_id).lastAt)) {
+          partners.get(s.to_id).lastMsg = s.content
+          partners.get(s.to_id).lastAt = s.created_at
+        }
+      })
+      ;(received || []).forEach((r: any) => {
+        if (!partners.has(r.from_id)) partners.set(r.from_id, { ...r.profiles, lastMsg: r.content, lastAt: r.created_at })
+        else if (new Date(r.created_at) > new Date(partners.get(r.from_id).lastAt)) {
+          partners.get(r.from_id).lastMsg = r.content
+          partners.get(r.from_id).lastAt = r.created_at
+        }
+      })
+
+      // Sort by most recent
+      const sorted = Array.from(partners.entries())
+        .map(([id, p]) => ({ id, ...p }))
+        .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
+      setConversations(sorted)
       setLoading(false)
     }
     load()
   }, [profile])
+
+  // Realtime: update messages when partner reads them
+  useEffect(() => {
+    if (!profile || !activeConvo) return
+    const channel = supabase
+      .channel('dm-read-' + activeConvo.id)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `from_id=eq.${profile.id}`
+      }, (payload) => {
+        if (payload.new.read === true) {
+          setMessages(prev => prev.map(m => m.id === payload.new.id ? { ...m, read: true } : m))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [profile, activeConvo])
+
+  function timeAgoShort(dateStr: string) {
+    const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
+    if (mins < 1) return 'now'
+    if (mins < 60) return `${mins}m`
+    if (mins < 1440) return `${Math.floor(mins / 60)}h`
+    if (mins < 10080) return `${Math.floor(mins / 1440)}d`
+    return new Date(dateStr).toLocaleDateString([], { month: 'short', day: 'numeric' })
+  }
 
   async function openConvo(partner: any) {
     setActiveConvo(partner)
@@ -79,11 +131,26 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
       .or(`and(from_id.eq.${profile?.id},to_id.eq.${partner.id}),and(from_id.eq.${partner.id},to_id.eq.${profile?.id})`)
       .order('created_at', { ascending: true })
     setMessages((data || []) as any)
+
+    // Load reactions for these messages
+    if (data && data.length > 0) {
+      const ids = data.map((m: any) => m.id)
+      const { data: rxns } = await supabase.from('message_reactions')
+        .select('*').in('message_id', ids)
+      if (rxns) {
+        const grouped: Record<string, any[]> = {}
+        rxns.forEach((r: any) => {
+          if (!grouped[r.message_id]) grouped[r.message_id] = []
+          grouped[r.message_id].push(r)
+        })
+        setReactions(grouped)
+      }
+    }
+
     setTimeout(() => {
       const el = document.getElementById('msg-list')
       if (el) el.scrollTop = el.scrollHeight
     }, 50)
-    // Mark incoming messages as read
     await supabase.from('direct_messages')
       .update({ read: true })
       .eq('to_id', profile?.id)
@@ -109,6 +176,29 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
     setNewMsg(''); setSending(false)
   }
 
+  async function toggleReaction(messageId: string, emoji: string) {
+    if (!profile) return
+    const existing = reactions[messageId]?.find(r => r.user_id === profile.id && r.emoji === emoji)
+    if (existing) {
+      await supabase.from('message_reactions').delete().eq('id', existing.id)
+      setReactions(prev => ({
+        ...prev,
+        [messageId]: (prev[messageId] || []).filter(r => r.id !== existing.id)
+      }))
+    } else {
+      const { data } = await supabase.from('message_reactions')
+        .insert({ message_id: messageId, user_id: profile.id, emoji })
+        .select().single()
+      if (data) {
+        setReactions(prev => ({
+          ...prev,
+          [messageId]: [...(prev[messageId] || []), data]
+        }))
+      }
+    }
+    setReactionPicker(null)
+  }
+
   async function searchUsers(q: string) {
     setSearchUser(q)
     if (q.trim().length < 2) { setSearchResults([]); return }
@@ -116,127 +206,241 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
     setSearchResults(data || [])
   }
 
+  // Group reactions by emoji for display
+  function groupedReactions(messageId: string) {
+    const rxns = reactions[messageId] || []
+    const grouped: Record<string, number> = {}
+    rxns.forEach(r => { grouped[r.emoji] = (grouped[r.emoji] || 0) + 1 })
+    return Object.entries(grouped)
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-cream-100 flex flex-col"
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{ background: '#f8f4ef' }}
       onTouchStart={e => { (e.currentTarget as any)._swipeX = e.touches[0].clientX }}
       onTouchEnd={e => { const dx = e.changedTouches[0].clientX - ((e.currentTarget as any)._swipeX || 0); if (dx > 80) onClose() }}
     >
-      <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {activeConvo && <button onClick={() => { setActiveConvo(null); setMessages([]) }} className="text-coffee-500 mr-1"><ArrowLeft size={22} /></button>}
-            <h3 className="font-display font-bold text-coffee-800 text-lg">{activeConvo ? activeConvo.username : 'Messages'}</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500"><X size={15} /></button>
-        </div>
-        {!activeConvo && (
-          <>
-            <div className="px-4 py-2 border-b border-cream-100">
-              <div className="flex items-center bg-cream-50 rounded-xl px-3 py-2 border border-cream-200">
-                <span className="text-coffee-300 mr-2 text-sm">🔍</span>
-                <input value={searchUser} onChange={e => searchUsers(e.target.value)} placeholder="Search users..."
-                  className="flex-1 bg-transparent text-coffee-700 text-sm placeholder-coffee-300 focus:outline-none" />
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+        <div className="flex items-center gap-2">
+          {activeConvo && (
+            <button onClick={() => { setActiveConvo(null); setMessages([]); setReactions({}) }} className="text-coffee-500 mr-1">
+              <ArrowLeft size={22} />
+            </button>
+          )}
+          {activeConvo ? (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200">
+                {activeConvo.avatar_url
+                  ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
               </div>
-              {searchResults.map(u => (
-                <button key={u.id} onClick={() => { setActiveConvo(u); setSearchUser(''); setSearchResults([]); openConvo(u) }}
-                  className="w-full flex items-center gap-3 py-2.5 hover:bg-cream-50 rounded-xl px-2 transition-colors">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username[0].toUpperCase()}</span></div>}
-                  </div>
-                  <p className="text-coffee-700 font-medium text-sm">{u.username}</p>
-                </button>
-              ))}
+              <h3 className="font-display font-bold text-coffee-800 text-base">{activeConvo.username}</h3>
             </div>
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {loading && <div className="flex justify-center py-8"><div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
-              {!loading && conversations.length === 0 && (
-                <div className="text-center py-10"><p className="text-3xl mb-2">💬</p><p className="text-coffee-500 font-display">No messages yet</p><p className="text-coffee-400 text-sm mt-1">Search a friend to start chatting</p></div>
-              )}
-              {conversations.map(c => (
-                <button key={c.id} onClick={() => openConvo(c)} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors">
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{c.username?.[0]?.toUpperCase()}</span></div>}
-                    {(unreadPerSender[c.id] || 0) > 0 && (
-                      <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
-                        <span className="text-white font-bold" style={{ fontSize: 9 }}>{unreadPerSender[c.id] > 9 ? '9+' : unreadPerSender[c.id]}</span>
+          ) : (
+            <h3 className="font-display font-bold text-coffee-800 text-lg">Messages</h3>
+          )}
+        </div>
+        <button onClick={onClose} className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500">
+          <X size={15} />
+        </button>
+      </div>
+
+      {/* Conversation list */}
+      {!activeConvo && (
+        <>
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex items-center bg-white rounded-2xl px-3 py-2.5 border border-cream-200" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <span className="text-coffee-300 mr-2 text-sm">🔍</span>
+              <input value={searchUser} onChange={e => searchUsers(e.target.value)} placeholder="Search people..."
+                className="flex-1 bg-transparent text-coffee-700 text-sm placeholder-coffee-300 focus:outline-none" />
+            </div>
+            {searchResults.map(u => (
+              <button key={u.id} onClick={() => { setActiveConvo(u); setSearchUser(''); setSearchResults([]); openConvo(u) }}
+                className="w-full flex items-center gap-3 py-2.5 hover:bg-cream-50 rounded-xl px-2 mt-1 transition-colors">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username[0].toUpperCase()}</span></div>}
+                </div>
+                <p className="text-coffee-700 font-medium text-sm">{u.username}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {loading && <div className="flex justify-center py-8"><div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
+            {!loading && conversations.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-4xl mb-3">☕</p>
+                <p className="text-coffee-600 font-display font-bold text-base">No messages yet</p>
+                <p className="text-coffee-400 text-sm mt-1">Search a friend above to start chatting</p>
+              </div>
+            )}
+            {conversations.map(c => {
+              const hasUnread = (unreadPerSender[c.id] || 0) > 0
+              return (
+                <button key={c.id} onClick={() => openConvo(c)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors"
+                  style={{ borderBottom: '1px solid #f0e8df', background: hasUnread ? 'rgba(232,246,240,0.5)' : 'transparent' }}>
+                  {/* Avatar */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200">
+                      {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold">{c.username?.[0]?.toUpperCase()}</span></div>}
+                    </div>
+                    {hasUnread && (
+                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
+                        style={{ fontSize: 9, background: '#3a9e6a' }}>
+                        {unreadPerSender[c.id] > 9 ? '9+' : unreadPerSender[c.id]}
                       </span>
                     )}
                   </div>
-                  <p className={`text-sm flex-1 text-left ${(unreadPerSender[c.id] || 0) > 0 ? 'text-coffee-800 font-bold' : 'text-coffee-700 font-semibold'}`}>{c.username}</p>
-                  {(unreadPerSender[c.id] || 0) > 0 && <div className="w-2 h-2 rounded-full bg-caramel flex-shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-        {activeConvo && (
-          <>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 min-h-0" id="msg-list">
-              {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full py-10">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 mb-3">
-                    {activeConvo.avatar_url
-                      ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-lg">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
-                  </div>
-                  <p className="text-coffee-700 font-semibold text-sm">{activeConvo.username}</p>
-                  <p className="text-coffee-400 text-xs mt-1">Say hi! ☕</p>
-                </div>
-              )}
-              {messages.map((msg, i) => {
-                const isMe = msg.from_id === profile?.id
-                const prevMsg = messages[i - 1]
-                const showAvatar = !isMe && (!prevMsg || prevMsg.from_id !== msg.from_id)
-                const showTime = !messages[i + 1] || 
-                  new Date(messages[i + 1].created_at).getTime() - new Date(msg.created_at).getTime() > 5 * 60 * 1000
-                const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                return (
-                  <div key={msg.id}>
-                    <div className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      {!isMe && (
-                        <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mb-0.5">
-                          {showAvatar
-                            ? activeConvo.avatar_url
-                              ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
-                              : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold" style={{ fontSize: 11 }}>{activeConvo.username?.[0]?.toUpperCase()}</span></div>
-                            : <div className="w-full h-full" />}
-                        </div>
-                      )}
-                      <div className={`max-w-[72%] px-4 py-2.5 text-sm leading-relaxed ${
-                        isMe
-                          ? 'bg-caramel text-white rounded-2xl rounded-br-md'
-                          : 'bg-cream-200 text-coffee-800 rounded-2xl rounded-bl-md'
-                      }`} style={isMe ? {} : { background: '#ede0cc' }}>
-                        {msg.content}
-                      </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className={`text-sm ${hasUnread ? 'text-coffee-900 font-bold' : 'text-coffee-800 font-semibold'}`}>{c.username}</p>
+                      {c.lastAt && <p className="text-xs flex-shrink-0 ml-2" style={{ color: hasUnread ? '#3a9e6a' : '#b09070' }}>{timeAgoShort(c.lastAt)}</p>}
                     </div>
-                    {showTime && (
-                      <p className={`text-xs text-coffee-300 mt-1 mb-2 ${isMe ? 'text-right pr-1' : 'text-left pl-9'}`}>{time}</p>
+                    {c.lastMsg && (
+                      <p className={`text-xs truncate ${hasUnread ? 'text-coffee-700 font-medium' : 'text-coffee-400'}`}>
+                        {c.lastMsg}
+                      </p>
                     )}
                   </div>
-                )
-              })}
-            </div>
-            <div className="px-4 py-3 border-t border-cream-200 bg-white flex gap-2 items-center flex-shrink-0">
-              <input
-                value={newMsg}
-                onChange={e => setNewMsg(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMsg()}
-                placeholder="Message..."
-                className="flex-1 bg-cream-50 rounded-full px-4 py-2.5 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200 focus:border-caramel transition-colors"
-              />
-              <button
-                onClick={sendMsg}
-                disabled={!newMsg.trim() || sending}
-                className="w-9 h-9 rounded-full bg-caramel flex items-center justify-center disabled:opacity-40 flex-shrink-0 transition-opacity"
-              >
-                <Send size={15} className="text-white" />
-              </button>
-            </div>
-          </>
-        )}
+                  {hasUnread && <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#3a9e6a' }} />}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Active conversation */}
+      {activeConvo && (
+        <>
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 min-h-0" id="msg-list"
+            onClick={() => setReactionPicker(null)}>
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full py-10">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-coffee-200 mb-3">
+                  {activeConvo.avatar_url
+                    ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-xl">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
+                </div>
+                <p className="text-coffee-700 font-semibold text-sm">{activeConvo.username}</p>
+                <p className="text-coffee-400 text-xs mt-1">Say hi! ☕</p>
+              </div>
+            )}
+            {messages.map((msg, i) => {
+              const isMe = msg.from_id === profile?.id
+              const prevMsg = messages[i - 1]
+              const nextMsg = messages[i + 1]
+              const showAvatar = !isMe && (!prevMsg || prevMsg.from_id !== msg.from_id)
+              const isLastInGroup = !nextMsg || nextMsg.from_id !== msg.from_id
+              const showTime = !nextMsg || new Date(nextMsg.created_at).getTime() - new Date(msg.created_at).getTime() > 5 * 60 * 1000
+              const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              const isLastSent = isMe && (!nextMsg || !messages.slice(i + 1).some((m: any) => m.from_id === profile?.id))
+              const msgReactions = groupedReactions(msg.id)
+
+              return (
+                <div key={msg.id} className="relative">
+                  <div className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    {/* Other user avatar */}
+                    {!isMe && (
+                      <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mb-0.5">
+                        {showAvatar
+                          ? activeConvo.avatar_url
+                            ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold" style={{ fontSize: 11 }}>{activeConvo.username?.[0]?.toUpperCase()}</span></div>
+                          : <div className="w-full h-full" />}
+                      </div>
+                    )}
+
+                    {/* Message bubble */}
+                    <div className="flex flex-col">
+                      <div
+                        className={`max-w-[72vw] px-4 py-2.5 text-sm leading-relaxed cursor-pointer select-none ${
+                          isMe
+                            ? 'text-white rounded-2xl rounded-br-md'
+                            : 'text-coffee-800 rounded-2xl rounded-bl-md'
+                        } ${isLastInGroup ? '' : isMe ? 'rounded-br-2xl' : 'rounded-bl-2xl'}`}
+                        style={isMe
+                          ? { background: '#c8853a' }
+                          : { background: '#ede0cc' }}
+                        onDoubleClick={() => setReactionPicker(reactionPicker === msg.id ? null : msg.id)}
+                      >
+                        {msg.content}
+                      </div>
+
+                      {/* Reactions display */}
+                      {msgReactions.length > 0 && (
+                        <div className={`flex gap-1 mt-1 flex-wrap ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          {msgReactions.map(([emoji, count]) => (
+                            <button key={emoji}
+                              onClick={() => toggleReaction(msg.id, emoji)}
+                              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-xs"
+                              style={{ background: 'white', borderColor: '#e8ddd0' }}>
+                              <span>{emoji}</span>
+                              {(count as number) > 1 && <span className="text-coffee-500" style={{ fontSize: 10 }}>{count as number}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Reaction picker */}
+                  {reactionPicker === msg.id && (
+                    <div className={`flex gap-1 mt-1 mb-1 ${isMe ? 'justify-end pr-2' : 'justify-start pl-9'}`}>
+                      {REACTION_EMOJIS.map(emoji => (
+                        <button key={emoji}
+                          onClick={() => toggleReaction(msg.id, emoji)}
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-lg bg-white border border-cream-200"
+                          style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Time + delivered/seen */}
+                  {(showTime || isLastSent) && (
+                    <div className={`flex items-center gap-1 mt-0.5 mb-2 ${isMe ? 'justify-end pr-1' : 'justify-start pl-9'}`}>
+                      {showTime && <p className="text-xs text-coffee-300">{time}</p>}
+                      {isLastSent && (
+                        <p className="text-xs" style={{ color: msg.read ? '#3a9e6a' : '#b09070' }}>
+                          {msg.read ? '· Seen' : '· Delivered'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Input */}
+          <div className="px-4 py-3 border-t border-cream-200 bg-white flex gap-2 items-center flex-shrink-0">
+            <input
+              value={newMsg}
+              onChange={e => setNewMsg(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMsg()}
+              placeholder="Message..."
+              className="flex-1 rounded-full px-4 py-2.5 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200 focus:border-caramel transition-colors"
+              style={{ background: '#f8f4ef' }}
+            />
+            <button
+              onClick={sendMsg}
+              disabled={!newMsg.trim() || sending}
+              className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-40 flex-shrink-0 transition-opacity"
+              style={{ background: '#c8853a' }}
+            >
+              <Send size={15} className="text-white" />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
