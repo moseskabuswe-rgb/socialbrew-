@@ -1,5 +1,4 @@
 // public/firebase-messaging-sw.js
-// Place this in your /public folder
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js')
@@ -18,15 +17,17 @@ const messaging = firebase.messaging()
 
 // Handle background messages (app closed / not focused)
 messaging.onBackgroundMessage((payload) => {
-  const { title, body } = payload.notification || {}
   const data = payload.data || {}
+  // Use notification fields first, fall back to data fields
+  const title = payload.notification?.title || data.title || 'Social Brew'
+  const body = payload.notification?.body || data.body || ''
 
-  self.registration.showNotification(title || 'Social Brew', {
-    body: body || '',
+  self.registration.showNotification(title, {
+    body,
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-72.png',
     tag: data.tag || 'social-brew',
-    data: data,
+    data,
     vibrate: [100, 50, 100],
   })
 })
