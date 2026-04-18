@@ -389,7 +389,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
   )
 }
 
-export default function ProfileTab() {
+export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop?: any) => void }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
   const [visitedShops, setVisitedShops] = useState<any[]>([])
@@ -593,7 +593,19 @@ export default function ProfileTab() {
           <div className="px-4 mt-3">
             {loading && <div className="flex justify-center py-8"><div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
             {!loading && ratings.length === 0 && (
-              <div className="text-center py-10"><p className="text-4xl mb-2">☕</p><p className="text-coffee-600 font-display">Your journey in cups</p><p className="text-coffee-400 text-sm mt-1">Rate a visit to start your collection</p></div>
+              <div className="text-center py-10">
+                <p className="text-4xl mb-2">☕</p>
+                <p className="text-coffee-600 font-display">Your journey in cups</p>
+                <p className="text-coffee-400 text-sm mt-1">Rate a visit to start your collection</p>
+                {onNavigateToBrew && (
+                  <button
+                    onClick={() => onNavigateToBrew()}
+                    className="mt-4 px-5 py-2.5 bg-caramel text-white rounded-full text-sm font-semibold"
+                  >
+                    Rate a coffee shop ☕
+                  </button>
+                )}
+              </div>
             )}
             <div className="space-y-2">
               {ratings.map(rating => {
