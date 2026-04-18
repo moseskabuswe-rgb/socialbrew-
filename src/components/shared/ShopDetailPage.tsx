@@ -7,6 +7,7 @@ import type { CoffeeShop } from '../../lib/supabase'
 type Props = {
   shop: Partial<CoffeeShop> & { id: string; name: string }
   onBack: () => void
+  onNavigateToBrew?: (shop: any) => void
 }
 
 type Tab = 'overview' | 'my-brews' | 'friends'
@@ -93,7 +94,7 @@ function RatingCard({ r }: { r: any }) {
   )
 }
 
-export default function ShopDetailPage({ shop, onBack }: Props) {
+export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props) {
   const { profile } = useAuth()
   const [tab, setTab] = useState<Tab>('overview')
   const [allRatings, setAllRatings] = useState<any[]>([])
@@ -254,6 +255,14 @@ export default function ShopDetailPage({ shop, onBack }: Props) {
                 <p className="text-coffee-400 text-sm mt-1">
                   {tab === 'overview' ? 'Be the first to rate a visit!' : tab === 'my-brews' ? 'Rate a visit to see your history' : 'Follow people to see their brews'}
                 </p>
+                {(tab === 'overview' || tab === 'my-brews') && onNavigateToBrew && (
+                  <button
+                    onClick={() => onNavigateToBrew(shop)}
+                    className="mt-4 px-5 py-2.5 bg-caramel text-white rounded-full text-sm font-semibold"
+                  >
+                    Rate {shop.name} ☕
+                  </button>
+                )}
               </div>
             )}
             {activeList.map(r => <RatingCard key={r.id} r={r} />)}
