@@ -5,12 +5,15 @@ import MugRating from './MugRating'
 import ShareMoment from './ShareMoment'
 import QuickSip from './QuickSip'
 
-type Props = { onPostCreated: (shopName?: string, wasFirst?: boolean) => void }
+type Props = {
+  onPostCreated: (shopName?: string, wasFirst?: boolean) => void
+  initialShop?: any | null
+}
 type BrewAction = 'rate' | 'share' | 'quicksip' | 'gift'
 
-export default function BrewTab({ onPostCreated }: Props) {
-  const [action, setAction] = useState<BrewAction | null>(null)
-  const [selectedShop, setSelectedShop] = useState<any>(null)
+export default function BrewTab({ onPostCreated, initialShop }: Props) {
+  const [action, setAction] = useState<BrewAction | null>(initialShop ? 'rate' : null)
+  const [selectedShop, setSelectedShop] = useState<any>(initialShop || null)
   const [showShopSelector, setShowShopSelector] = useState(false)
 
   function handleAction(a: BrewAction) {
