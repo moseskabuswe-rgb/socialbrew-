@@ -147,13 +147,20 @@ btn.addEventListener('click', async () => {
       return
     }
 
-    // Step 5: Success — show return button instead of auto-redirect
-    // iOS PWA doesn't always handle window.location.href back to app smoothly
+    // Step 5: Success
     setStatus('✅ Notifications enabled!', 'success')
     btn.textContent = 'Return to Social Brew ☕'
     btn.disabled = false
     btn.style.background = '#5a9e6a'
-    btn.onclick = () => { window.location.href = 'https://socialbrew-ani.pages.dev' }
+    btn.onclick = () => {
+      // Use history.back() first — keeps PWA context without a full reload
+      // Falls back to href if no history
+      if (window.history.length > 1) {
+        window.history.back()
+      } else {
+        window.location.href = 'https://socialbrew-ani.pages.dev'
+      }
+    }
 
   } catch (err) {
     setStatus('Error: ' + err.message, 'error')
