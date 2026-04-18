@@ -34,6 +34,8 @@ export type CoffeeShop = {
   total_ratings: number
   weekly_visits: number
   is_certified: boolean
+  website: string | null
+  opening_hours: string | null
 }
 
 export type Rating = {
