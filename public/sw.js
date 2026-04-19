@@ -25,17 +25,38 @@ self.addEventListener('fetch', event => {
 })
 
 // Push notifications
+// iOS Safari PWAs receive push via this handler (onBackgroundMessage does not fire on iOS)
+// The webpush.notification fields from FCM are available in event.data
 self.addEventListener('push', event => {
   if (!event.data) return
-  let data = {}
-  try { data = event.data.json() } catch { data = { title: 'Social Brew', body: event.data.text() } }
+
+  let title = 'Social Brew'
+  let body = ''
+  let icon = '/icons/icon-192.png'
+  let badge = '/icons/icon-72.png'
+
+  try {
+    const payload = event.data.json()
+    // FCM webpush notification fields land here on iOS
+    if (payload.notification) {
+      title = payload.notification.title || title
+      body = payload.notification.body || body
+    }
+    // Also check data fields as fallback
+    if (payload.data) {
+      title = payload.data.title || title
+      body = payload.data.body || body
+    }
+  } catch {
+    body = event.data.text()
+  }
+
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Social Brew ☕', {
-      body: data.body || 'You have a new notification',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge,
       vibrate: [100, 50, 100],
-      data: { url: data.url || '/' },
     })
   )
 })
@@ -45,9 +66,9 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) return client.focus()
+        if ('focus' in client) return client.focus()
       }
-      return clients.openWindow('/')
+      return clients.openWindow('https://socialbrew-ani.pages.dev')
     })
   )
 })
