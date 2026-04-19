@@ -13,6 +13,7 @@ import ShopToast from './components/shared/ShopToast'
 import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
+import WelcomeModal from './components/shared/WelcomeModal'
 import { supabase } from './lib/supabase'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
@@ -36,7 +37,9 @@ function AppContent() {
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
   const [showPushPrompt, setShowPushPrompt] = useState(false)
-  const promptShown = useRef(false) // prevents showing more than once per session
+  const promptShown = useRef(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const welcomeShown = useRef(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [_logoTaps, setLogoTaps] = useState(0)
 
@@ -84,6 +87,20 @@ function AppContent() {
     if (hasToken) return
     promptShown.current = true
     const timer = setTimeout(() => setShowPushPrompt(true), 3000)
+    return () => clearTimeout(timer)
+  }, [profile])
+
+  // Show welcome modal for new signups only — never for returning users
+  useEffect(() => {
+    if (!profile) return
+    if (welcomeShown.current) return
+    if (localStorage.getItem('sb_welcomed')) return
+    // Only show if account was created within the last 5 minutes
+    const ageMs = Date.now() - new Date(profile.created_at).getTime()
+    if (ageMs > 5 * 60 * 1000) return
+    welcomeShown.current = true
+    // Small delay so the feed loads first
+    const timer = setTimeout(() => setShowWelcome(true), 800)
     return () => clearTimeout(timer)
   }, [profile])
 
@@ -228,6 +245,21 @@ function AppContent() {
         <AdminBroadcast
           currentUserId={profile.id}
           onClose={() => setShowAdminPanel(false)}
+        />
+      )}
+
+      {showWelcome && (
+        <WelcomeModal
+          username={profile.username}
+          onClose={() => {
+            setShowWelcome(false)
+            localStorage.setItem('sb_welcomed', '1')
+          }}
+          onBrew={() => {
+            setShowWelcome(false)
+            localStorage.setItem('sb_welcomed', '1')
+            navigateToBrew()
+          }}
         />
       )}
     </div>
