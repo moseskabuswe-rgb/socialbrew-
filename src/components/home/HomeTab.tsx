@@ -152,19 +152,19 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
     // Load reactions async — don't await, won't block UI
     if (data && data.length > 0) {
       const ids = data.map((m: any) => m.id)
-      supabase.from('message_reactions')
-        .select('*').in('message_id', ids)
-        .then(({ data: rxns }) => {
-          if (rxns && rxns.length > 0) {
-            const grouped: Record<string, any[]> = {}
-            rxns.forEach((r: any) => {
-              if (!grouped[r.message_id]) grouped[r.message_id] = []
-              grouped[r.message_id].push(r)
-            })
-            setReactions(grouped)
-          }
-        })
-        .catch(() => { /* message_reactions table may not exist yet */ })
+      Promise.resolve(
+        supabase.from('message_reactions')
+          .select('*').in('message_id', ids)
+      ).then(({ data: rxns }) => {
+        if (rxns && rxns.length > 0) {
+          const grouped: Record<string, any[]> = {}
+          rxns.forEach((r: any) => {
+            if (!grouped[r.message_id]) grouped[r.message_id] = []
+            grouped[r.message_id].push(r)
+          })
+          setReactions(grouped)
+        }
+      }).catch(() => { /* message_reactions table may not exist yet */ })
     }
   }
 
