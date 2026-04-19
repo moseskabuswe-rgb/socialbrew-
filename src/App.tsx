@@ -15,9 +15,9 @@ import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import WelcomeModal from './components/shared/WelcomeModal'
 import { supabase } from './lib/supabase'
-import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
+import { notifyLike, notifyComment, notifyFollow, notifyMention, sendPushToUser } from './lib/push'
 
-export { notifyLike, notifyComment, notifyFollow, notifyMention }
+export { notifyLike, notifyComment, notifyFollow, notifyMention, sendPushToUser }
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
@@ -143,6 +143,27 @@ function AppContent() {
     setFeedRefresh(n => n + 1)
     setActiveTab('home')
     if (shopName) setShopToast(shopName)
+
+    // Notify followers of new post
+    if (profile) {
+      try {
+        const { data: followers } = await supabase
+          .from('follows')
+          .select('follower_id')
+          .eq('following_id', profile.id)
+        if (followers && followers.length > 0) {
+          const username = (profile as any).username || 'Someone'
+          const postText = shopName
+            ? `${username} just rated ${shopName} ☕`
+            : `${username} shared a new brew ☕`
+          followers.forEach(({ follower_id }) => {
+            sendPushToUser(follower_id, 'New brew from someone you follow', postText, { type: 'new_post' })
+          })
+        }
+      } catch (err) {
+        console.error('Failed to notify followers:', err)
+      }
+    }
 
     // Check if badge upgraded after this post
     if (profile) {
