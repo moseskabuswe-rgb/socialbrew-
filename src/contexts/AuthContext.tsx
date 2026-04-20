@@ -53,6 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Get session synchronously from localStorage first to avoid auth flash
+    // Supabase stores session in localStorage — we can read it immediately
+    // before the async getSession() call completes
+    const stored = Object.entries(localStorage)
+      .find(([k]) => k.includes('-auth-token'))
+    if (!stored) {
+      // No stored session — show auth immediately, no need to wait
+      setLoading(false)
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
