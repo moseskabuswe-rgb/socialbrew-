@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { resolveShopId } from '../../lib/shopUtils'
 import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -72,7 +73,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     }
 
     const captionParts = [caption].filter(Boolean)
-    const shopId = shop?.id?.startsWith?.('osm-') || shop?.id?.startsWith?.('fb-') ? null : shop.id
+
+    // Resolve shop ID — auto-adds OSM shops to the database if not already there
+    const shopId = await resolveShopId(shop)
 
     // Check if first rating for this shop
     let willBeFirst = false

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { resolveShopId } from '../../lib/shopUtils'
 // push notifications handled in parent
 import { useAuth } from '../../contexts/AuthContext'
 import { trackEvent } from '../../lib/analytics'
@@ -72,10 +73,8 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     if (!profile || fill === 0) return
     setSubmitting(true)
 
-    // Check if first rating for this shop
-    // Exclude OSM/fallback IDs — only real DB shop UUIDs count
-    const isOsmShop = shop?.id?.startsWith?.('osm-') || shop?.id?.startsWith?.('fb-')
-    const shopId = shop?.id && !isOsmShop ? shop.id : null
+    // Resolve shop ID — auto-adds OSM shops to the database if not already there
+    const shopId = await resolveShopId(shop)
     let willBeFirst = false
     if (shopId) {
       const { count } = await supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('shop_id', shopId)
