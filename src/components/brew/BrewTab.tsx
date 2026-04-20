@@ -38,7 +38,7 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
       id: 'rate' as BrewAction,
       icon: Coffee,
       label: 'Rate a Visit',
-      sub: 'Full experience',
+      sub: 'Rate your drink & share the full experience',
       color: '#c8853a',
       available: true,
       badge: null,
@@ -47,7 +47,7 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
       id: 'quicksip' as BrewAction,
       icon: Zap,
       label: 'Quick Sip',
-      sub: 'Drive-through? Quick stop? Log it fast',
+      sub: 'Quick stop or drive-through? Log it fast',
       color: '#7ab0c8',
       available: true,
       badge: '⚡ Fast',
@@ -56,7 +56,7 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
       id: 'gift' as BrewAction,
       icon: Gift,
       label: 'Gift a Drink',
-      sub: 'Coming soon',
+      sub: 'Send a coffee to a friend',
       color: '#9b7a8a',
       available: false,
       badge: null,
@@ -65,7 +65,7 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
       id: 'share' as BrewAction,
       icon: Camera,
       label: 'Share Moment',
-      sub: 'Post a photo',
+      sub: 'Post a photo from your visit',
       color: '#6a8a6a',
       available: true,
       badge: null,
@@ -78,13 +78,13 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
 
       <div className="text-center mb-10 animate-fade-in">
         <h1 className="font-display text-4xl font-bold text-coffee-700 tracking-tight">Brew</h1>
-        <p className="text-coffee-400 text-sm mt-2">Create your coffee experience</p>
+        <p className="text-coffee-400 text-sm mt-2">What would you like to do?</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 w-full max-w-sm animate-slide-up">
         {actions.map(({ id, icon: Icon, label, sub, color, available, badge }) => (
           <button key={id} onClick={() => handleAction(id)}
-            className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 ${available ? 'hover:scale-105 active:scale-95' : 'opacity-50 cursor-default'}`}
+            className={`relative flex flex-col items-start p-5 rounded-2xl transition-all duration-300 text-left ${available ? 'hover:scale-105 active:scale-95' : 'opacity-50 cursor-default'}`}
             style={{
               background: 'rgba(255,255,255,0.85)',
               border: `1.5px solid ${available ? color + '55' : 'rgba(200,180,150,0.3)'}`,
@@ -104,31 +104,14 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
               </div>
             )}
 
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
               style={{ background: available ? `${color}22` : 'rgba(200,180,150,0.15)' }}>
-              <Icon size={22} style={{ color: available ? color : '#b8a090' }} />
+              <Icon size={20} style={{ color: available ? color : '#b8a090' }} />
             </div>
-            <p className="text-coffee-700 font-semibold text-sm">{label}</p>
-            <p className="text-coffee-400 text-xs mt-0.5">{sub}</p>
+            <p className="text-coffee-700 font-semibold text-sm leading-tight">{label}</p>
+            <p className="text-coffee-400 text-xs mt-1 leading-snug">{sub}</p>
           </button>
         ))}
-      </div>
-
-      {/* Explainer */}
-      <div className="mt-8 max-w-sm w-full animate-fade-in">
-        <div className="bg-white/60 rounded-2xl p-4 border border-cream-200 flex gap-4">
-          <div className="flex-1 text-center">
-            <div className="text-lg mb-1">☕</div>
-            <p className="text-coffee-700 font-semibold text-xs">Rate a Visit</p>
-            <p className="text-coffee-400 text-xs mt-0.5">Full post with drink, photo, caption</p>
-          </div>
-          <div className="w-px bg-cream-200" />
-          <div className="flex-1 text-center">
-            <div className="text-lg mb-1">⚡</div>
-            <p className="text-coffee-700 font-semibold text-xs">Quick Sip</p>
-            <p className="text-coffee-400 text-xs mt-0.5">Drive-through, quick stop, or can't remember what you got</p>
-          </div>
-        </div>
       </div>
 
       {showShopSelector && (
