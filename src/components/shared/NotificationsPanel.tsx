@@ -136,6 +136,23 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
           </div>
 
           <div className="overflow-y-auto" style={{ maxHeight: 'calc(70vh - 52px)' }}>
+            {/* FOMO nudge — shown when user has notifications but no push token */}
+            {!loading && !(profile as any)?.push_token && notifications.length > 0 && (
+              <div className="mx-3 mt-3 mb-1 rounded-xl p-3 flex items-center gap-3"
+                style={{ background: 'rgba(200,133,58,0.08)', border: '1px solid rgba(200,133,58,0.2)' }}>
+                <span className="text-lg flex-shrink-0">🔔</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-coffee-800 font-semibold text-xs">Get these on your lock screen</p>
+                  <p className="text-coffee-500 text-xs leading-snug">You're missing notifications when the app is closed.</p>
+                </div>
+                <button
+                  onClick={() => { if (profile) registerPushNotifications(profile.id) }}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg text-white text-xs font-semibold"
+                  style={{ background: '#c8853a' }}>
+                  Enable
+                </button>
+              </div>
+            )}
             {loading && (
               <div className="flex justify-center py-8">
                 <div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" />

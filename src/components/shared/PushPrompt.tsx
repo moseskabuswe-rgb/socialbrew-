@@ -29,7 +29,7 @@ export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
           <button onClick={onDismiss} className="text-coffee-300 p-1"><X size={16} /></button>
         </div>
         <p className="text-coffee-500 text-xs mb-3 leading-relaxed">
-          Tap <span className="font-semibold text-coffee-700">Share</span> in Safari, then <span className="font-semibold text-coffee-700">"Add to Home Screen"</span> to enable lock screen notifications.
+          To get notified when friends brew, tap <span className="font-semibold text-coffee-700">Share ⬆️</span> in Safari then <span className="font-semibold text-coffee-700">"Add to Home Screen"</span>. Takes 10 seconds.
         </p>
         <button onClick={onDismiss} className="text-coffee-400 text-xs">Maybe later</button>
       </div>
@@ -71,12 +71,12 @@ export default function PushPrompt({ userId, onDismiss, onSuccess }: Props) {
           <div className="w-8 h-8 bg-caramel/10 rounded-full flex items-center justify-center">
             <Bell size={16} className="text-caramel" />
           </div>
-          <p className="text-coffee-800 font-semibold text-sm">Stay in the loop</p>
+          <p className="text-coffee-800 font-semibold text-sm">Your friends are brewing ☕</p>
         </div>
         <button onClick={onDismiss} className="text-coffee-300 p-1"><X size={16} /></button>
       </div>
       <p className="text-coffee-500 text-xs mb-3 leading-relaxed">
-        Get notified when someone likes your brew, leaves a comment, or starts following you.
+        Someone just liked your brew or followed you — and you didn't know. Enable notifications so you never miss it.
       </p>
       {errorMsg && (
         <p className="text-red-400 text-xs mb-2 font-medium">{errorMsg}</p>
