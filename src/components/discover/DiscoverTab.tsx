@@ -94,17 +94,14 @@ out body;`
   }
 }
 
-async function searchAnywhere(query: string, lat?: number | null, lng?: number | null): Promise<Partial<CoffeeShop>[]> {
-  // Search near user's actual location, fall back to Bloomington if no location
-  const searchLat = lat ?? 40.5089
-  const searchLng = lng ?? -88.9906
+async function searchAnywhere(query: string): Promise<Partial<CoffeeShop>[]> {
+  // Search globally by name — no location restriction so users can find shops anywhere
+  const safe = query.replace(/"/g, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const osmQuery = `
 [out:json][timeout:25];
 (
-  node["name"~"${query.replace(/"/g, '')}",i]["amenity"~"cafe|restaurant|bar"](around:50000,${searchLat},${searchLng});
-  node["name"~"${query.replace(/"/g, '')}",i]["shop"="coffee"](around:50000,${searchLat},${searchLng});
-  node["name"~"${query.replace(/"/g, '')} coffee",i](around:50000,${searchLat},${searchLng});
-  node["name"~"${query.replace(/"/g, '')} cafe",i](around:50000,${searchLat},${searchLng});
+  node["name"~"${safe}",i]["amenity"="cafe"];
+  node["name"~"${safe}",i]["shop"="coffee"];
 );
 out body 15;`
   try {
@@ -206,6 +203,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
     }
     searchDebounce.current = setTimeout(async () => {
       setSearching(true)
+      setActiveVibe('All') // reset vibe filter so search results aren't hidden
       const q = search.trim()
       // Search by name OR city OR state — covers international searches like "Freiburg", "Osaka", "Kandern"
       const { data: byName } = await supabase
@@ -226,7 +224,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
       }
 
       // Also search OSM for anything not in our DB
-      const osmData = await searchAnywhere(q, userLat, userLng)
+      const osmData = await searchAnywhere(q)
       setSearchResults([
         ...dbRes,
         ...osmData.filter(o => !dbRes.some(d => d.name.toLowerCase() === (o.name || '').toLowerCase()))
@@ -239,7 +237,13 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   const isSearching = search.trim().length >= 2
 
   const allShops = isSearching
-    ? searchResults
+    ? [...searchResults].sort((a, b) => {
+        // Sort search results by distance too — nearest first
+        if (!userLat || !userLng) return 0
+        const dA = a.lat && a.lng ? distanceMiles(userLat, userLng, a.lat, a.lng) : 9999
+        const dB = b.lat && b.lng ? distanceMiles(userLat, userLng, b.lat, b.lng) : 9999
+        return dA - dB
+      })
     : [
         ...dbShops,
         ...nearbyShops.filter(n =>
