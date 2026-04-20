@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { notifyFollow } from '../../lib/push'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
+import AvatarCropper from '../shared/AvatarCropper'
 import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 
@@ -162,6 +163,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function saveSettings() {
@@ -182,11 +184,19 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     const file = e.target.files[0]
     if (!file.type.startsWith('image/')) { alert('Please select an image'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return }
+    // Show cropper instead of uploading directly
+    setCropFile(file)
+    // Reset input so same file can be picked again
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleCroppedAvatar(blob: Blob) {
+    if (!profile) return
+    setCropFile(null)
     setUploadingAvatar(true)
     try {
-      const ext = file.name.split('.').pop()
-      const path = `avatars/${profile.id}.${ext}`
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+      const path = `avatars/${profile.id}.jpg`
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
       if (upErr) throw upErr
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
       const { error: updErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
@@ -197,6 +207,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
+    <>
+    {cropFile && (
+      <AvatarCropper
+        imageFile={cropFile}
+        onCrop={handleCroppedAvatar}
+        onCancel={() => setCropFile(null)}
+      />
+    )}
     <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white">
         <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
@@ -386,6 +404,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
         ))}
       </div>
     </div>
+    </>
   )
 }
 
@@ -567,10 +586,10 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           {(profile as any).current_streak > 0 && (
             <div className="mt-4 pt-3 border-t border-cream-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-xl">{(profile as any).current_streak >= 7 ? '🔥' : '☕'}</span>
+                <span className="text-xl">{(profile as any).current_streak >= 4 ? '🔥' : '☕'}</span>
                 <div>
-                  <p className="text-coffee-800 font-bold text-sm">{(profile as any).current_streak}-day streak</p>
-                  <p className="text-coffee-400 text-xs">Best: {(profile as any).longest_streak || (profile as any).current_streak} days</p>
+                  <p className="text-coffee-800 font-bold text-sm">{(profile as any).current_streak}-week streak</p>
+                  <p className="text-coffee-400 text-xs">Best: {(profile as any).longest_streak || (profile as any).current_streak} weeks</p>
                 </div>
               </div>
               <div className="flex gap-1">
