@@ -536,6 +536,19 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             </button>
           </div>
 
+          {/* Rate a visit — always visible for returning users */}
+          {onNavigateToBrew && (
+            <div className="mt-4">
+              <button
+                onClick={() => onNavigateToBrew()}
+                className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', color: 'white', boxShadow: '0 2px 12px rgba(200,133,58,0.25)' }}
+              >
+                ☕ Rate a visit
+              </button>
+            </div>
+          )}
+
           {/* Badge progress */}
           {badgeInfo.next !== badgeInfo.current && (
             <div className="mt-4 pt-3 border-t border-cream-100">
