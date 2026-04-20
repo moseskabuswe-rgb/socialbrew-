@@ -79,15 +79,46 @@ function AppContent() {
     return () => { supabase.removeChannel(channel) }
   }, [profile])
 
-  // Show push prompt once per session if token not saved
+  // Smart push prompt — shows after user receives first notification
+  // so they understand exactly what they're enabling.
+  // Re-asks after 7 days if dismissed.
   useEffect(() => {
     if (!profile) return
     if (promptShown.current) return
     const hasToken = !!(profile as any).push_token
     if (hasToken) return
+
+    const dismissed = localStorage.getItem('sb_push_dismissed')
+    if (dismissed) {
+      const daysSince = (Date.now() - parseInt(dismissed)) / (1000 * 60 * 60 * 24)
+      if (daysSince < 7) return
+    }
+
     promptShown.current = true
-    const timer = setTimeout(() => setShowPushPrompt(true), 3000)
-    return () => clearTimeout(timer)
+
+    supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', profile.id)
+      .eq('read', false)
+      .then(({ count }) => {
+        if (count && count > 0) {
+          setTimeout(() => setShowPushPrompt(true), 1000)
+        } else {
+          const interval = setInterval(async () => {
+            const { count: newCount } = await supabase
+              .from('notifications')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', profile.id)
+              .eq('read', false)
+            if (newCount && newCount > 0) {
+              clearInterval(interval)
+              setTimeout(() => setShowPushPrompt(true), 800)
+            }
+          }, 15000)
+          setTimeout(() => clearInterval(interval), 10 * 60 * 1000)
+        }
+      })
   }, [profile])
 
   // Show welcome modal for new signups only — never for returning users
@@ -106,6 +137,7 @@ function AppContent() {
 
   function dismissPushPrompt() {
     setShowPushPrompt(false)
+    localStorage.setItem('sb_push_dismissed', Date.now().toString())
   }
 
   // Secret logo tap handler — 5 taps within ~3s opens admin panel
