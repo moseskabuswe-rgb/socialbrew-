@@ -237,11 +237,11 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           {(user?.current_streak > 0) && (
             <div className="flex items-center gap-3 mt-4 bg-cream-50 rounded-2xl px-4 py-3 border border-cream-200">
               <div className="w-9 h-9 rounded-full bg-caramel/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-lg">{user.current_streak >= 7 ? '🔥' : '☕'}</span>
+                <span className="text-lg">{user.current_streak >= 4 ? '🔥' : '☕'}</span>
               </div>
               <div className="flex-1">
-                <p className="text-coffee-800 font-bold text-sm">{user.current_streak}-day streak</p>
-                <p className="text-coffee-400 text-xs">Best: {user.longest_streak || user.current_streak} days</p>
+                <p className="text-coffee-800 font-bold text-sm">{user.current_streak}-week streak</p>
+                <p className="text-coffee-400 text-xs">Best: {user.longest_streak || user.current_streak} weeks</p>
               </div>
               <div className="flex gap-1">
                 {Array.from({ length: Math.min(7, user.current_streak) }).map((_: any, i: number) => (
