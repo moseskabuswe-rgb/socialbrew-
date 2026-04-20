@@ -131,6 +131,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
   const [resolvedShop, setResolvedShop] = useState<any>(shop)
+  const [shopStreak, setShopStreak] = useState<number>(0)
 
   const isInDb = !String(shop.id).startsWith('osm-') &&
     !String(shop.id).startsWith('fsq-') &&
@@ -166,7 +167,27 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
       if (ratings) {
         setAllRatings(ratings)
         if (profile?.id) {
-          setMyRatings(ratings.filter((r: any) => r.user_id === profile.id))
+          const mine = ratings.filter((r: any) => r.user_id === profile.id)
+          setMyRatings(mine)
+
+          // Calculate consecutive weekly shop streak
+          if (mine.length > 0) {
+            const weekKeys = Array.from(new Set(mine.map((r: any) => {
+              const d = new Date(r.created_at)
+              const year = d.getFullYear()
+              const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
+              return year + '-' + String(week).padStart(2, '0')
+            }))).sort().reverse()
+            let streak = 1
+            for (let i = 0; i < weekKeys.length - 1; i++) {
+              const [y1, w1] = weekKeys[i].split('-').map(Number)
+              const [y2, w2] = weekKeys[i + 1].split('-').map(Number)
+              if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
+                streak++
+              } else break
+            }
+            setShopStreak(streak)
+          }
           const { data: follows } = await supabase
             .from('follows').select('following_id').eq('follower_id', profile.id)
           const followingIds = new Set((follows || []).map((f: any) => f.following_id))
@@ -236,6 +257,14 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             <div>
               <p className="text-coffee-700 font-bold text-sm">{getFillLabel(avgFill)}</p>
               <p className="text-coffee-400 text-xs">{avgFill}% avg · {allRatings.length} review{allRatings.length !== 1 ? 's' : ''}</p>
+              {shopStreak >= 2 && profile && (
+                <div className="flex items-center gap-1 mt-1">
+                  <span style={{ fontSize: 11 }}>{shopStreak >= 8 ? '🔥' : shopStreak >= 4 ? '⭐' : '☕'}</span>
+                  <p className="text-caramel font-semibold" style={{ fontSize: 11 }}>
+                    {shopStreak >= 26 ? 'Six-month regular' : shopStreak >= 12 ? 'Part of the furniture' : shopStreak >= 8 ? 'Local legend' : shopStreak >= 4 ? 'Becoming a regular' : `${shopStreak} weeks running`} · your streak
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
