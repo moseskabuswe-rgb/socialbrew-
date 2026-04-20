@@ -14,6 +14,8 @@ import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import WelcomeModal from './components/shared/WelcomeModal'
+import MilestoneCelebration, { WEEKLY_STREAK_MILESTONES, SHOP_STREAK_MILESTONES, GENERAL_MILESTONES } from './components/shared/MilestoneCelebration'
+import type { Milestone } from './components/shared/MilestoneCelebration'
 import { supabase } from './lib/supabase'
 import { notifyLike, notifyComment, notifyFollow, notifyMention, sendPushToUser } from './lib/push'
 
@@ -35,6 +37,7 @@ function AppContent() {
   }
   const [shopToast, setShopToast] = useState<string | null>(null)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
+  const [milestone, setMilestone] = useState<Milestone | null>(null)
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
   const [showPushPrompt, setShowPushPrompt] = useState(false)
   const promptShown = useRef(false)
@@ -198,6 +201,7 @@ function AppContent() {
     }
 
     // Check if badge upgraded after this post
+    let badgeEarnedThisPost = false
     if (profile) {
       const { count } = await supabase
         .from('ratings')
@@ -217,8 +221,141 @@ function AppContent() {
         if (newCount >= tiers[i].min) { newBadge = tiers[i]; break }
       }
       if (profile.badge !== newBadge.label) {
+        badgeEarnedThisPost = true
         setCelebrateBadge(newBadge)
         await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile.id)
+      }
+    }
+
+    // Check for milestone achievements after this post
+    if (profile) {
+      try {
+        // Fetch updated profile stats
+        const { data: updatedProfile } = await supabase
+          .from('profiles')
+          .select('current_streak')
+          .eq('id', profile.id)
+          .single()
+
+        // Fetch already-achieved milestones for this user
+        const { data: achieved } = await supabase
+          .from('milestones')
+          .select('type')
+          .eq('user_id', profile.id)
+        const achievedSet = new Set((achieved || []).map((m: any) => m.type))
+
+        const newStreak = updatedProfile?.current_streak || 0
+        let newMilestone = null
+
+        // Check weekly streak milestones
+        for (const m of WEEKLY_STREAK_MILESTONES) {
+          const weeks = parseInt(m.key.split('_')[2])
+          if (newStreak >= weeks && !achievedSet.has(m.key)) {
+            newMilestone = m
+            break
+          }
+        }
+
+        // Check shop-specific streak milestones
+        if (!newMilestone && shopName) {
+          const { data: shopData } = await supabase
+            .from('coffee_shops')
+            .select('id, name')
+            .eq('name', shopName)
+            .single()
+
+          if (shopData) {
+            // Count distinct weeks this user rated this shop
+            const { data: shopRatings } = await supabase
+              .from('ratings')
+              .select('created_at')
+              .eq('user_id', profile.id)
+              .eq('shop_id', shopData.id)
+              .order('created_at', { ascending: false })
+
+            if (shopRatings && shopRatings.length > 0) {
+              // Count consecutive weeks
+              const weeks = Array.from(new Set(shopRatings.map((r: any) => {
+                const d = new Date(r.created_at)
+                const year = d.getFullYear()
+                const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
+                return `${year}-${week}`
+              }))).sort().reverse()
+
+              // Count consecutive weeks from most recent
+              let consecutive = 1
+              for (let i = 0; i < weeks.length - 1; i++) {
+                const [y1, w1] = weeks[i].split('-').map(Number)
+                const [y2, w2] = weeks[i + 1].split('-').map(Number)
+                if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
+                  consecutive++
+                } else break
+              }
+
+              const shopMilestones = SHOP_STREAK_MILESTONES(shopData.name, shopData.id)
+              for (const m of shopMilestones) {
+                const mWeeks = parseInt(m.key.split('_')[2])
+                if (consecutive >= mWeeks && !achievedSet.has(m.key)) {
+                  newMilestone = m
+                  break
+                }
+              }
+            }
+          }
+        }
+
+        // Check unique shops milestone
+        if (!newMilestone) {
+          const { count: uniqueShops } = await supabase
+            .from('user_shop_visits')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', profile.id)
+
+          for (const m of GENERAL_MILESTONES.filter(m => m.key.startsWith('unique'))) {
+            const threshold = parseInt(m.key.split('_')[2])
+            if ((uniqueShops || 0) >= threshold && !achievedSet.has(m.key)) {
+              newMilestone = m
+              break
+            }
+          }
+        }
+
+        // Check 7-day run milestone
+        if (!newMilestone && !achievedSet.has('7_day_run')) {
+          const { data: recentRatings } = await supabase
+            .from('ratings')
+            .select('created_at')
+            .eq('user_id', profile.id)
+            .gte('created_at', new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString())
+            .order('created_at', { ascending: false })
+
+          if (recentRatings && recentRatings.length >= 7) {
+            const days = new Set(recentRatings.map((r: any) =>
+              new Date(r.created_at).toDateString()
+            ))
+            if (days.size >= 7) {
+              newMilestone = GENERAL_MILESTONES.find(m => m.key === '7_day_run') || null
+            }
+          }
+        }
+
+        // Fire the milestone celebration and record it
+        if (newMilestone) {
+          await supabase.from('milestones').insert({
+            user_id: profile.id,
+            type: newMilestone.key,
+          })
+          // Delay slightly so it doesn't compete with badge celebration
+          setTimeout(() => setMilestone({
+            type: newMilestone!.type,
+            emoji: newMilestone!.emoji,
+            title: newMilestone!.title,
+            subtitle: newMilestone!.subtitle,
+            detail: newMilestone!.detail,
+          }), badgeEarnedThisPost ? 3000 : 500)
+        }
+      } catch (err) {
+        console.error('Milestone check failed:', err)
       }
     }
   }
@@ -291,6 +428,9 @@ function AppContent() {
 
       {celebrateBadge && (
         <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />
+      )}
+      {milestone && (
+        <MilestoneCelebration milestone={milestone} onClose={() => setMilestone(null)} />
       )}
 
       {/* Admin broadcast panel — triggered by 5 taps on logo, only for Moses */}
