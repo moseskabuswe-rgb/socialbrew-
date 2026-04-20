@@ -153,7 +153,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
         {step === 'rate' && (
           <div className="px-5 pb-6">
-            <p className="text-coffee-400 text-xs text-center mb-3 tracking-widest uppercase">Drag up to fill</p>
+            <p className="text-coffee-400 text-xs text-center mb-3 tracking-widest uppercase">How was the drink?</p>
             <div className="flex flex-col items-center">
               <div ref={mugRef}
                 onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}
@@ -277,7 +277,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
             {/* Vibes */}
             <div className="mb-4">
-              <label className="text-coffee-500 text-xs uppercase tracking-wider mb-2 block">Vibes (up to 3)</label>
+              <label className="text-coffee-500 text-xs uppercase tracking-wider mb-2 block">How was the vibe? (up to 3)</label>
               <div className="flex flex-wrap gap-2">
                 {VIBE_OPTIONS.map(vibe => (
                   <button key={vibe} onClick={() => toggleVibe(vibe)}
