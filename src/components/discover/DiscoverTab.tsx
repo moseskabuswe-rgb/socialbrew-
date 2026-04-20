@@ -94,15 +94,17 @@ out body;`
   }
 }
 
-async function searchAnywhere(query: string): Promise<Partial<CoffeeShop>[]> {
-  // For search — broader query, any matching name globally
+async function searchAnywhere(query: string, lat?: number | null, lng?: number | null): Promise<Partial<CoffeeShop>[]> {
+  // Search near user's actual location, fall back to Bloomington if no location
+  const searchLat = lat ?? 40.5089
+  const searchLng = lng ?? -88.9906
   const osmQuery = `
 [out:json][timeout:25];
 (
-  node["name"~"${query.replace(/"/g, '')}",i]["amenity"~"cafe|restaurant|bar"](around:50000,40.5089,-88.9906);
-  node["name"~"${query.replace(/"/g, '')}",i]["shop"="coffee"];
-  node["name"~"${query.replace(/"/g, '')} coffee",i];
-  node["name"~"${query.replace(/"/g, '')} cafe",i];
+  node["name"~"${query.replace(/"/g, '')}",i]["amenity"~"cafe|restaurant|bar"](around:50000,${searchLat},${searchLng});
+  node["name"~"${query.replace(/"/g, '')}",i]["shop"="coffee"](around:50000,${searchLat},${searchLng});
+  node["name"~"${query.replace(/"/g, '')} coffee",i](around:50000,${searchLat},${searchLng});
+  node["name"~"${query.replace(/"/g, '')} cafe",i](around:50000,${searchLat},${searchLng});
 );
 out body 15;`
   try {
@@ -224,7 +226,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
       }
 
       // Also search OSM for anything not in our DB
-      const osmData = await searchAnywhere(q)
+      const osmData = await searchAnywhere(q, userLat, userLng)
       setSearchResults([
         ...dbRes,
         ...osmData.filter(o => !dbRes.some(d => d.name.toLowerCase() === (o.name || '').toLowerCase()))
