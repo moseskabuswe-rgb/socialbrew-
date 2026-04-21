@@ -95,40 +95,57 @@ out body;`
 }
 
 async function searchAnywhere(query: string): Promise<Partial<CoffeeShop>[]> {
-  // Search globally by name — no location restriction so users can find shops anywhere
-  const safe = query.replace(/"/g, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const osmQuery = `
-[out:json][timeout:25];
-(
-  node["name"~"${safe}",i]["amenity"="cafe"];
-  node["name"~"${safe}",i]["shop"="coffee"];
-);
-out body 15;`
+  // Use Nominatim — OSM's search engine, designed for named global searches
+  // Much more reliable than Overpass for finding specific named places
   try {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST', body: osmQuery,
+    const encoded = encodeURIComponent(query)
+    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=15&addressdetails=1&extratags=1`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'SocialBrew/1.0 (social coffee app)' },
+      signal: AbortSignal.timeout(10000),
     })
     if (!res.ok) return []
-    const json = await res.json()
-    return (json.elements || [])
-      .filter((el: any) => el.tags?.name)
-      .map((el: any) => ({
-        id: `osm-${el.id}`,
-        name: el.tags.name,
-        address: [el.tags['addr:housenumber'], el.tags['addr:street']].filter(Boolean).join(' ') || null,
-        city: el.tags['addr:city'] || null,
-        state: el.tags['addr:state'] || null,
-        lat: el.lat ?? null,
-        lng: el.lon ?? null,
-        photo_url: null,
-        vibes: [],
-        avg_rating: 0,
-        total_ratings: 0,
-        weekly_visits: 0,
-        is_certified: false,
-        website: el.tags['website'] || el.tags['contact:website'] || null,
-        opening_hours: el.tags['opening_hours'] || null,
-      }))
+    const results = await res.json()
+
+    // Filter to cafe/coffee related results only
+    const coffeeTypes = ['cafe', 'coffee', 'coffee_shop', 'espresso']
+    return (results || [])
+      .filter((r: any) => {
+        const type = (r.type || '').toLowerCase()
+        const cls = (r.class || '').toLowerCase()
+        const name = (r.display_name || '').toLowerCase()
+        // Must be a cafe/coffee type, or have coffee in the name
+        return coffeeTypes.includes(type) ||
+          cls === 'amenity' ||
+          name.includes('coffee') ||
+          name.includes('cafe') ||
+          name.includes('café') ||
+          name.includes('brew') ||
+          name.includes('roast')
+      })
+      .filter((r: any) => !isChain(r.display_name || ''))
+      .map((r: any) => {
+        const addr = r.address || {}
+        // Extract clean shop name — Nominatim puts full address in display_name
+        const name = r.name || r.display_name?.split(',')[0] || query
+        return {
+          id: `osm-${r.osm_id}`,
+          name,
+          address: [addr.house_number, addr.road].filter(Boolean).join(' ') || null,
+          city: addr.city || addr.town || addr.village || null,
+          state: addr.state || null,
+          lat: parseFloat(r.lat),
+          lng: parseFloat(r.lon),
+          photo_url: null,
+          vibes: [],
+          avg_rating: 0,
+          total_ratings: 0,
+          weekly_visits: 0,
+          is_certified: false,
+          website: r.extratags?.website || null,
+          opening_hours: r.extratags?.opening_hours || null,
+        }
+      })
   } catch { return [] }
 }
 
