@@ -8,9 +8,7 @@ import UserProfilePage from '../shared/UserProfilePage'
 import AvatarCropper from '../shared/AvatarCropper'
 import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
-
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
-
 function getBadgeInfo(count: number) {
   const tiers = [
     { label: 'Coffee Curious', emoji: '🌱', color: '#7aaa6a', min: 0 },
@@ -27,7 +25,6 @@ function getBadgeInfo(count: number) {
   const progress = next === current ? 100 : Math.round(((count - current.min) / (next.min - current.min)) * 100)
   return { current, next, progress }
 }
-
 // ── FOLLOWERS MODAL ─────────────────────────────────────
 function FollowersModal({ userId, type, onClose }: { userId: string; type: 'followers' | 'following'; onClose: () => void }) {
   const { profile: me } = useAuth()
@@ -51,7 +48,6 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
       setLoading(false)
     }
     load()
-    // Load who the current user is already following
     if (me) {
       supabase.from('follows').select('following_id').eq('follower_id', me.id)
         .then(({ data }) => { if (data) setFollowing(new Set(data.map((f: any) => f.following_id))) })
@@ -70,7 +66,6 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
       setFollowing(prev => new Set([...prev, targetId]))
     }
   }
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)', backdropFilter: 'blur(6px)' }}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '70vh' }}>
@@ -116,7 +111,6 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
     </div>
   )
 }
-
 // ── VISITED SHOPS MODAL ──────────────────────────────────
 function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; onClose: () => void; onShopClick: (shop: any) => void }) {
   return (
@@ -152,7 +146,6 @@ function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; on
     </div>
   )
 }
-
 // ── SETTINGS MODAL ───────────────────────────────────────
 function SettingsModal({ onClose }: { onClose: () => void }) {
   const { profile, signOut, refreshProfile } = useAuth()
@@ -165,7 +158,6 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
   async function saveSettings() {
     if (!profile || saving) return
     setSaving(true)
@@ -178,18 +170,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     if (!error) { await refreshProfile(); setSaved(true); setTimeout(() => setSaved(false), 2000) }
     setSaving(false)
   }
-
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.[0] || !profile) return
     const file = e.target.files[0]
     if (!file.type.startsWith('image/')) { alert('Please select an image'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return }
-    // Show cropper instead of uploading directly
     setCropFile(file)
-    // Reset input so same file can be picked again
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
-
   async function handleCroppedAvatar(blob: Blob) {
     if (!profile) return
     setCropFile(null)
@@ -205,109 +193,107 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     } catch (err: any) { alert(`Upload failed: ${err.message}`) }
     setUploadingAvatar(false)
   }
-
   return (
     <>
-    {cropFile && (
-      <AvatarCropper
-        imageFile={cropFile}
-        onCrop={handleCroppedAvatar}
-        onCancel={() => setCropFile(null)}
-      />
-    )}
-    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white">
-        <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
-        <h2 className="font-display text-xl font-bold text-coffee-800 flex-1">Settings</h2>
-        <button onClick={saveSettings} disabled={saving}
-          className="flex items-center gap-1.5 bg-caramel text-white px-4 py-1.5 rounded-full text-sm font-semibold disabled:opacity-40">
-          {saved ? <><Check size={14} /> Saved</> : saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto pb-20">
-        {/* Avatar */}
-        <div className="bg-white mx-4 mt-4 rounded-2xl p-5 border border-cream-200 shadow-sm">
-          <p className="text-coffee-600 font-semibold text-sm mb-3">Profile Photo</p>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 border-4 border-cream-100 shadow">
-                {profile?.avatar_url
-                  ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-3xl">{profile?.username?.[0]?.toUpperCase()}</span></div>}
-                {uploadingAvatar && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
-                    <div className="w-6 h-6 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  </div>
-                )}
+      {cropFile && (
+        <AvatarCropper
+          imageFile={cropFile}
+          onCrop={handleCroppedAvatar}
+          onCancel={() => setCropFile(null)}
+        />
+      )}
+      <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white">
+          <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
+          <h2 className="font-display text-xl font-bold text-coffee-800 flex-1">Settings</h2>
+          <button onClick={saveSettings} disabled={saving}
+            className="flex items-center gap-1.5 bg-caramel text-white px-4 py-1.5 rounded-full text-sm font-semibold disabled:opacity-40">
+            {saved ? <><Check size={14} /> Saved</> : saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto pb-20">
+          {/* Avatar */}
+          <div className="bg-white mx-4 mt-4 rounded-2xl p-5 border border-cream-200 shadow-sm">
+            <p className="text-coffee-600 font-semibold text-sm mb-3">Profile Photo</p>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 border-4 border-cream-100 shadow">
+                  {profile?.avatar_url
+                    ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-3xl">{profile?.username?.[0]?.toUpperCase()}</span></div>}
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                      <div className="w-6 h-6 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 w-7 h-7 bg-caramel rounded-full flex items-center justify-center shadow border-2 border-white">
+                  <Camera size={12} className="text-white" />
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
               </div>
-              <button onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 w-7 h-7 bg-caramel rounded-full flex items-center justify-center shadow border-2 border-white">
-                <Camera size={12} className="text-white" />
+              <div>
+                <p className="text-coffee-700 font-semibold text-sm">{profile?.username}</p>
+                <button onClick={() => fileInputRef.current?.click()} className="text-caramel text-sm mt-1 font-medium">Change photo</button>
+              </div>
+            </div>
+          </div>
+          {/* Profile info */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl p-5 border border-cream-200 shadow-sm space-y-4">
+            <p className="text-coffee-600 font-semibold text-sm">Profile Info</p>
+            <div>
+              <label className="text-coffee-500 text-xs font-medium block mb-1">Username</label>
+              <input value={username} onChange={e => setUsername(e.target.value)}
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-coffee-500 text-xs font-medium block mb-1">Full Name</label>
+              <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Optional"
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
+            </div>
+            <div>
+              <label className="text-coffee-500 text-xs font-medium block mb-1">Bio</label>
+              <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Tell your coffee story..."
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none resize-none placeholder-coffee-300" />
+            </div>
+          </div>
+          {/* Privacy */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl p-5 border border-cream-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-coffee-700 font-semibold text-sm">Private Account</p>
+                <p className="text-coffee-400 text-xs mt-0.5">Only followers can see your posts</p>
+              </div>
+              <button onClick={() => setIsPrivate(!isPrivate)}
+                className={`w-11 h-6 rounded-full transition-colors relative ${isPrivate ? 'bg-caramel' : 'bg-cream-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isPrivate ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-            </div>
-            <div>
-              <p className="text-coffee-700 font-semibold text-sm">{profile?.username}</p>
-              <button onClick={() => fileInputRef.current?.click()} className="text-caramel text-sm mt-1 font-medium">Change photo</button>
             </div>
           </div>
-        </div>
-        {/* Profile info */}
-        <div className="bg-white mx-4 mt-3 rounded-2xl p-5 border border-cream-200 shadow-sm space-y-4">
-          <p className="text-coffee-600 font-semibold text-sm">Profile Info</p>
-          <div>
-            <label className="text-coffee-500 text-xs font-medium block mb-1">Username</label>
-            <input value={username} onChange={e => setUsername(e.target.value)}
-              className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-coffee-500 text-xs font-medium block mb-1">Full Name</label>
-            <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Optional"
-              className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
-          </div>
-          <div>
-            <label className="text-coffee-500 text-xs font-medium block mb-1">Bio</label>
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Tell your coffee story..."
-              className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none resize-none placeholder-coffee-300" />
-          </div>
-        </div>
-        {/* Privacy */}
-        <div className="bg-white mx-4 mt-3 rounded-2xl p-5 border border-cream-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-coffee-700 font-semibold text-sm">Private Account</p>
-              <p className="text-coffee-400 text-xs mt-0.5">Only followers can see your posts</p>
+          {/* Account */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-cream-100">
+              <p className="text-coffee-600 font-semibold text-sm">Account</p>
             </div>
-            <button onClick={() => setIsPrivate(!isPrivate)}
-              className={`w-11 h-6 rounded-full transition-colors relative ${isPrivate ? 'bg-caramel' : 'bg-cream-300'}`}>
-              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isPrivate ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            <div className="px-5 py-3 border-b border-cream-100">
+              <p className="text-coffee-500 text-xs">Email</p>
+              <p className="text-coffee-700 text-sm mt-0.5">{profile?.email_verified ? '✓ Verified' : 'Not verified'}</p>
+            </div>
+            <div className="px-5 py-3 border-b border-cream-100">
+              <p className="text-coffee-500 text-xs">Role</p>
+              <p className="text-coffee-700 text-sm mt-0.5 capitalize">{profile?.role || 'consumer'}</p>
+            </div>
+            <button onClick={signOut} className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors">
+              <LogOut size={18} />
+              <span className="font-medium text-sm">Sign Out</span>
             </button>
           </div>
         </div>
-        {/* Account */}
-        <div className="bg-white mx-4 mt-3 rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-cream-100">
-            <p className="text-coffee-600 font-semibold text-sm">Account</p>
-          </div>
-          <div className="px-5 py-3 border-b border-cream-100">
-            <p className="text-coffee-500 text-xs">Email</p>
-            <p className="text-coffee-700 text-sm mt-0.5">{profile?.email_verified ? '✓ Verified' : 'Not verified'}</p>
-          </div>
-          <div className="px-5 py-3 border-b border-cream-100">
-            <p className="text-coffee-500 text-xs">Role</p>
-            <p className="text-coffee-700 text-sm mt-0.5 capitalize">{profile?.role || 'consumer'}</p>
-          </div>
-          <button onClick={signOut} className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-red-50 transition-colors">
-            <LogOut size={18} />
-            <span className="font-medium text-sm">Sign Out</span>
-          </button>
-        </div>
       </div>
-    </div>
+    </>
   )
 }
-
-
 // ── FIND FRIENDS MODAL ───────────────────────────────────
 function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onViewProfile: (id: string) => void }) {
   const { profile } = useAuth()
@@ -315,13 +301,11 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
   const [results, setResults] = useState<any[]>([])
   const [following, setFollowing] = useState<Set<string>>(new Set())
   const [searching, setSearching] = useState(false)
-
   useEffect(() => {
     if (!profile) return
     supabase.from('follows').select('following_id').eq('follower_id', profile.id)
       .then(({ data }) => { if (data) setFollowing(new Set(data.map((f: any) => f.following_id))) })
   }, [profile])
-
   async function search(q: string) {
     setQuery(q)
     if (q.trim().length < 2) { setResults([]); return }
@@ -334,7 +318,6 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
     setResults(data || [])
     setSearching(false)
   }
-
   async function toggleFollow(userId: string, e: React.MouseEvent) {
     e.stopPropagation()
     if (!profile) return
@@ -348,16 +331,12 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
       setFollowing(prev => new Set([...prev, userId]))
     }
   }
-
   return (
     <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
-      {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
         <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
         <h3 className="font-display font-bold text-coffee-800 text-lg flex-1">Find Friends</h3>
       </div>
-
-      {/* Search bar — always visible at top */}
       <div className="px-4 py-3 bg-white border-b border-cream-100 flex-shrink-0">
         <div className="flex items-center bg-cream-50 rounded-xl px-3 py-2.5 border border-cream-200 gap-2">
           <Search size={15} className="text-coffee-400 flex-shrink-0" />
@@ -367,8 +346,6 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
           {query.length > 0 && !searching && <button onClick={() => { setQuery(''); setResults([]) }} className="text-coffee-300"><X size={14} /></button>}
         </div>
       </div>
-
-      {/* Results */}
       <div className="flex-1 overflow-y-auto">
         {query.length < 2 && (
           <div className="text-center py-16">
@@ -404,10 +381,8 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
         ))}
       </div>
     </div>
-    </>
   )
 }
-
 export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop?: any) => void }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
@@ -429,7 +404,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [newDrink, setNewDrink] = useState('')
   const [newShop, setNewShop] = useState('')
   const [addingWishlist, setAddingWishlist] = useState(false)
-
   useEffect(() => {
     if (!profile) return
     async function load() {
@@ -442,27 +416,20 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
       ])
       const newCount = ratingsRes.data?.length || 0
       const newBadge = getBadgeInfo(newCount).current
-      // Only celebrate if DB badge is different AND it's actually a promotion
-      // profile.badge is the last known badge saved to the database
       const storedBadge = profile!.badge
       if (!storedBadge) {
-        // First time — just set it silently, no celebration
         await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
       } else if (storedBadge !== newBadge.label) {
-        // Badge changed — check it's a real promotion not just a data mismatch
         const tiers = ['Coffee Curious','Coffee Lover','Regular','Enthusiast','Connoisseur','Brew Master']
         const oldIdx = tiers.indexOf(storedBadge)
         const newIdx = tiers.indexOf(newBadge.label)
         if (newIdx > oldIdx) {
-          // Genuine level up — celebrate and save
           setCelebrateBadge(newBadge)
           await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
         } else {
-          // Something is off — just silently resync without celebrating
           await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
         }
       }
-      // If storedBadge === newBadge.label, do nothing — already in sync
       if (ratingsRes.data) setRatings(ratingsRes.data)
       if (visitsRes.data) setVisitedShops(visitsRes.data)
       if (wishlistRes.data) setWishlist(wishlistRes.data)
@@ -472,7 +439,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     }
     load()
   }, [profile])
-
   if (!profile) return null
   async function addToWishlist() {
     if (!profile || !newDrink.trim() || addingWishlist) return
@@ -488,14 +454,11 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     setShowAddWishlist(false)
     setAddingWishlist(false)
   }
-
   async function deleteWishlistItem(id: string) {
     await supabase.from('wishlist').delete().eq('id', id)
     setWishlist(prev => prev.filter(w => w.id !== id))
   }
-
   const badgeInfo = getBadgeInfo(ratings.length)
-
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
@@ -509,7 +472,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           </button>
         </div>
       </div>
-
       <div className="pb-28">
         {/* Profile card */}
         <div className="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm border border-cream-200">
@@ -534,8 +496,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               </div>
             </div>
           </div>
-
-          {/* Stats — clickable */}
+          {/* Stats */}
           <div className="grid grid-cols-4 gap-2 mt-5 pt-4 border-t border-cream-100">
             <div className="text-center">
               <p className="text-coffee-800 font-bold text-lg">{ratings.length}</p>
@@ -554,8 +515,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               <p className="text-caramel text-xs font-medium flex items-center justify-center gap-0.5">Following <ChevronRight size={10} /></p>
             </button>
           </div>
-
-          {/* Rate a visit — always visible for returning users */}
+          {/* Rate a visit — always visible */}
           {onNavigateToBrew && (
             <div className="mt-4">
               <button
@@ -567,7 +527,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               </button>
             </div>
           )}
-
           {/* Badge progress */}
           {badgeInfo.next !== badgeInfo.current && (
             <div className="mt-4 pt-3 border-t border-cream-100">
@@ -581,7 +540,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               <p className="text-coffee-400 text-xs mt-1 text-right">{badgeInfo.progress}% to {badgeInfo.next.label}</p>
             </div>
           )}
-
           {/* Brew Streak */}
           {(profile as any).current_streak > 0 && (
             <div className="mt-4 pt-3 border-t border-cream-100 flex items-center justify-between">
@@ -601,9 +559,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               </div>
             </div>
           )}
-
         </div>
-
         {/* Section toggle */}
         <div className="mx-4 mt-4 grid grid-cols-3 bg-white rounded-xl p-1 border border-cream-200 shadow-sm gap-1">
           <button onClick={() => setActiveSection('sips')}
@@ -619,7 +575,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             ☕ Wishlist
           </button>
         </div>
-
         {/* Sips */}
         {activeSection === 'sips' && (
           <div className="px-4 mt-3">
@@ -630,10 +585,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                 <p className="text-coffee-600 font-display">Your journey in cups</p>
                 <p className="text-coffee-400 text-sm mt-1">Rate a visit to start your collection</p>
                 {onNavigateToBrew && (
-                  <button
-                    onClick={() => onNavigateToBrew()}
-                    className="mt-4 px-5 py-2.5 bg-caramel text-white rounded-full text-sm font-semibold"
-                  >
+                  <button onClick={() => onNavigateToBrew()} className="mt-4 px-5 py-2.5 bg-caramel text-white rounded-full text-sm font-semibold">
                     Rate a coffee shop ☕
                   </button>
                 )}
@@ -666,39 +618,25 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             </div>
           </div>
         )}
-
         {/* Wishlist */}
         {(activeSection as string) === 'wishlist' && (
           <div className="px-4 mt-3">
-            {/* Add button */}
             <button onClick={() => setShowAddWishlist(true)}
               className="w-full mb-3 flex items-center justify-center gap-2 bg-caramel text-white rounded-xl py-3 font-semibold text-sm shadow-sm">
               <Plus size={16} /> Add a Drink
             </button>
-
-            {/* Add form */}
             {showAddWishlist && (
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200 mb-3">
                 <p className="text-coffee-700 font-semibold text-sm mb-3">Add to Wishlist</p>
                 <div className="space-y-2 mb-3">
-                  <input
-                    value={newDrink}
-                    onChange={e => setNewDrink(e.target.value)}
-                    placeholder="Drink name (e.g. Lavender Oat Latte)"
-                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
-                  />
-                  <input
-                    value={newShop}
-                    onChange={e => setNewShop(e.target.value)}
-                    placeholder="Shop name (optional)"
-                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
-                  />
+                  <input value={newDrink} onChange={e => setNewDrink(e.target.value)} placeholder="Drink name (e.g. Lavender Oat Latte)"
+                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
+                  <input value={newShop} onChange={e => setNewShop(e.target.value)} placeholder="Shop name (optional)"
+                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => { setShowAddWishlist(false); setNewDrink(''); setNewShop('') }}
-                    className="flex-1 py-2 rounded-xl text-sm text-coffee-500 bg-cream-100 border border-cream-200 font-medium">
-                    Cancel
-                  </button>
+                    className="flex-1 py-2 rounded-xl text-sm text-coffee-500 bg-cream-100 border border-cream-200 font-medium">Cancel</button>
                   <button onClick={addToWishlist} disabled={!newDrink.trim() || addingWishlist}
                     className="flex-1 py-2 rounded-xl text-sm text-white bg-caramel font-semibold disabled:opacity-40">
                     {addingWishlist ? 'Adding...' : 'Add ☕'}
@@ -706,7 +644,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                 </div>
               </div>
             )}
-
             {wishlist.length === 0 && !showAddWishlist && (
               <div className="text-center py-10">
                 <p className="text-4xl mb-2">☕</p>
@@ -714,7 +651,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                 <p className="text-coffee-400 text-sm mt-1">Drinks you want to try</p>
               </div>
             )}
-
             <div className="space-y-2">
               {wishlist.map(item => (
                 <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200">
@@ -729,9 +665,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {item.is_fulfilled && (
-                        <span className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                          ✓ Tried it!
-                        </span>
+                        <span className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">✓ Tried it!</span>
                       )}
                       <button onClick={() => deleteWishlistItem(item.id)} className="text-coffee-300 hover:text-red-400 transition-colors p-1">
                         <Trash2 size={14} />
@@ -743,7 +677,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             </div>
           </div>
         )}
-
         {/* Map */}
         {activeSection === 'map' && (
           <div className="px-4 mt-3">
@@ -763,7 +696,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           </div>
         )}
       </div>
-
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showFollowers && <FollowersModal userId={profile.id} type={showFollowers} onClose={() => setShowFollowers(null)} />}
       {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} onShopClick={(s) => setSelectedShop(s)} />}
@@ -775,11 +707,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         </div>
       )}
       {activePost && (
-        <PostDetailModal
-          rating={activePost}
-          onClose={() => setActivePost(null)}
-          onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }}
-        />
+        <PostDetailModal rating={activePost} onClose={() => setActivePost(null)} onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }} />
       )}
       {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
     </div>
