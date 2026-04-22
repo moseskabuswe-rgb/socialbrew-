@@ -9,7 +9,6 @@ import { useAuth } from '../../contexts/AuthContext'
 
 interface Props {
   shopId: string
-  shopName?: string
 }
 
 interface Checkin {
@@ -19,7 +18,7 @@ interface Checkin {
   profiles: { username: string; avatar_url: string | null }
 }
 
-export default function ShopCheckin({ shopId, shopName }: Props) {
+export default function ShopCheckin({ shopId }: Props) {
   const { profile } = useAuth()
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [isCheckedIn, setIsCheckedIn] = useState(false)

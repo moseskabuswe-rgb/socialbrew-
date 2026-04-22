@@ -308,7 +308,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
       )}
 
       {/* Live check-in */}
-      <ShopCheckin shopId={resolvedShop.id} shopName={resolvedShop.name} />
+      <ShopCheckin shopId={resolvedShop.id} />
 
       {/* Tabs */}
       <div className="flex bg-white border-b border-cream-200 flex-shrink-0">
