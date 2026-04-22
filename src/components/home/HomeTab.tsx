@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft, Share2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import BrewWrapped from '../shared/BrewWrapped'
 import { trackEvent } from '../../lib/analytics'
 import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
 import ShopDetailPage from '../shared/ShopDetailPage'
@@ -768,6 +769,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
+  const [showWrapped, setShowWrapped] = useState(false)
+  const isWrappedSeason = [11, 0].includes(new Date().getMonth())
   const [loading, setLoading] = useState(true)
   const [activeComments, setActiveComments] = useState<string | null>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -1014,6 +1017,20 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           </div>
         )}
 
+        {/* Wrapped Season Banner */}
+        {isWrappedSeason && (
+          <button
+            onClick={() => setShowWrapped(true)}
+            className="mx-4 mt-3 mb-1 flex items-center gap-3 px-4 py-3 rounded-2xl text-left w-[calc(100%-2rem)]"
+            style={{ background: 'linear-gradient(135deg, #1a0a02, #3d1a06)', border: '1px solid rgba(200,133,58,0.35)' }}
+          >
+            <span className="text-2xl">✨</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-sm">Your {new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()} Brew Wrapped is here</p>
+              <p className="text-white/50 text-xs">See your year in coffee →</p>
+            </div>
+          </button>
+        )}
         {visibleRatings.map(rating => {
           const shop = rating.coffee_shops as any
           const user = rating.profiles as any
@@ -1338,6 +1355,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }}
         />
       )}
+      {showWrapped && <BrewWrapped onClose={() => setShowWrapped(false)} />}
     </div>
   )
 }
