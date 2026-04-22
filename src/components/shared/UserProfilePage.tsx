@@ -195,7 +195,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
         {/* Profile Card */}
         <div className="bg-white mx-4 mt-4 rounded-2xl p-5 shadow-sm border border-cream-200">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 border-4 border-cream-100 shadow">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 isolate flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
               {user?.avatar_url
                 ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                 : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
