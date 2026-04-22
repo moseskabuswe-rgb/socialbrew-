@@ -2,7 +2,6 @@ import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { resolveShopId } from '../../lib/shopUtils'
-import CreateStory from '../shared/CreateStory'
 import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -34,7 +33,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
   const [addToStory, setAddToStory] = useState(false)
-  const [showStoryCreate, setShowStoryCreate] = useState(false)
   const [newRatingId, setNewRatingId] = useState<string | null>(null)
   const [newRatingPhoto, setNewRatingPhoto] = useState<string | null>(null)
   const mugRef = useRef<HTMLDivElement>(null)
@@ -125,11 +123,20 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       setNewRatingId(newRating?.id || null)
       setNewRatingPhoto(photoUrl)
       setStep('done')
+
+      // If user toggled "add to story", silently create it from the rating data
       if (addToStory) {
-        setShowStoryCreate(true)
-      } else {
-        setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
+        await supabase.from('stories').insert({
+          user_id: profile.id,
+          shop_id: shopId,
+          rating_id: newRating?.id || null,
+          photo_url: photoUrl,
+          caption: captionParts.join(' · ') || null,
+          story_type: 'rating',
+        })
       }
+
+      setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
     }
     else { setStep('details'); console.error('Rating insert error:', error); alert(`Error: ${error?.message || 'Something went wrong. Please try again.'}`) }
   }
@@ -141,17 +148,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const fillY = BY + BH - fillH
 
   return (
-    <>
-    {showStoryCreate && (
-      <CreateStory
-        onClose={() => { setShowStoryCreate(false); onComplete(shop?.name, false); onClose() }}
-        onCreated={() => { onComplete(shop?.name, false); onClose() }}
-        prefillPhoto={newRatingPhoto}
-        prefillCaption={caption}
-        prefillShopId={shop?.id?.startsWith?.('osm-') ? null : shop?.id}
-        prefillRatingId={newRatingId}
-      />
-    )}
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(8,4,1,0.88)'}}>
       <div className="w-full max-w-sm rounded-t-3xl animate-slide-up overflow-hidden"
@@ -351,6 +347,5 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         )}
       </div>
     </div>
-  </>
   )
 }
