@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX,
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import BrewWrapped from '../shared/BrewWrapped'
+import StoriesBar from '../shared/StoriesBar'
 import { trackEvent } from '../../lib/analytics'
 import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
 import ShopDetailPage from '../shared/ShopDetailPage'
@@ -1017,6 +1018,9 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           </div>
         )}
 
+        {/* Stories */}
+        <StoriesBar />
+        <div className="h-px bg-cream-200" />
         {/* Wrapped Season Banner */}
         {isWrappedSeason && (
           <button
