@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search, X, MapPin, CheckCircle } from 'lucide-react'
-import { supabase, CoffeeShop } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
+import type { CoffeeShop } from '../../lib/supabase'
 import AddShopForm from '../shared/AddShopForm'
 
 type Props = {
