@@ -2,7 +2,7 @@
 // Send and manage coffee date invitations
 
 import { useState, useEffect } from 'react'
-import { X, Coffee, Check, X as XIcon, Search, MapPin, Clock } from 'lucide-react'
+import { X, Search, MapPin, Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { notifyFollow } from '../../lib/push'
@@ -24,7 +24,6 @@ export default function CoffeeDate({ onClose, preselectedShop }: Props) {
   const [message, setMessage] = useState('')
   const [proposedTime, setProposedTime] = useState('')
   const [sending, setSending] = useState(false)
-  const [searching, setSearching] = useState(false)
 
   // Load following list for friend picker
   useEffect(() => {

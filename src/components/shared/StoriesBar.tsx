@@ -3,7 +3,7 @@
 // Shows stories from people the current user follows
 
 import { useState, useEffect } from 'react'
-import { Plus, X, Eye } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import StoryViewer from './StoryViewer'
@@ -111,7 +111,7 @@ export default function StoriesBar() {
 
   async function markViewed(storyId: string) {
     if (!profile) return
-    await supabase.from('story_views').insert({ story_id: storyId, viewer_id: profile.id }).onConflict('story_id,viewer_id').ignore()
+    await supabase.from('story_views').upsert({ story_id: storyId, viewer_id: profile.id }, { onConflict: 'story_id,viewer_id', ignoreDuplicates: true })
   }
 
   if (loading) return null

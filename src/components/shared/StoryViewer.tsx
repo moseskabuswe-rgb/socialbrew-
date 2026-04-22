@@ -2,7 +2,7 @@
 // Full-screen story viewer with progress bars
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Eye } from 'lucide-react'
 
 interface Story {
   id: string
