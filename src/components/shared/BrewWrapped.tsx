@@ -3,7 +3,7 @@
 // Shows calendar year stats, rankings, and personality type
 
 import { useState, useEffect } from 'react'
-import { X, ChevronRight, ChevronLeft, Coffee } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -139,7 +139,7 @@ export default function BrewWrapped({ onClose }: Props) {
       const start = `${year}-01-01`
       const end = `${year}-12-31`
 
-      const [ratingsRes, visitsRes, profileRes] = await Promise.all([
+      const [ratingsRes, , profileRes] = await Promise.all([
         supabase
           .from('ratings')
           .select('*, coffee_shops(name, city, state)')
