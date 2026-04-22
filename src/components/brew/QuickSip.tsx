@@ -104,7 +104,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.92)', backdropFilter: 'blur(12px)' }}>
+      style={{ background: 'rgba(8,4,1,0.92)'}}>
       <div className="w-full max-w-sm rounded-t-3xl animate-slide-up overflow-hidden"
         style={{ background: 'linear-gradient(160deg, #f5ead8, #efe0c4)', maxHeight: '80vh' }}>
 
@@ -184,7 +184,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
                 onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onMU}
                 style={{ cursor: 'ns-resize', userSelect: 'none', width: W, height: H }}>
                 <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-                  style={{ filter: fill > 0 ? `drop-shadow(0 0 16px ${s.glow})` : 'none', transition: 'filter 0.3s' }}>
+                  style={{ filter: fill > 0 ? `drop-shadow(0 0 10px ${s.glow})` : 'none', transition: 'filter 0.3s' }}>
                   <defs>
                     <clipPath id="qs-clip"><rect x={BX+3} y={BY+3} width={BW-6} height={BH-6} rx={BR-2} /></clipPath>
                     <linearGradient id="qs-ceramic" x1="0" y1="0" x2="1" y2="0">

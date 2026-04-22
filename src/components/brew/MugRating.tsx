@@ -131,7 +131,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.88)', backdropFilter: 'blur(12px)' }}>
+      style={{ background: 'rgba(8,4,1,0.88)'}}>
       <div className="w-full max-w-sm rounded-t-3xl animate-slide-up overflow-hidden"
         style={{ maxHeight: '93vh', background: 'linear-gradient(160deg, #fdfaf5, #f5ead8)' }}>
 
@@ -163,7 +163,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
                 onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onMU}
                 style={{ cursor: 'ns-resize', userSelect: 'none', width: VW, height: VH }}>
                 <svg width={VW} height={VH} viewBox={`0 0 ${VW} ${VH}`}
-                  style={{ filter: fill > 0 ? `drop-shadow(0 0 20px ${s.glow})` : 'none', transition: 'filter 0.4s' }}>
+                  style={{ filter: fill > 0 ? `drop-shadow(0 0 12px ${s.glow})` : 'none', transition: 'filter 0.4s' }}>
                   <defs>
                     <clipPath id="mr-clip"><rect x={BX+4} y={BY+4} width={BW-8} height={BH-8} rx={BR-2} /></clipPath>
                     <linearGradient id="mr-ceramic" x1="0" y1="0" x2="1" y2="0">
