@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { resolveShopId } from '../../lib/shopUtils'
+import CreateStory from '../shared/CreateStory'
 import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -32,6 +33,10 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
+  const [addToStory, setAddToStory] = useState(false)
+  const [showStoryCreate, setShowStoryCreate] = useState(false)
+  const [newRatingId, setNewRatingId] = useState<string | null>(null)
+  const [newRatingPhoto, setNewRatingPhoto] = useState<string | null>(null)
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const s = getMugStyle(fill)
@@ -117,10 +122,16 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           }
         }
       }
+      setNewRatingId(newRating?.id || null)
+      setNewRatingPhoto(photoUrl)
       setStep('done')
-      setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
+      if (addToStory) {
+        setShowStoryCreate(true)
+      } else {
+        setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
+      }
     }
-    else { setStep('details'); alert('Something went wrong. Please try again.') }
+    else { setStep('details'); console.error('Rating insert error:', error); alert(`Error: ${error?.message || 'Something went wrong. Please try again.'}`) }
   }
 
   const VW = 200, VH = 220
@@ -130,6 +141,17 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const fillY = BY + BH - fillH
 
   return (
+    <>
+    {showStoryCreate && (
+      <CreateStory
+        onClose={() => { setShowStoryCreate(false); onComplete(shop?.name, false); onClose() }}
+        onCreated={() => { onComplete(shop?.name, false); onClose() }}
+        prefillPhoto={newRatingPhoto}
+        prefillCaption={caption}
+        prefillShopId={shop?.id?.startsWith?.('osm-') ? null : shop?.id}
+        prefillRatingId={newRatingId}
+      />
+    )}
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(8,4,1,0.88)'}}>
       <div className="w-full max-w-sm rounded-t-3xl animate-slide-up overflow-hidden"
@@ -292,6 +314,18 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               </div>
             </div>
 
+            {/* Add to story toggle */}
+            <div className="mb-4 flex items-center justify-between bg-cream-50 rounded-xl px-4 py-3 border border-cream-200">
+              <div>
+                <p className="text-coffee-700 text-sm font-semibold">Also add to my story</p>
+                <p className="text-coffee-400 text-xs">Disappears in 24 hours</p>
+              </div>
+              <button onClick={() => setAddToStory(a => !a)}
+                className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${addToStory ? 'bg-caramel' : 'bg-cream-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${addToStory ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+
             {/* Caption */}
             <div className="mb-6">
               <label className="text-coffee-500 text-xs uppercase tracking-wider mb-2 block">Caption (optional)</label>
@@ -317,5 +351,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         )}
       </div>
     </div>
+  </>
   )
 }
