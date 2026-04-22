@@ -67,7 +67,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
     }
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)', backdropFilter: 'blur(6px)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)'}}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '70vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
           <h3 className="font-display font-bold text-coffee-800 text-lg capitalize">{type}</h3>
@@ -114,7 +114,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
 // ── VISITED SHOPS MODAL ──────────────────────────────────
 function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; onClose: () => void; onShopClick: (shop: any) => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)', backdropFilter: 'blur(6px)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.8)'}}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '70vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
           <h3 className="font-display font-bold text-coffee-800 text-lg">Shops Visited</h3>
@@ -217,7 +217,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             <p className="text-coffee-600 font-semibold text-sm mb-3">Profile Photo</p>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 border-4 border-cream-100 shadow">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 ring-2 ring-cream-200">
                   {profile?.avatar_url
                     ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-3xl">{profile?.username?.[0]?.toUpperCase()}</span></div>}
@@ -461,7 +461,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const badgeInfo = getBadgeInfo(ratings.length)
   return (
     <div className="min-h-screen bg-cream-100">
-      <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800">Profile</h1>
         <div className="flex items-center gap-1">
           <button onClick={() => setShowFindFriends(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
@@ -477,7 +477,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         <div className="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm border border-cream-200">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 border-4 border-cream-100 shadow flex-shrink-0">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 ring-2 ring-cream-200 flex-shrink-0">
                 {profile.avatar_url
                   ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-display text-3xl font-bold">{profile.username[0].toUpperCase()}</span></div>}
