@@ -139,7 +139,7 @@ export default function BrewWrapped({ onClose }: Props) {
       const start = `${year}-01-01`
       const end = `${year}-12-31`
 
-      const [ratingsRes, , profileRes] = await Promise.all([
+      const [ratingsRes, visitsRes, profileRes] = await Promise.all([
         supabase
           .from('ratings')
           .select('*, coffee_shops(name, city, state)')
@@ -159,7 +159,7 @@ export default function BrewWrapped({ onClose }: Props) {
       ])
 
       const ratings = ratingsRes.data || []
-      const visits = visitsRes.data || []
+      void visitsRes // reserved for future use
       const prof = profileRes.data
 
       // Total sips this year
