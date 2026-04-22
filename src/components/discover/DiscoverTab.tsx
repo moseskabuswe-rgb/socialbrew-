@@ -300,7 +300,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   return (
     <div className="min-h-screen bg-cream-100">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 pt-4 pb-3">
+      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <h1 className="font-display text-2xl font-bold text-coffee-800">Discover</h1>
           <div className="flex gap-2">
