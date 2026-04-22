@@ -8,6 +8,7 @@ import UserProfilePage from '../shared/UserProfilePage'
 import AvatarCropper from '../shared/AvatarCropper'
 import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
+import BrewWrapped from '../shared/BrewWrapped'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 function getBadgeInfo(count: number) {
   const tiers = [
@@ -401,6 +402,8 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [activePost, setActivePost] = useState<any>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [showAddWishlist, setShowAddWishlist] = useState(false)
+  const [showWrapped, setShowWrapped] = useState(false)
+  const isWrappedSeason = [11, 0].includes(new Date().getMonth()) // December or January
   const [newDrink, setNewDrink] = useState('')
   const [newShop, setNewShop] = useState('')
   const [addingWishlist, setAddingWishlist] = useState(false)
@@ -515,6 +518,18 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               <p className="text-caramel text-xs font-medium flex items-center justify-center gap-0.5">Following <ChevronRight size={10} /></p>
             </button>
           </div>
+          {/* Brew Wrapped — December and January only */}
+          {isWrappedSeason && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowWrapped(true)}
+                className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #1a0a02, #3d1a06)', color: 'white', border: '1px solid rgba(200,133,58,0.4)' }}
+              >
+                ✨ Your {new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()} Wrapped
+              </button>
+            </div>
+          )}
           {/* Rate a visit — always visible */}
           {onNavigateToBrew && (
             <div className="mt-4">
@@ -696,6 +711,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           </div>
         )}
       </div>
+      {showWrapped && <BrewWrapped onClose={() => setShowWrapped(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showFollowers && <FollowersModal userId={profile.id} type={showFollowers} onClose={() => setShowFollowers(null)} />}
       {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} onShopClick={(s) => setSelectedShop(s)} />}
