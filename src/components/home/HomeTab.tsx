@@ -513,7 +513,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)'}}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '75vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
           <h3 className="font-display font-bold text-coffee-800 text-lg">Comments</h3>
@@ -579,7 +579,7 @@ function WishlistModal({ rating, onClose }: { rating: any; onClose: () => void }
     setDone(true); setTimeout(onClose, 1500); setSaving(false)
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)'}}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-bold text-coffee-800 text-lg">Add to Wishlist</h3>
@@ -607,7 +607,7 @@ function PostMenu({ isOwn, onDelete, onEdit, onReport, onBlock, onClose }: {
   isOwn: boolean; onDelete: () => any; onEdit: () => void; onReport: () => any; onBlock: () => any; onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)'}} onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-t-2xl overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
         <div className="px-4 py-3 border-b border-cream-200 text-center"><p className="text-coffee-400 text-xs">Post options</p></div>
         {isOwn ? (
@@ -651,7 +651,7 @@ function ShareSheet({ rating, onClose, onExternal, onDM }: {
   const mugColor = rating.fill_level >= 80 ? '#4e2008' : rating.fill_level >= 60 ? '#7a3e10' : rating.fill_level >= 40 ? '#a06428' : '#c8924a'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(6px)' }}
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)'}}
       onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-t-3xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
         {/* Post preview */}
@@ -974,7 +974,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
   return (
     <div className="min-h-screen bg-cream-100">
-      <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800" onClick={onLogoTap} style={{ userSelect: 'none' }}>Social Brew</h1>
         <div className="flex items-center gap-1">
           <button onClick={() => setShowMessages(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
