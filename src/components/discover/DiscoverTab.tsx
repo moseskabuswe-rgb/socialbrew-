@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import AddShopForm from '../shared/AddShopForm'
 import { Search, MapPin, CheckCircle, X, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
@@ -172,6 +173,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   const [userLng, setUserLng] = useState<number | null>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [showSuggest, setShowSuggest] = useState(false)
+  const [showAddShop, setShowAddShop] = useState(false)
   const [suggestName, setSuggestName] = useState('')
   const [suggestAddr, setSuggestAddr] = useState('')
   const [suggestSent, setSuggestSent] = useState(false)
@@ -333,6 +335,17 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
       </div>
 
       {/* Suggest modal */}
+      {showAddShop && (
+        <AddShopForm
+          initialName={search}
+          onClose={() => setShowAddShop(false)}
+          onShopCreated={(shop) => {
+            setShowAddShop(false)
+            setSearch('')
+            setSelectedShop(shop)
+          }}
+        />
+      )}
       {showSuggest && (
         <div className="fixed inset-0 z-50 flex items-end justify-center"
           style={{ background: 'rgba(8,4,1,0.92)', backdropFilter: 'blur(10px)' }}>
@@ -394,8 +407,17 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
               {isSearching ? `No results for "${search}"` : 'No shops found nearby'}
             </p>
             <p className="text-coffee-400 text-sm mt-1">
-              {isSearching ? 'Try a different spelling or city name' : 'Try refreshing or suggest a missing shop'}
+              {isSearching ? 'Try a different spelling or city name' : 'Try refreshing or check back soon'}
             </p>
+            {isSearching && (
+              <button
+                onClick={() => setShowAddShop(true)}
+                className="mt-5 px-6 py-3 rounded-2xl text-white font-semibold text-sm active:scale-95 transition-all"
+                style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', boxShadow: '0 4px 16px rgba(200,133,58,0.3)' }}
+              >
+                + Add "{search}" to Social Brew
+              </button>
+            )}
           </div>
         )}
 
@@ -415,9 +437,15 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
                   className="w-full h-full object-cover"
                   onError={e => { (e.target as HTMLImageElement).src = FALLBACK_PHOTOS[0] }} />
                 {isInDb && shop.is_certified && (
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
+                  <div className="absolute top-3 right-3 bg-white/90 rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
                     <CheckCircle size={11} className="text-caramel" />
-                    <span className="text-coffee-700 text-xs font-semibold">Certified</span>
+                    <span className="text-coffee-700 text-xs font-semibold">Verified</span>
+                  </div>
+                )}
+                {isInDb && !shop.is_certified && !(shop as any).is_verified && (
+                  <div className="absolute top-3 right-3 bg-white/90 rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
+                    <span className="text-xs">🌱</span>
+                    <span className="text-coffee-500 text-xs font-medium">Community</span>
                   </div>
                 )}
                 {dist !== null && (
