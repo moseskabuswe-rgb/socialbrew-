@@ -30,7 +30,7 @@ export default function TrendingTab() {
   return (
     <div className="min-h-screen bg-cream-100">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-cream-100/95 backdrop-blur-sm border-b border-cream-200 px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-coffee-800">City Pulse</h1>
           <p className="text-coffee-400 text-xs mt-0.5">What's moving the coffee scene</p>
