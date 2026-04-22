@@ -70,7 +70,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
   const badge = getBadgeInfo(ratings.length)
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)'}}>
       <div className="w-full max-w-sm bg-cream-100 rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '88vh' }}>
 
         {/* Header */}
@@ -93,7 +93,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
               {/* Profile card */}
               <div className="bg-white mx-4 mt-4 rounded-2xl p-5 shadow-sm border border-cream-200">
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 border-4 border-cream-100 shadow">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 ring-2 ring-cream-200">
                     {user.avatar_url
                       ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">

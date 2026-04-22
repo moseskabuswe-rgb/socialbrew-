@@ -134,7 +134,7 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)'}}>
       <div ref={swipe.ref} className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up flex flex-col" style={{ maxHeight: '88vh' }}>
         <div className="flex justify-center pt-3 pb-1 cursor-grab flex-shrink-0" onTouchStart={swipe.onTouchStart} onTouchMove={swipe.onTouchMove} onTouchEnd={swipe.onTouchEnd}><div className="w-10 h-1 bg-cream-300 rounded-full" /></div>
 

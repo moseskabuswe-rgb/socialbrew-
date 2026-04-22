@@ -556,7 +556,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
 
       {/* Share Sheet */}
       {showShareSheet && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)', backdropFilter: 'blur(6px)' }}
+        <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.7)'}}
           onClick={() => setShowShareSheet(false)}>
           <div className="w-full max-w-sm bg-white rounded-t-3xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 bg-cream-50 rounded-2xl p-3 mb-4 border border-cream-200">
