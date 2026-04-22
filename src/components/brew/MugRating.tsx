@@ -33,8 +33,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
   const [addToStory, setAddToStory] = useState(false)
-  const [newRatingId, setNewRatingId] = useState<string | null>(null)
-  const [newRatingPhoto, setNewRatingPhoto] = useState<string | null>(null)
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const s = getMugStyle(fill)
@@ -120,8 +118,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           }
         }
       }
-      setNewRatingId(newRating?.id || null)
-      setNewRatingPhoto(photoUrl)
       setStep('done')
 
       // If user toggled "add to story", silently create it from the rating data
