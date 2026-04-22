@@ -366,7 +366,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           <div className="px-0 pt-0">
             <ShopPhotoGallery shopId={resolvedShop.id} shopName={resolvedShop.name} />
           </div>
-          </div>
         )}
       </div>
 
