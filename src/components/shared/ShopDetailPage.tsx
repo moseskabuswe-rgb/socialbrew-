@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, MapPin, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import ShopPhotoGallery from './ShopPhotoGallery'
+import ShopCheckin from './ShopCheckin'
+import CoffeeDate from './CoffeeDate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
 
@@ -129,6 +132,8 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [myRatings, setMyRatings] = useState<any[]>([])
   const [friendRatings, setFriendRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCoffeeDate, setShowCoffeeDate] = useState(false)
+  const [activeTab, setActiveTab] = useState<'ratings' | 'photos'>('ratings')
   const [imgError, setImgError] = useState(false)
   const [resolvedShop, setResolvedShop] = useState<any>(shop)
   const [shopStreak, setShopStreak] = useState<number>(0)
@@ -302,6 +307,9 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         </div>
       )}
 
+      {/* Live check-in */}
+      <ShopCheckin shopId={resolvedShop.id} shopName={resolvedShop.name} />
+
       {/* Tabs */}
       <div className="flex bg-white border-b border-cream-200 flex-shrink-0">
         {tabs.map(t => (
@@ -312,6 +320,12 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             {t.icon}{t.label}
           </button>
         ))}
+        <button onClick={() => setActiveTab(activeTab === 'photos' ? 'ratings' : 'photos')}
+          className={`flex-1 flex items-center justify-center gap-1 py-3 text-xs font-medium transition-colors border-b-2 ${
+            activeTab === 'photos' ? 'border-caramel text-caramel' : 'border-transparent text-coffee-400'
+          }`}>
+          📷 Photos
+        </button>
       </div>
 
       {/* Content */}
@@ -348,6 +362,12 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             {activeList.map(r => <RatingCard key={r.id} r={r} />)}
           </div>
         )}
+        {activeTab === 'photos' && (
+          <div className="px-0 pt-0">
+            <ShopPhotoGallery shopId={resolvedShop.id} shopName={resolvedShop.name} />
+          </div>
+          </div>
+        )}
       </div>
 
       {/* Directions button + Rate button */}
@@ -367,8 +387,16 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             ☕ Rate a Visit
           </button>
         )}
+        <button
+          onClick={() => setShowCoffeeDate(true)}
+          className="flex items-center justify-center gap-1.5 bg-cream-100 border border-cream-300 text-coffee-700 rounded-xl py-3 font-semibold text-sm px-4">
+          📅 Date
+        </button>
         {!onNavigateToBrew && (resolvedShop.lat && resolvedShop.lng) && null}
       </div>
+      {showCoffeeDate && (
+        <CoffeeDate onClose={() => setShowCoffeeDate(false)} preselectedShop={resolvedShop} />
+      )}
     </div>
   )
 }
