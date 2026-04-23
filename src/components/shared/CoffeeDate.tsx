@@ -3,9 +3,10 @@
 
 import { useState, useEffect } from 'react'
 import { X, Search, MapPin, Clock } from 'lucide-react'
+import { sendPushToUser } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { notifyFollow } from '../../lib/push'
+import { sendPushToUser } from '../../lib/push'
 
 interface Props {
   onClose: () => void
@@ -72,12 +73,17 @@ export default function CoffeeDate({ onClose, preselectedShop }: Props) {
       user_id: selectedFriend.id,
       actor_id: profile.id,
       type: 'coffee_date',
-      content: `${profile.username} invited you for coffee at ${selectedShop.name}`,
+      content: `${profile.username || 'Someone'} invited you for coffee at ${selectedShop.name}`,
     })
 
     // Push notification
     try {
-      await notifyFollow(selectedFriend.id, profile.username || 'Someone')
+      await sendPushToUser(
+        selectedFriend.id,
+        '☕ Coffee Date Invite',
+        `${profile.username || 'Someone'} wants to meet at ${selectedShop.name}${proposedTime ? ` — ${proposedTime}` : ''}`,
+        { type: 'coffee_date' }
+      )
     } catch {}
 
     setSending(false)

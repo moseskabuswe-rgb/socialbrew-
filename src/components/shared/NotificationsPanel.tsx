@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Bell } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import CoffeeDateInbox from './CoffeeDateInbox'
 import { useAuth } from '../../contexts/AuthContext'
 import { registerPushNotifications } from '../../lib/push'
 
 type Notification = {
   id: string
-  type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention'
+  type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention' | 'coffee_date' | 'story'
   read: boolean
   created_at: string
   actor_id: string
@@ -29,6 +30,8 @@ function NotifIcon({ type }: { type: string }) {
   if (type === 'follow') return <span className="text-base">👥</span>
   if (type === 'mention') return <span className="text-base">@</span>
   if (type === 'new_post') return <span className="text-base">☕</span>
+  if (type === 'coffee_date') return <span className="text-base">📅</span>
+  if (type === 'story') return <span className="text-base">🟡</span>
   return <span className="text-base">🔔</span>
 }
 
@@ -37,6 +40,8 @@ function notifText(n: Notification) {
   if (n.type === 'comment') return 'commented on your post'
   if (n.type === 'follow') return 'started following you'
   if (n.type === 'mention') return 'mentioned you in a comment'
+  if (n.type === 'coffee_date') return n.content || 'invited you for a coffee date'
+  if (n.type === 'story') return 'posted a new story'
   if (n.type === 'new_post') {
     const shop = (n.rating?.coffee_shops as any)?.name
     return shop ? `posted a brew at ${shop}` : 'posted a new brew'
@@ -45,10 +50,12 @@ function notifText(n: Notification) {
   return shop ? `posted at ${shop}` : 'posted a new brew'
 }
 
-export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, id: string) => void }) {
+export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: string, id: string) => void; onOpen?: () => void }) {
   const { profile } = useAuth()
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
+  const [showDateInbox, setShowDateInbox] = useState(false)
+  const [pendingDates, setPendingDates] = useState(0)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [tableExists, setTableExists] = useState(true)
@@ -66,6 +73,15 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
         if (error) { setTableExists(false); return }
         setUnread(count || 0)
       } catch { setTableExists(false) }
+      // Also load pending coffee dates
+      try {
+        const { count: dateCount } = await supabase
+          .from('coffee_dates')
+          .select('*', { count: 'exact', head: true })
+          .eq('recipient_id', profile!.id)
+          .eq('status', 'pending')
+        setPendingDates(dateCount || 0)
+      } catch {}
     }
     loadCount()
     let channel: any = null
@@ -93,6 +109,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
 
   async function openPanel() {
     setOpen(true)
+    onOpen?.()
     if (!profile || !tableExists) return
     setLoading(true)
     try {
@@ -113,7 +130,21 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
   if (!tableExists) return null
 
   return (
-    <div className="relative" ref={panelRef}>
+    <>
+    {showDateInbox && <CoffeeDateInbox onClose={() => { setShowDateInbox(false); setPendingDates(0) }} />}
+    <div className="relative flex items-center gap-1" ref={panelRef}>
+      {/* Coffee date inbox button */}
+      <button
+        onClick={() => setShowDateInbox(true)}
+        className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors"
+      >
+        <span className="text-lg">📅</span>
+        {pendingDates > 0 && (
+          <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+            <span className="text-white font-bold" style={{ fontSize: 9 }}>{pendingDates}</span>
+          </span>
+        )}
+      </button>
       <button onClick={() => open ? setOpen(false) : openPanel()}
         className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
         <Bell size={22} />
@@ -177,6 +208,8 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
                   setOpen(false)
                   if (!onNavigate) return
                   if (n.type === 'follow') onNavigate('profile', n.actor_id)
+                  if (n.type === 'coffee_date') onNavigate?.('profile', n.actor_id)
+                  if (n.type === 'story') onNavigate?.('profile', n.actor_id)
                   else if (n.rating_id) onNavigate('post', n.rating_id)
                 }}
                 className={`w-full flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors text-left ${!n.read ? 'bg-amber-50' : 'bg-white'} hover:bg-cream-50`}>
@@ -206,5 +239,6 @@ export function NotificationBell({ onNavigate }: { onNavigate?: (type: string, i
         </div>
       )}
     </div>
+    </>
   )
 }

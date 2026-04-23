@@ -4,6 +4,7 @@
 import { useState, useRef } from 'react'
 import { X, Camera, Type } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { sendPushToUser } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface Props {
@@ -62,6 +63,27 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillC
       caption: caption.trim() || null,
       story_type: storyType,
     })
+
+    // Notify followers about new story
+    try {
+      const { data: followers } = await supabase
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', profile.id)
+      if (followers && followers.length > 0) {
+        const storyLabel = storyType === 'rating' ? 'rated a coffee visit' : 'posted a new story'
+        await Promise.all(
+          followers.map((f: any) =>
+            sendPushToUser(
+              f.follower_id,
+              `${profile.username || 'Someone'} ${storyLabel}`,
+              caption.trim() || (photoUrl ? '📷 Photo' : '☕'),
+              { type: 'story', actorId: profile.id }
+            )
+          )
+        )
+      }
+    } catch {}
 
     setPosting(false)
     onCreated()
