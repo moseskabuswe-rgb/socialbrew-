@@ -41,7 +41,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
   const { profile } = useAuth()
   const [index, setIndex] = useState(0)
   const [progress, setProgress] = useState(0)
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused] = useState(false)  // eslint-disable-line
   const [replyText, setReplyText] = useState('')
   const [showReply, setShowReply] = useState(false)
   const [sending, setSending] = useState(false)
@@ -65,7 +65,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
   useEffect(() => {
     if (showReply) {
       stopTimer()
-    } else if (!paused) {
+    } else {
       startTimer()
     }
   }, [showReply])

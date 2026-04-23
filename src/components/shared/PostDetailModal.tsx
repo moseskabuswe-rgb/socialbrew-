@@ -594,7 +594,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           </div>
         </div>
       )}
-      {showLikedBy && <LikedByModal ratingId={rating.id} onClose={() => setShowLikedBy(false)} onViewProfile={(id) => { setShowLikedBy(false) }} />}
+      {showLikedBy && <LikedByModal ratingId={rating.id} onClose={() => setShowLikedBy(false)} onViewProfile={() => { setShowLikedBy(false) }} />}
     </div>
   )
 }
