@@ -248,7 +248,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200">
                 {activeConvo.avatar_url
-                  ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
               </div>
               <h3 className="font-display font-bold text-coffee-800 text-base">{activeConvo.username}</h3>
@@ -275,7 +275,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
               <button key={u.id} onClick={() => { setActiveConvo(u); setSearchUser(''); setSearchResults([]); openConvo(u) }}
                 className="w-full flex items-center gap-3 py-2.5 hover:bg-cream-50 rounded-xl px-2 mt-1 transition-colors">
                 <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username[0].toUpperCase()}</span></div>}
                 </div>
                 <p className="text-coffee-700 font-medium text-sm">{u.username}</p>
@@ -301,7 +301,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200">
-                      {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
+                      {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                         : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold">{c.username?.[0]?.toUpperCase()}</span></div>}
                     </div>
                     {hasUnread && (
@@ -340,7 +340,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
               <div className="flex flex-col items-center justify-center h-full py-10">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-coffee-200 mb-3">
                   {activeConvo.avatar_url
-                    ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-xl">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <p className="text-coffee-700 font-semibold text-sm">{activeConvo.username}</p>
@@ -366,7 +366,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
                       <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mb-0.5">
                         {showAvatar
                           ? activeConvo.avatar_url
-                            ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                             : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold" style={{ fontSize: 11 }}>{activeConvo.username?.[0]?.toUpperCase()}</span></div>
                           : <div className="w-full h-full" />}
                       </div>
@@ -527,7 +527,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
           {comments.map(comment => (
             <div key={comment.id} className="flex gap-2.5">
               <div className="w-7 h-7 rounded-full bg-coffee-200 flex-shrink-0 overflow-hidden">
-                {comment.profiles?.avatar_url ? <img src={comment.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                {comment.profiles?.avatar_url ? <img src={comment.profiles.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{comment.profiles?.username?.[0]?.toUpperCase()}</span></div>}
               </div>
               <div className="flex-1">
@@ -660,7 +660,7 @@ function ShareSheet({ rating, onClose, onExternal, onDM }: {
         <div className="flex items-center gap-3 bg-cream-50 rounded-2xl p-3 mb-4 border border-cream-200">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
             {user?.avatar_url
-              ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
               : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span></div>}
           </div>
           <div className="flex-1 min-w-0">
@@ -736,7 +736,7 @@ function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClos
               <button key={r.id} onClick={() => onPostClick(r)} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
                 <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {user?.avatar_url
-                    ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -772,6 +772,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
   const [showWrapped, setShowWrapped] = useState(false)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
+  const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [loading, setLoading] = useState(true)
   const [activeComments, setActiveComments] = useState<string | null>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -793,9 +794,9 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const loadFeed = useCallback(async () => {
     const { data } = await supabase
       .from('ratings')
-      .select('*, profiles!ratings_user_id_fkey(*), coffee_shops(*), comments(id, content, created_at, user_id, profiles(username, avatar_url))')
+      .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified)')
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(30)
     setRatings(data || [])
     setLoading(false)
     // Load reaction counts
@@ -936,7 +937,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     setShowSaved(true)
     const { data } = await supabase
       .from('saved_posts')
-      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(*), coffee_shops(*))')
+      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating))')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
     if (data) setSavedPostsList(data.map((s: any) => s.ratings).filter(Boolean))
@@ -974,12 +975,31 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     }
   }
 
+  // Load unread notification count for logo badge
+  useEffect(() => {
+    if (!profile) return
+    supabase.from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', profile.id)
+      .eq('read', false)
+      .then(({ count }) => setUnreadNotifs(count || 0))
+    // Piggyback on existing feed-realtime channel instead of new subscription
+  }, [profile])
+
   const visibleRatings = ratings.filter(r => !blockedUsers.has(r.profiles?.id))
 
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-coffee-800" onClick={onLogoTap} style={{ userSelect: 'none' }}>Social Brew</h1>
+        <div className="relative inline-flex items-center" onClick={onLogoTap} style={{ userSelect: 'none', cursor: 'pointer' }}>
+          <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
+          {unreadNotifs > 0 && (
+            <span className="absolute -top-1.5 -right-5 min-w-[18px] h-[18px] rounded-full bg-red-500 flex items-center justify-center px-1"
+              style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>
+              {unreadNotifs > 99 ? '99+' : unreadNotifs}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setShowMessages(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <MessageCircle size={22} />
@@ -989,14 +1009,16 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               </span>
             )}
           </button>
-          <NotificationBell onNavigate={async (type, id) => {
+          <NotificationBell
+            onOpen={() => setUnreadNotifs(0)}
+            onNavigate={async (type, id) => {
             if (type === 'profile') {
               setActiveUserProfile(id)
             } else if (type === 'post') {
               // Load the rating and open PostDetailModal
               const { data } = await supabase
                 .from('ratings')
-                .select('*, profiles!ratings_user_id_fkey(*), coffee_shops(*), comments(id, content, created_at, user_id, profiles(username, avatar_url))')
+                .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified)')
                 .eq('id', id)
                 .single()
               if (data) setActivePost(data)
@@ -1050,7 +1072,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
                 <div className="flex items-center gap-3 px-4 py-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </button>
                   <div className="flex-1 min-w-0">
@@ -1099,27 +1121,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   </button>
                   <p className="text-coffee-300 text-xs mt-2">{formatDate(rating.created_at)}</p>
                 </div>
-                {/* Top 2 comments preview on Quick Sip */}
-                {(rating.comments as any)?.length > 0 && (
-                  <div className="px-4 pb-3 space-y-1.5 border-t border-cream-50 pt-2">
-                    {(rating.comments as any).slice(0, 2).map((cm: any) => (
-                      <div key={cm.id} className="flex gap-2 items-start">
-                        <div className="w-5 h-5 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mt-0.5">
-                          {cm.profiles?.avatar_url
-                            ? <img src={cm.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white" style={{fontSize:8}}>{cm.profiles?.username?.[0]?.toUpperCase()}</span></div>}
-                        </div>
-                        <p className="text-coffee-600 text-xs leading-snug flex-1">
-                          <span className="font-semibold text-coffee-700">{cm.profiles?.username} </span>
-                          {cm.content}
-                        </p>
-                      </div>
-                    ))}
-                    {(rating.comments as any).length > 2 && (
-                      <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
-                        View all {rating.comments_count} comments →
-                      </button>
-                    )}
+                {/* Comment count tap-to-view */}
+                {rating.comments_count > 0 && (
+                  <div className="px-4 pb-3 border-t border-cream-50 pt-2">
+                    <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
+                      View {rating.comments_count} comment{rating.comments_count !== 1 ? 's' : ''} →
+                    </button>
                   </div>
                 )}
               </div>
@@ -1131,7 +1138,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <div className="flex items-center gap-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </button>
                   <div>
@@ -1187,7 +1194,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 </div>
                 {rating.photo_url && (
                   <div className="rounded-xl overflow-hidden mb-2 h-52">
-                    <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={rating.photo_url} alt="moment" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   </div>
                 )}
                 {(rating.vibe_tags as any)?.length > 0 && (
@@ -1213,7 +1220,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               {shop && (
                 <button onClick={() => setSelectedShop(shop)} className="mx-4 mb-3 w-[calc(100%-2rem)] flex items-center gap-3 bg-cream-50 rounded-xl p-2.5 border border-cream-200 text-left hover:bg-cream-100 transition-colors overflow-hidden">
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {shop.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
+                    {shop.photo_url && <img loading="lazy" decoding="async" src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />}
                   </div>
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
@@ -1272,27 +1279,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   <Share2 size={18} />
                 </button>
               </div>
-              {/* Top 2 comments preview */}
-              {(rating.comments as any)?.length > 0 && (
-                <div className="px-4 pb-3 space-y-1.5">
-                  {(rating.comments as any).slice(0, 2).map((cm: any) => (
-                    <div key={cm.id} className="flex gap-2 items-start">
-                      <div className="w-5 h-5 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mt-0.5">
-                        {cm.profiles?.avatar_url
-                          ? <img src={cm.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs" style={{fontSize:8}}>{cm.profiles?.username?.[0]?.toUpperCase()}</span></div>}
-                      </div>
-                      <p className="text-coffee-600 text-xs leading-snug flex-1">
-                        <span className="font-semibold text-coffee-700">{cm.profiles?.username} </span>
-                        {cm.content}
-                      </p>
-                    </div>
-                  ))}
-                  {(rating.comments as any).length > 2 && (
-                    <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
-                      View all {rating.comments_count} comments →
-                    </button>
-                  )}
+              {/* Comment count tap-to-view */}
+              {rating.comments_count > 0 && (
+                <div className="px-4 pb-1">
+                  <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
+                    View {rating.comments_count} comment{rating.comments_count !== 1 ? 's' : ''} →
+                  </button>
                 </div>
               )}
               <div className="px-4 pb-3">
