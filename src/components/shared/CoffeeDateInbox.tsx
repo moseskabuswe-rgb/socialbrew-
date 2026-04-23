@@ -318,7 +318,6 @@ export default function CoffeeDateInbox({ onClose }: Props) {
           ))}
         </div>
       </div>
-      </div>
     </div>
   )
 }
