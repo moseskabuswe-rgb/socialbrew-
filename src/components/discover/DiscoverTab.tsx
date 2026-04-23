@@ -184,8 +184,11 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   useEffect(() => {
     async function load() {
       const { data } = await supabase
-        .from('coffee_shops').select('*').eq('is_active', true)
+        .from('coffee_shops')
+        .select('id, name, address, city, state, lat, lng, photo_url, avg_rating, total_ratings, weekly_visits, vibes, is_certified, is_verified, website, opening_hours')
+        .eq('is_active', true)
         .order('total_ratings', { ascending: false })
+        .limit(100)
       if (data) setDbShops(data)
       setLoading(false)
     }
