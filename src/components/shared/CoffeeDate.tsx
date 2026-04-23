@@ -126,7 +126,6 @@ export default function CoffeeDate({ onClose, preselectedShop }: Props) {
     setStep('sent')
   }
 
-  const stepIndex = { friends: 0, mode: 1, shop: 2, details: 3, sent: 4 }
   const totalSteps = selectedFriends.length > 1 ? 3 : 2
 
   return (
