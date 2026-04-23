@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX,
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import BrewWrapped from '../shared/BrewWrapped'
+import LikedByModal from '../shared/LikedByModal'
 import StoriesBar from '../shared/StoriesBar'
 import { trackEvent } from '../../lib/analytics'
 import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
@@ -771,6 +772,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
   const [showWrapped, setShowWrapped] = useState(false)
+  const [likedByRatingId, setLikedByRatingId] = useState<string | null>(null)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -1107,7 +1109,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 <div className="flex items-center px-4 pb-3 gap-3 border-t border-cream-50">
                   <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1 mt-2 active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                     <Heart size={16} fill={isLiked ? '#e05a5a' : 'none'} />
-                    <span className="text-xs">{rating.likes_count || 0}</span>
+                    <button onClick={() => (rating.likes_count || 0) > 0 ? setLikedByRatingId(rating.id) : null} className="text-xs hover:text-caramel transition-colors">{rating.likes_count || 0}</button>
                   </button>
                   <button onClick={() => setActivePost(rating)} className="flex items-center gap-1 text-coffee-400 mt-2 active:scale-90">
                     <MessageCircle size={16} />
@@ -1352,6 +1354,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         />
       )}
       {showWrapped && <BrewWrapped onClose={() => setShowWrapped(false)} />}
+      {likedByRatingId && <LikedByModal ratingId={likedByRatingId} onClose={() => setLikedByRatingId(null)} onViewProfile={(id) => { setLikedByRatingId(null); setActiveUserProfile(id) }} />}
     </div>
   )
 }
