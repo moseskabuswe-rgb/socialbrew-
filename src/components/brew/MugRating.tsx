@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { resolveShopId } from '../../lib/shopUtils'
+import { sendPushToUser } from '../../lib/push'
 import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -130,6 +131,23 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           caption: captionParts.join(' · ') || null,
           story_type: 'rating',
         })
+        // Notify followers
+        try {
+          const { data: followers } = await supabase
+            .from('follows').select('follower_id').eq('following_id', profile.id)
+          if (followers && followers.length > 0) {
+            await Promise.all(
+              followers.map((f: any) =>
+                sendPushToUser(
+                  f.follower_id,
+                  `${profile.username || 'Someone'} rated a visit`,
+                  `${shop?.name || 'a coffee shop'}${captionParts.length ? ` — ${captionParts[0]}` : ''}`,
+                  { type: 'story' }
+                )
+              )
+            )
+          }
+        } catch {}
       }
 
       setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
