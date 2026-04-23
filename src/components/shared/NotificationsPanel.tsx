@@ -8,6 +8,7 @@ import { registerPushNotifications } from '../../lib/push'
 type Notification = {
   id: string
   type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention' | 'coffee_date' | 'story'
+  content?: string
   read: boolean
   created_at: string
   actor_id: string

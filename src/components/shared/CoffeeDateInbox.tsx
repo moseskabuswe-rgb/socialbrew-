@@ -2,7 +2,7 @@
 // Shows incoming and outgoing coffee date invites with accept/decline
 
 import { useState, useEffect } from 'react'
-import { X, Check, MapPin, Clock, Coffee } from 'lucide-react'
+import { X, MapPin, Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendPushToUser } from '../../lib/push'

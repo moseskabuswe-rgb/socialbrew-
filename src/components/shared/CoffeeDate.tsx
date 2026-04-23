@@ -6,7 +6,6 @@ import { X, Search, MapPin, Clock } from 'lucide-react'
 import { sendPushToUser } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { sendPushToUser } from '../../lib/push'
 
 interface Props {
   onClose: () => void
