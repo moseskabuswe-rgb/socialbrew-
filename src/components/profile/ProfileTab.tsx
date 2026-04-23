@@ -81,7 +81,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
             <div key={u.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white">
               <button onClick={() => setViewingProfile(u)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -128,7 +128,7 @@ function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; on
             return (
               <button key={v.shop_id} onClick={() => { onClose(); onShopClick(shop) }} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors text-left">
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
+                  {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name}</p>
@@ -218,9 +218,9 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             <p className="text-coffee-600 font-semibold text-sm mb-3">Profile Photo</p>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 isolate" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
                   {profile?.avatar_url
-                    ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-3xl">{profile?.username?.[0]?.toUpperCase()}</span></div>}
                   {uploadingAvatar && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
@@ -366,7 +366,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
             className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white hover:bg-cream-50 transition-colors text-left">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
               {user.avatar_url
-                ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                 : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold">{user.username[0].toUpperCase()}</span></div>}
             </div>
             <div className="flex-1 min-w-0">
@@ -411,7 +411,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     if (!profile) return
     async function load() {
       const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
-        supabase.from('ratings').select('*, coffee_shops(*)').eq('user_id', profile!.id).order('created_at', { ascending: false }),
+        supabase.from('ratings').select('id, fill_level, drink_name, photo_url, caption, created_at, shop_id, coffee_shops(id, name, city, photo_url)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(50),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),
@@ -480,9 +480,9 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         <div className="mx-4 mt-4 bg-white rounded-2xl p-5 shadow-sm border border-cream-200">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 isolate flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
                 {profile.avatar_url
-                  ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-display text-3xl font-bold">{profile.username[0].toUpperCase()}</span></div>}
               </div>
               <button onClick={() => setShowSettings(true)} className="absolute bottom-0 right-0 w-7 h-7 bg-caramel rounded-full flex items-center justify-center shadow border-2 border-white">
@@ -613,7 +613,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                   <div key={rating.id} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
                     <button onClick={() => shop && setSelectedShop(shop)} className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
                       {shop?.photo_url
-                        ? <img src={shop.photo_url} alt={shop?.name} className="w-full h-full object-cover" />
+                        ? <img src={shop.photo_url} alt={shop?.name} className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                         : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                     </button>
                     <button onClick={() => setActivePost(rating)} className="flex-1 min-w-0 text-left">
