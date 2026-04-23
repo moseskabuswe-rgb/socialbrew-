@@ -3,6 +3,7 @@ import { useSwipeBack } from '../../lib/useSwipeBack'
 import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Share2 } from 'lucide-react'
 import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
+import LikedByModal from './LikedByModal'
 import { useAuth } from '../../contexts/AuthContext'
 
 function getMugColor(fill: number) {
@@ -173,6 +174,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [isLiked, setIsLiked] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [likesCount, setLikesCount] = useState(rating.likes_count || 0)
+  const [showLikedBy, setShowLikedBy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -454,7 +456,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             <div className="flex items-center gap-4 pt-2 border-t border-cream-100">
               <button onClick={toggleLike} className="flex items-center gap-1.5 active:scale-90 transition-transform" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
                 <Heart size={22} fill={isLiked ? '#e05a5a' : 'none'} />
-                {likesCount > 0 && <span className="text-sm font-medium">{likesCount}</span>}
+                {likesCount > 0 && <button onClick={() => setShowLikedBy(true)} className="text-sm font-medium hover:text-red-400 transition-colors">{likesCount}</button>}
               </button>
               <div className="flex items-center gap-1.5 text-coffee-500">
                 <MessageCircle size={22} />
@@ -592,6 +594,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           </div>
         </div>
       )}
+      {showLikedBy && <LikedByModal ratingId={rating.id} onClose={() => setShowLikedBy(false)} onViewProfile={(id) => { setShowLikedBy(false) }} />}
     </div>
   )
 }

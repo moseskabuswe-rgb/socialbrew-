@@ -26,6 +26,7 @@ interface Props {
 }
 
 export default function CoffeeDateInbox({ onClose }: Props) {
+  // Full page — no modal sheet
   const { profile } = useAuth()
   const [incoming, setIncoming] = useState<CoffeeDate[]>([])
   const [outgoing, setOutgoing] = useState<CoffeeDate[]>([])
@@ -138,20 +139,20 @@ export default function CoffeeDateInbox({ onClose }: Props) {
   const pendingCount = incoming.filter(d => d.status === 'pending').length
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.9)' }}>
-      <div className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up" style={{ maxHeight: '85vh' }}>
+    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
+      <div className="w-full flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
-          <div>
-            <h3 className="font-display font-bold text-coffee-800 text-lg">Coffee Dates</h3>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
+          <button onClick={onClose} className="text-coffee-500">
+            <X size={22} />
+          </button>
+          <div className="flex-1">
+            <h3 className="font-display font-bold text-coffee-800 text-xl">Coffee Dates</h3>
             {pendingCount > 0 && (
               <p className="text-caramel text-xs font-medium">{pendingCount} pending invite{pendingCount !== 1 ? 's' : ''}</p>
             )}
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500">
-            <X size={15} />
-          </button>
         </div>
 
         {/* Tabs */}
@@ -178,7 +179,7 @@ export default function CoffeeDateInbox({ onClose }: Props) {
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 130px)' }}>
+        <div className="flex-1 overflow-y-auto">
           {loading && (
             <div className="flex justify-center py-12">
               <div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
@@ -316,6 +317,7 @@ export default function CoffeeDateInbox({ onClose }: Props) {
             </div>
           ))}
         </div>
+      </div>
       </div>
     </div>
   )
