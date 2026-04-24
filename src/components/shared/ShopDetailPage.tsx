@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, MapPin, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ShopPhotoGallery from './ShopPhotoGallery'
-import ShopCheckin from './ShopCheckin'
 import CoffeeDate from './CoffeeDate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
@@ -306,9 +305,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           )}
         </div>
       )}
-
-      {/* Live check-in */}
-      <ShopCheckin shopId={resolvedShop.id} />
 
       {/* Tabs */}
       <div className="flex bg-white border-b border-cream-200 flex-shrink-0">
