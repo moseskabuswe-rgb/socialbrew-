@@ -156,10 +156,16 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
         )}
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown panel — fixed to viewport, safe area aware */}
       {open && (
-        <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl border border-cream-200 z-50 overflow-hidden"
-          style={{ maxHeight: '70vh' }}>
+        <div className="fixed bg-white rounded-2xl shadow-2xl border border-cream-200 overflow-hidden"
+          style={{ 
+            maxHeight: 'calc(70vh - env(safe-area-inset-bottom, 0px))',
+            width: 'min(320px, calc(100vw - 24px))',
+            top: 'calc(60px + env(safe-area-inset-top, 0px))',
+            right: 'max(12px, env(safe-area-inset-right, 12px))',
+            zIndex: 9999,
+          }}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-cream-200 bg-cream-50">
             <h3 className="font-display font-bold text-coffee-800 text-base">Notifications</h3>
             <button onClick={() => setOpen(false)} className="w-6 h-6 rounded-full bg-cream-200 flex items-center justify-center text-coffee-500">
@@ -214,7 +220,7 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
                   else if (n.rating_id) onNavigate('post', n.rating_id)
                 }}
                 className={`w-full flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors text-left ${!n.read ? 'bg-amber-50' : 'bg-white'} hover:bg-cream-50`}>
-                <div className="relative flex-shrink-0">
+                <div className="relative flex-shrink-0" style={{ minWidth: 36 }}>
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200">
                     {n.actor?.avatar_url
                       ? <img src={n.actor.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -226,7 +232,7 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
                     <NotifIcon type={n.type} />
                   </div>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 overflow-hidden">
                   <p className="text-coffee-700 text-sm leading-snug">
                     <span className="font-semibold">{n.actor?.username}</span>{' '}
                     <span className="text-coffee-500">{notifText(n)}</span>
