@@ -176,7 +176,28 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     const file = e.target.files[0]
     if (!file.type.startsWith('image/')) { alert('Please select an image'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return }
-    setCropFile(file)
+    // Upload directly as blob - bypassing cropper to diagnose upload issue
+    setUploadingAvatar(true)
+    try {
+      const path = `avatars/${profile.id}.jpg`
+      await supabase.storage.from('avatars').remove([path]).catch(() => {})
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: '1'
+      })
+      if (upErr) throw new Error(`Storage: ${upErr.message}`)
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      const avatarUrl = `${publicUrl}?t=${Date.now()}`
+      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id)
+      if (updErr) throw new Error(`Profile: ${updErr.message}`)
+      await refreshProfile()
+      alert('Photo updated successfully! ✓')
+    } catch (err: any) {
+      console.error('Upload error:', err)
+      alert(`Failed: ${err.message}`)
+    }
+    setUploadingAvatar(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
   async function handleCroppedAvatar(blob: Blob) {
