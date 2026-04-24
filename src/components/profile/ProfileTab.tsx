@@ -185,13 +185,32 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     setUploadingAvatar(true)
     try {
       const path = `avatars/${profile.id}.jpg`
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-      if (upErr) throw upErr
+      // Try remove first — ignore error if file doesn't exist yet
+      await supabase.storage.from('avatars').remove([path]).catch(() => {})
+      // Upload new file
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { 
+        upsert: true, 
+        contentType: 'image/jpeg',
+        cacheControl: '1'
+      })
+      if (upErr) {
+        console.error('Storage upload error:', upErr)
+        throw new Error(`Storage error: ${upErr.message}`)
+      }
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
-      if (updErr) throw updErr
+      // Add cache buster so browser shows new image immediately
+      const avatarUrl = `${publicUrl}?t=${Date.now()}`
+      console.log('Upload successful, updating profile with:', avatarUrl)
+      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id)
+      if (updErr) {
+        console.error('Profile update error:', updErr)
+        throw new Error(`Profile update error: ${updErr.message}`)
+      }
       await refreshProfile()
-    } catch (err: any) { alert(`Upload failed: ${err.message}`) }
+    } catch (err: any) { 
+      console.error('Avatar upload error:', err)
+      alert(`Upload failed: ${err.message || 'Please check your connection and try again'}`) 
+    }
     setUploadingAvatar(false)
   }
   return (
