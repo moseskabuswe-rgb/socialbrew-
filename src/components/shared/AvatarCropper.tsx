@@ -128,7 +128,15 @@ export default function AvatarCropper({ imageFile, onCrop, onCancel }: Props) {
     )
 
     out.toBlob(blob => {
-      if (blob) onCrop(blob)
+      if (blob) {
+        onCrop(blob)
+      } else {
+        // toBlob failed — fall back to uploading original image as blob
+        fetch(img.src)
+          .then(r => r.blob())
+          .then(b => onCrop(b))
+          .catch(() => alert('Could not process image. Please try a different photo.'))
+      }
     }, 'image/jpeg', 0.92)
   }
 
