@@ -207,6 +207,8 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         throw new Error(`Profile update error: ${updErr.message}`)
       }
       await refreshProfile()
+      // Show brief success feedback
+      alert('Profile photo updated! ✓')
     } catch (err: any) { 
       console.error('Avatar upload error:', err)
       alert(`Upload failed: ${err.message || 'Please check your connection and try again'}`) 
