@@ -46,19 +46,13 @@ export default function ShopPhotoGallery({ shopId, shopName }: Props) {
        */
       const { data } = await supabase
         .from('shop_photos')
-        .select(`
-          id,
-          photo_url,
-          created_at,
-          profiles(username, avatar_url),
-          ratings!inner(fill_level)
-        `)
+        .select('id, photo_url, created_at, profiles(username, avatar_url)')
         .eq('shop_id', shopId)
-        .gt('ratings.fill_level', 0) // Only from actual drink ratings, not vibe posts
+        .not('photo_url', 'is', null)
         .order('created_at', { ascending: false })
         .limit(30)
 
-      setPhotos((data || []).filter((p: any) => p.photo_url))
+      setPhotos((data || []).filter((p: any) => p.photo_url) as any[])
       setLoading(false)
     }
     load()
