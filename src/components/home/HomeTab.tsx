@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import BrewWrapped from '../shared/BrewWrapped'
 import LikedByModal from '../shared/LikedByModal'
+import EditPostModal from '../shared/EditPostModal'
 import StoriesBar from '../shared/StoriesBar'
 import { trackEvent } from '../../lib/analytics'
 import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
@@ -781,7 +782,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [activeMenu, setActiveMenu] = useState<any>(null)
   const [wishlistRating, setWishlistRating] = useState<any>(null)
   const [editingPost, setEditingPost] = useState<any>(null)
-  const [editCaption, setEditCaption] = useState('')
+  const [editCaption, setEditCaption] = useState('') // legacy — kept for comment editing
   const [showMessages, setShowMessages] = useState(false)
   const unreadDMs = Object.values(unreadPerSender).reduce((a, b) => a + b, 0)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
@@ -1308,7 +1309,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         <PostMenu
           isOwn={activeMenu._isOwn}
           onDelete={() => deletePost(activeMenu.id)}
-          onEdit={() => { setEditCaption(activeMenu.caption || ''); setEditingPost(activeMenu); setActiveMenu(null) }}
+          onEdit={() => { setEditCaption(''); setEditingPost(activeMenu); setActiveMenu(null) }}
           onReport={() => reportPost(activeMenu)}
           onBlock={() => blockUser(activeMenu.profiles?.id)}
           onClose={() => setActiveMenu(null)}
@@ -1354,6 +1355,14 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         />
       )}
       {showWrapped && <BrewWrapped onClose={() => setShowWrapped(false)} />}
+      {editingPost && !editCaption && <EditPostModal
+        rating={editingPost}
+        onClose={() => setEditingPost(null)}
+        onSaved={(updated) => {
+          setRatings(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+          setEditingPost(null)
+        }}
+      />}
       {likedByRatingId && <LikedByModal ratingId={likedByRatingId} onClose={() => setLikedByRatingId(null)} onViewProfile={(id) => { setLikedByRatingId(null); setActiveUserProfile(id) }} />}
     </div>
   )
