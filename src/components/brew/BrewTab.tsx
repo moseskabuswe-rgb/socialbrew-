@@ -64,8 +64,8 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
     {
       id: 'share' as BrewAction,
       icon: Camera,
-      label: 'Share Moment',
-      sub: 'Post a photo from your visit',
+      label: 'Share a Vibe',
+      sub: 'Share a coffee moment without rating',
       color: '#6a8a6a',
       available: true,
       badge: null,
