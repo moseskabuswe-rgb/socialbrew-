@@ -244,11 +244,13 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           </div>
         )}
 
-        {/* View count for own stories */}
+        {/* View count for own stories — uses view_count from DB (updated by trigger) */}
         {isOwn && (
           <div className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/40 rounded-full px-3 py-1.5">
             <Eye size={13} className="text-white/70" />
-            <span className="text-white/70 text-xs">{story.view_count || 0} views</span>
+            <span className="text-white/70 text-xs">
+              {(story.view_count || 0)} {(story.view_count || 0) === 1 ? 'view' : 'views'}
+            </span>
           </div>
         )}
 

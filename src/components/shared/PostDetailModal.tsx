@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSwipeBack } from '../../lib/useSwipeBack'
 import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Share2 } from 'lucide-react'
+import EditPostModal from './EditPostModal'
 import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 import LikedByModal from './LikedByModal'
@@ -175,6 +176,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [isSaved, setIsSaved] = useState(false)
   const [likesCount, setLikesCount] = useState(rating.likes_count || 0)
   const [showLikedBy, setShowLikedBy] = useState(false)
+  const [showEditPost, setShowEditPost] = useState(false)
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -364,7 +366,18 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             <p className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</p>
           </div>
         </div>
-        <button onClick={() => onClose(comments.length, likesCount)} className="text-coffee-400"><X size={20} /></button>
+        <div className="flex items-center gap-1">
+          {/* Edit button — only shown on own posts */}
+          {profile && (rating.user_id === profile.id || rating.profiles?.id === profile.id) && (
+            <button
+              onClick={() => setShowEditPost(true)}
+              className="w-8 h-8 flex items-center justify-center text-coffee-400 hover:text-caramel transition-colors"
+            >
+              <Edit2 size={18} />
+            </button>
+          )}
+          <button onClick={() => onClose(comments.length, likesCount)} className="text-coffee-400"><X size={20} /></button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-20">
@@ -593,6 +606,17 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             <button onClick={() => setShowShareSheet(false)} className="w-full mt-3 py-3 text-coffee-500 text-sm font-medium">Cancel</button>
           </div>
         </div>
+      )}
+      {showEditPost && (
+        <EditPostModal
+          rating={rating}
+          onClose={() => setShowEditPost(false)}
+          onSaved={(updated) => {
+            // Refresh the post data in place
+            setShowEditPost(false)
+            setLikesCount(updated.likes_count || likesCount)
+          }}
+        />
       )}
       {showLikedBy && <LikedByModal ratingId={rating.id} onClose={() => setShowLikedBy(false)} onViewProfile={() => { setShowLikedBy(false) }} />}
     </div>
