@@ -1,48 +1,206 @@
 /**
  * CoffeeMap.tsx
  *
- * Visual map of shops the user has visited.
- * Uses an iframe with OpenStreetMap embed — no external npm dependencies.
- * This avoids the react-leaflet _leaflet_pos timing error entirely
- * since the map renders in an isolated iframe context.
+ * Interactive map of visited coffee shops with colored pins.
+ * Uses Leaflet loaded via CDN (no npm dependency needed).
+ * Pin colors reflect fill level satisfaction score.
  *
- * For single shop: shows that shop centered on the map.
- * For multiple shops: shows all shops with pins via OSM's map embed.
- * Falls back to a clean list view if no coordinates available.
+ * Handles nested data from user_shop_visits join:
+ * { visit_count, coffee_shops: { id, name, lat, lng, ... } }
+ *
+ * Fix for _leaflet_pos error: map only initializes after container
+ * has mounted and has real dimensions (100ms delay + invalidateSize).
  */
 
-import { useState } from 'react'
-import { MapPin, Coffee } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface Visit {
+  shop_id?: string
+  name?: string
+  lat?: number
+  lng?: number
+  avg_fill?: number
+  total_visits?: number
+  visit_count?: number
+  city?: string | null
+  coffee_shops?: {
+    id: string
+    name: string
+    lat: number
+    lng: number
+    city?: string | null
+    state?: string | null
+    photo_url?: string | null
+    avg_fill?: number
+  }
+}
+
+interface NormalizedVisit {
   shop_id: string
   name: string
   lat: number
   lng: number
-  avg_fill?: number
-  total_visits?: number
-  photo_url?: string | null
-  city?: string | null
+  city: string | null
+  avg_fill: number
+  visit_count: number
 }
 
 interface Props {
   visits: Visit[]
 }
 
+function getFillColor(fill: number): string {
+  if (fill >= 86) return '#3d1a06'
+  if (fill >= 71) return '#6b3410'
+  if (fill >= 51) return '#b87333'
+  if (fill >= 26) return '#c49a6c'
+  return '#d4b896'
+}
+
+function getFillLabel(fill: number): string {
+  if (fill <= 25) return 'Disappointing'
+  if (fill <= 50) return 'Just Okay'
+  if (fill <= 70) return 'Pretty Good'
+  if (fill <= 85) return 'Really Good'
+  if (fill <= 99) return 'Excellent'
+  return 'Perfect Brew ✨'
+}
+
 export default function CoffeeMap({ visits }: Props) {
-  const [selected, setSelected] = useState<Visit | null>(null)
+  const mapRef = useRef<HTMLDivElement>(null)
+  const leafletMap = useRef<any>(null)
+  const [mapError, setMapError] = useState(false)
 
-  // Filter to only shops with valid coordinates
-  const validVisits = (visits || []).filter(
-    v => v && typeof v.lat === 'number' && typeof v.lng === 'number'
-      && !isNaN(v.lat) && !isNaN(v.lng)
-      && v.lat !== 0 && v.lng !== 0
-  )
+  // Normalize nested or flat visit data
+  const normalized: NormalizedVisit[] = (visits || [])
+    .map((v: any) => {
+      const shop = v.coffee_shops || v
+      return {
+        shop_id: shop.id || v.shop_id || '',
+        name: shop.name || v.name || 'Unknown Shop',
+        lat: Number(shop.lat ?? v.lat),
+        lng: Number(shop.lng ?? v.lng),
+        city: shop.city || v.city || null,
+        avg_fill: Number(shop.avg_fill ?? v.avg_fill ?? 75),
+        visit_count: Number(v.visit_count ?? v.total_visits ?? 1),
+      }
+    })
+    .filter(v =>
+      v.lat && v.lng &&
+      !isNaN(v.lat) && !isNaN(v.lng) &&
+      v.lat !== 0 && v.lng !== 0
+    )
 
-  if (validVisits.length === 0) {
+  useEffect(() => {
+    if (normalized.length === 0 || !mapRef.current) return
+
+    // Delay to ensure container has real pixel dimensions
+    const timer = setTimeout(() => {
+      if (!mapRef.current) return
+
+      // Load Leaflet CSS
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link')
+        link.id = 'leaflet-css'
+        link.rel = 'stylesheet'
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+        document.head.appendChild(link)
+      }
+
+      // Load Leaflet JS dynamically
+      const existingScript = document.getElementById('leaflet-js')
+      const initMap = () => {
+        try {
+          const L = (window as any).L
+          if (!L || !mapRef.current) return
+
+          // Destroy existing map instance if any
+          if (leafletMap.current) {
+            leafletMap.current.remove()
+            leafletMap.current = null
+          }
+
+          const map = L.map(mapRef.current, {
+            zoomControl: true,
+            scrollWheelZoom: false,
+            tap: false,
+          })
+
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '',
+            maxZoom: 19,
+          }).addTo(map)
+
+          // Add colored circle markers with popups
+          normalized.forEach(v => {
+            const color = getFillColor(v.avg_fill)
+            const label = getFillLabel(v.avg_fill)
+
+            const marker = L.circleMarker([v.lat, v.lng], {
+              radius: 10,
+              fillColor: color,
+              fillOpacity: 0.92,
+              color: '#ffffff',
+              weight: 2.5,
+            }).addTo(map)
+
+            marker.bindPopup(`
+              <div style="font-family: sans-serif; min-width: 130px; padding: 2px 0">
+                <p style="font-weight: 700; font-size: 13px; margin: 0 0 4px 0; color: #1c0a02">${v.name}</p>
+                ${v.city ? `<p style="font-size: 11px; color: #888; margin: 0 0 4px 0">${v.city}</p>` : ''}
+                <p style="font-size: 12px; font-weight: 600; margin: 0 0 2px 0" style="color: ${color}">${v.avg_fill}% · ${label}</p>
+                <p style="font-size: 11px; color: #888; margin: 0">${v.visit_count} visit${v.visit_count !== 1 ? 's' : ''}</p>
+              </div>
+            `)
+          })
+
+          // Fit map to show all markers
+          if (normalized.length === 1) {
+            map.setView([normalized[0].lat, normalized[0].lng], 15)
+          } else {
+            const bounds = L.latLngBounds(normalized.map(v => [v.lat, v.lng]))
+            map.fitBounds(bounds, { padding: [30, 30] })
+          }
+
+          // Fix sizing after mount
+          setTimeout(() => {
+            try { map.invalidateSize() } catch {}
+          }, 50)
+
+          leafletMap.current = map
+        } catch (err) {
+          console.error('Map init error:', err)
+          setMapError(true)
+        }
+      }
+
+      if (existingScript) {
+        // Script already loaded
+        if ((window as any).L) initMap()
+        else existingScript.addEventListener('load', initMap)
+      } else {
+        const script = document.createElement('script')
+        script.id = 'leaflet-js'
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+        script.onload = initMap
+        script.onerror = () => setMapError(true)
+        document.head.appendChild(script)
+      }
+    }, 100)
+
+    return () => {
+      clearTimeout(timer)
+      if (leafletMap.current) {
+        try { leafletMap.current.remove() } catch {}
+        leafletMap.current = null
+      }
+    }
+  }, [normalized.length])
+
+  if (normalized.length === 0) {
     return (
       <div className="w-full rounded-2xl overflow-hidden flex items-center justify-center bg-cream-100 border border-cream-200"
-        style={{ height: 200 }}>
+        style={{ height: 220 }}>
         <div className="text-center px-4">
           <p className="text-3xl mb-2">🗺️</p>
           <p className="text-coffee-400 text-sm font-medium">Your coffee map starts here</p>
@@ -52,92 +210,28 @@ export default function CoffeeMap({ visits }: Props) {
     )
   }
 
-  // Build OSM embed URL
-  // For single shop — center on it with a marker
-  // For multiple shops — show bounding box covering all shops
-  function getMapUrl() {
-    if (validVisits.length === 1) {
-      const v = validVisits[0]
-      const marker = `${v.lat},${v.lng}`
-      return `https://www.openstreetmap.org/export/embed.html?bbox=${v.lng - 0.01},${v.lat - 0.01},${v.lng + 0.01},${v.lat + 0.01}&layer=mapnik&marker=${marker}`
-    }
-    // Multiple — compute bounding box
-    const lats = validVisits.map(v => v.lat)
-    const lngs = validVisits.map(v => v.lng)
-    const minLat = Math.min(...lats) - 0.02
-    const maxLat = Math.max(...lats) + 0.02
-    const minLng = Math.min(...lngs) - 0.02
-    const maxLng = Math.max(...lngs) + 0.02
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik`
-  }
-
-  function getFillColor(fill: number) {
-    if (fill >= 86) return '#3d1a06'
-    if (fill >= 71) return '#6b3410'
-    if (fill >= 51) return '#b87333'
-    if (fill >= 26) return '#c49a6c'
-    return '#d4b896'
-  }
-
-  function getFillLabel(fill: number) {
-    if (fill <= 25) return 'Disappointing'
-    if (fill <= 50) return 'Just Okay'
-    if (fill <= 70) return 'Pretty Good'
-    if (fill <= 85) return 'Really Good'
-    if (fill <= 99) return 'Excellent'
-    return 'Perfect Brew ✨'
+  if (mapError) {
+    return (
+      <div className="w-full rounded-2xl overflow-hidden bg-cream-100 border border-cream-200 p-4">
+        <p className="text-coffee-400 text-sm text-center">Map unavailable — check your connection</p>
+        <div className="mt-3 space-y-2">
+          {normalized.map(v => (
+            <div key={v.shop_id} className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ background: getFillColor(v.avg_fill) }} />
+              <p className="text-coffee-700 text-sm font-medium">{v.name}</p>
+              <p className="text-coffee-400 text-xs ml-auto">{v.avg_fill}%</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="w-full rounded-2xl overflow-hidden border border-cream-200" style={{ background: '#f5ead8' }}>
-      {/* Map iframe */}
-      <div style={{ height: 200, position: 'relative' }}>
-        <iframe
-          src={getMapUrl()}
-          style={{ width: '100%', height: '100%', border: 'none' }}
-          title="Coffee shop map"
-          loading="lazy"
-          sandbox="allow-scripts allow-same-origin"
-        />
-        {/* Shop count badge */}
-        <div className="absolute top-2 right-2 bg-white/90 rounded-full px-3 py-1 flex items-center gap-1.5 shadow-sm">
-          <MapPin size={11} className="text-caramel" />
-          <span className="text-coffee-800 font-bold text-xs">{validVisits.length} shop{validVisits.length !== 1 ? 's' : ''}</span>
-        </div>
-      </div>
-
-      {/* Shop list below map */}
-      <div className="divide-y divide-cream-200">
-        {validVisits.map(visit => (
-          <button
-            key={visit.shop_id}
-            onClick={() => setSelected(selected?.shop_id === visit.shop_id ? null : visit)}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-cream-100 transition-colors text-left"
-          >
-            {/* Fill level dot */}
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: getFillColor(visit.avg_fill || 75) }}
-            >
-              <Coffee size={13} color="white" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="text-coffee-800 font-semibold text-sm truncate">{visit.name}</p>
-              {visit.city && <p className="text-coffee-400 text-xs">{visit.city}</p>}
-            </div>
-
-            <div className="text-right flex-shrink-0">
-              {visit.avg_fill && (
-                <p className="text-caramel font-bold text-sm">{visit.avg_fill}%</p>
-              )}
-              {visit.avg_fill && (
-                <p className="text-coffee-300 text-xs">{getFillLabel(visit.avg_fill)}</p>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
+    <div
+      ref={mapRef}
+      style={{ height: 260, width: '100%', borderRadius: '1rem', overflow: 'hidden' }}
+    />
   )
 }
