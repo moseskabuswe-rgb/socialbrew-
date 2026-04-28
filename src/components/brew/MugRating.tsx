@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { resolveShopId } from '../../lib/shopUtils'
@@ -39,17 +39,43 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const s = getMugStyle(fill)
   const showSteam = fill >= 65
 
-  const calculateFill = useCallback((clientY: number) => {
+  const isDraggingRef = useRef(false)
+
+  const calculateFill = useCallback((clientY: number, snap = false) => {
     if (!mugRef.current) return
     const rect = mugRef.current.getBoundingClientRect()
-    setFill(Math.max(0, Math.min(100, Math.round((1 - (clientY - rect.top) / rect.height) * 100))))
+    // Extend detection slightly beyond edges so 0 and 100 are reachable
+    const raw = (1 - (clientY - rect.top) / rect.height) * 100
+    const clamped = Math.max(0, Math.min(100, raw))
+    // Only round on release for smooth dragging, integer on snap
+    setFill(snap ? Math.round(clamped) : Math.round(clamped))
   }, [])
 
-  const onMD = (e: React.MouseEvent) => { setIsDragging(true); calculateFill(e.clientY) }
-  const onMM = (e: React.MouseEvent) => { if (isDragging) calculateFill(e.clientY) }
-  const onMU = () => setIsDragging(false)
-  const onTS = (e: React.TouchEvent) => { setIsDragging(true); calculateFill(e.touches[0].clientY) }
-  const onTM = (e: React.TouchEvent) => { e.preventDefault(); if (isDragging) calculateFill(e.touches[0].clientY) }
+  const onMD = (e: React.MouseEvent) => { isDraggingRef.current = true; setIsDragging(true); calculateFill(e.clientY) }
+  const onMM = (e: React.MouseEvent) => { if (isDraggingRef.current) calculateFill(e.clientY) }
+  const onMU = () => { isDraggingRef.current = false; setIsDragging(false) }
+  const onTS = (e: React.TouchEvent) => { isDraggingRef.current = true; setIsDragging(true); calculateFill(e.touches[0].clientY) }
+  // onTM handled via native listener below to allow passive:false
+
+  // Native touch listener with passive:false to prevent page scroll while dragging mug
+  useEffect(() => {
+    const el = mugRef.current
+    if (!el) return
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingRef.current) return
+      e.preventDefault() // stops page scroll — only works with passive:false
+      calculateFill(e.touches[0].clientY)
+    }
+    const handleTouchEnd = () => { isDraggingRef.current = false; setIsDragging(false) }
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd)
+    el.addEventListener('touchcancel', handleTouchEnd)
+    return () => {
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', handleTouchEnd)
+    }
+  }, [calculateFill])
   const toggleVibe = (v: string) => setSelectedVibes(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v].slice(0, 3))
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -192,8 +218,8 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
             <div className="flex flex-col items-center">
               <div ref={mugRef}
                 onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}
-                onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onMU}
-                style={{ cursor: 'ns-resize', userSelect: 'none', width: VW, height: VH }}>
+                onTouchStart={onTS}
+                style={{ cursor: 'ns-resize', userSelect: 'none', touchAction: 'none', width: VW, height: VH }}>
                 <svg width={VW} height={VH} viewBox={`0 0 ${VW} ${VH}`}
                   style={{ filter: fill > 0 ? `drop-shadow(0 0 12px ${s.glow})` : 'none', transition: 'filter 0.4s' }}>
                   <defs>
