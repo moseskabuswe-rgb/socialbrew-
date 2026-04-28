@@ -14,11 +14,11 @@ const TIME_OPTIONS = ['Early Morning (5–8am)', 'Morning (8–10am)', 'Mid-Morn
 function getMugStyle(fill: number) {
   // New colors only — wording unchanged from original
   if (fill === 0)   return { liquid: 'transparent', crema: 'transparent', glow: 'none',                  label: 'Slide to rate',    sub: '' }
-  if (fill <= 25)   return { liquid: '#d4b896',      crema: '#e8d4bc',     glow: 'rgba(212,184,150,0.2)', label: 'Disappointing',    sub: 'Something was off' }
-  if (fill <= 50)   return { liquid: '#c49a6c',      crema: '#d9b48c',     glow: 'rgba(196,154,108,0.3)', label: 'Just Okay',        sub: 'Nothing special' }
-  if (fill <= 70)   return { liquid: '#b87333',      crema: '#d4894a',     glow: 'rgba(184,115,51,0.35)', label: 'Pretty Good',      sub: 'Enjoyed it' }
-  if (fill <= 85)   return { liquid: '#9b5e1a',      crema: '#c07830',     glow: 'rgba(155,94,26,0.4)',   label: 'Really Good',      sub: 'Would come back' }
-  if (fill <= 99)   return { liquid: '#6b3410',      crema: '#9b5520',     glow: 'rgba(200,130,50,0.5)',  label: 'Excellent',        sub: 'One of the best' }
+  if (fill <= 59)   return { liquid: '#d4b896',      crema: '#e8d4bc',     glow: 'rgba(212,184,150,0.2)', label: 'Not My Cup',       sub: 'Didn't vibe with it' }
+  if (fill <= 69)   return { liquid: '#c49a6c',      crema: '#d9b48c',     glow: 'rgba(196,154,108,0.3)', label: 'Just a Sip',       sub: 'Something was missing' }
+  if (fill <= 79)   return { liquid: '#b87333',      crema: '#d4894a',     glow: 'rgba(184,115,51,0.35)', label: 'Decent Pour',      sub: 'Nothing memorable' }
+  if (fill <= 89)   return { liquid: '#9b5e1a',      crema: '#c07830',     glow: 'rgba(155,94,26,0.4)',   label: 'Good Brew',        sub: 'Solid — would return' }
+  if (fill <= 99)   return { liquid: '#6b3410',      crema: '#9b5520',     glow: 'rgba(200,130,50,0.5)',  label: 'Loved It',         sub: 'One of the best' }
   return              { liquid: '#3d1a06',      crema: '#c8853a',     glow: 'rgba(220,160,60,0.7)',  label: '✨ Perfect Brew',  sub: 'Rare — truly exceptional' }
 }
 
