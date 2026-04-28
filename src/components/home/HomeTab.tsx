@@ -22,11 +22,12 @@ function getMugColor(fill: number) {
   return '#3d1a06'
 }
 function getFillLabel(fill: number) {
-  if (fill <= 15) return 'Just a Sip'
-  if (fill <= 30) return 'Getting There'
-  if (fill <= 50) return 'Half Cup'
-  if (fill <= 70) return 'Good Pour'
-  if (fill <= 85) return 'Almost Perfect'
+  if (fill === 0)  return ''
+  if (fill <= 25)  return 'Disappointing'
+  if (fill <= 50)  return 'Just Okay'
+  if (fill <= 70)  return 'Pretty Good'
+  if (fill <= 85)  return 'Really Good'
+  if (fill <= 99)  return 'Excellent'
   return 'Perfect Brew ✨'
 }
 function formatDate(d: string) {
