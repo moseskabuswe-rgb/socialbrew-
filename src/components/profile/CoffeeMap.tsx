@@ -50,19 +50,19 @@ interface Props {
 }
 
 function getFillColor(fill: number): string {
-  if (fill >= 86) return '#3d1a06'
-  if (fill >= 71) return '#6b3410'
-  if (fill >= 51) return '#b87333'
-  if (fill >= 26) return '#c49a6c'
+  if (fill >= 90) return '#3d1a06'
+  if (fill >= 80) return '#6b3410'
+  if (fill >= 70) return '#b87333'
+  if (fill >= 60) return '#c49a6c'
   return '#d4b896'
 }
 
 function getFillLabel(fill: number): string {
-  if (fill <= 25) return 'Disappointing'
-  if (fill <= 50) return 'Just Okay'
-  if (fill <= 70) return 'Pretty Good'
-  if (fill <= 85) return 'Really Good'
-  if (fill <= 99) return 'Excellent'
+  if (fill <= 59) return 'Not My Cup'
+  if (fill <= 69) return 'Just a Sip'
+  if (fill <= 79) return 'Decent Pour'
+  if (fill <= 89) return 'Good Brew'
+  if (fill <= 99) return 'Loved It'
   return 'Perfect Brew ✨'
 }
 
