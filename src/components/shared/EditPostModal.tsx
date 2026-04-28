@@ -31,11 +31,11 @@ const VIBE_OPTIONS = ['☕ Cozy', '⚡ Energizing', '❤️ Loved', '📚 Quiet'
 
 function getFillLabel(fill: number) {
   if (fill === 0)  return ''
-  if (fill <= 25)  return 'Disappointing'
-  if (fill <= 50)  return 'Just Okay'
-  if (fill <= 70)  return 'Pretty Good'
-  if (fill <= 85)  return 'Really Good'
-  if (fill <= 99)  return 'Excellent'
+  if (fill <= 59)  return 'Not My Cup'
+  if (fill <= 69)  return 'Just a Sip'
+  if (fill <= 79)  return 'Decent Pour'
+  if (fill <= 89)  return 'Good Brew'
+  if (fill <= 99)  return 'Loved It'
   return 'Perfect Brew ✨'
 }
 
@@ -174,7 +174,7 @@ export default function EditPostModal({ rating, onClose, onSaved }: Props) {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${fillLevel}%`,
-                    background: fillLevel <= 25 ? '#d4b896' : fillLevel <= 50 ? '#c49a6c' : fillLevel <= 70 ? '#b87333' : fillLevel <= 85 ? '#9b5e1a' : fillLevel <= 99 ? '#6b3410' : '#3d1a06'
+                    background: fillLevel <= 59 ? '#d4b896' : fillLevel <= 69 ? '#c49a6c' : fillLevel <= 79 ? '#b87333' : fillLevel <= 89 ? '#9b5e1a' : fillLevel <= 99 ? '#6b3410' : '#3d1a06'
                   }}
                 />
               </div>
