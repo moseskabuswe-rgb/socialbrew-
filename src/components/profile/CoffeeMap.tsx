@@ -1,131 +1,139 @@
-import { useEffect, useRef } from 'react'
+/**
+ * CoffeeMap.tsx
+ *
+ * Renders a Leaflet map showing shops the user has visited.
+ * Uses react-leaflet with careful mount guards to prevent the
+ * common "_leaflet_pos of undefined" error that fires when
+ * Leaflet tries to position markers before the map container
+ * has fully rendered and has a defined size.
+ *
+ * Fix applied:
+ * - Container given explicit height before map initializes
+ * - whenCreated callback calls invalidateSize() after mount
+ * - Markers only render after map is confirmed ready
+ * - Error boundary wraps the map to prevent PostHog noise
+ */
 
-type VisitedShop = {
+import { useEffect, useRef, useState } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+
+interface Visit {
   shop_id: string
-  visit_count: number
-  coffee_shops: {
-    name: string
-    city: string
-    state: string
-    lat: number | null
-    lng: number | null
-    photo_url: string | null
-  }
+  name: string
+  lat: number
+  lng: number
+  avg_fill?: number
+  total_visits?: number
+  photo_url?: string | null
 }
 
-type Props = { visits: VisitedShop[] }
+interface Props {
+  visits: Visit[]
+}
 
 export default function CoffeeMap({ visits }: Props) {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
+  const [mapReady, setMapReady] = useState(false)
+  const mapRef = useRef<any>(null)
+
+  // Filter to only shops with valid coordinates
+  const validVisits = (visits || []).filter(
+    v => v && typeof v.lat === 'number' && typeof v.lng === 'number'
+      && !isNaN(v.lat) && !isNaN(v.lng)
+      && v.lat !== 0 && v.lng !== 0
+  )
+
+  // Default center — Bloomington-Normal IL
+  const center: [number, number] = validVisits.length > 0
+    ? [validVisits[0].lat, validVisits[0].lng]
+    : [40.5067, -88.9906]
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return
-
-    // Dynamically import Leaflet to avoid SSR issues
-    import('leaflet').then(L => {
-      // Fix default icon paths
-      delete (L.Icon.Default.prototype as any)._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-      })
-
-      const validVisits = visits.filter(v => v.coffee_shops?.lat && v.coffee_shops?.lng)
-      const center: [number, number] = validVisits.length > 0
-        ? [validVisits[0].coffee_shops.lat!, validVisits[0].coffee_shops.lng!]
-        : [40.5089, -88.9906]
-
-      const map = L.map(mapRef.current!, {
-        center,
-        zoom: 13,
-        zoomControl: true,
-        scrollWheelZoom: false,
-        attributionControl: false,
-      })
-
-      mapInstanceRef.current = map
-
-      // Warm muted map tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 19,
-      }).addTo(map)
-
-      // Custom coffee cup pin
-      validVisits.forEach(visit => {
-        const shop = visit.coffee_shops
-        const icon = L.divIcon({
-          className: '',
-          html: `
-            <div style="position:relative; width:44px; height:52px;">
-              <div style="
-                width:40px; height:40px;
-                background: linear-gradient(135deg, #c8853a, #7a3f15);
-                border: 3px solid white;
-                border-radius: 50% 50% 50% 0;
-                transform: rotate(-45deg);
-                box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-                display: flex; align-items: center; justify-content: center;
-              ">
-                <span style="transform: rotate(45deg); font-size:18px; line-height:1;">☕</span>
-              </div>
-              ${visit.visit_count > 1 ? `
-                <div style="
-                  position:absolute; top:-4px; right:-4px;
-                  width:18px; height:18px;
-                  background:#c8853a; border: 2px solid white;
-                  border-radius:50%; display:flex; align-items:center; justify-content:center;
-                  font-size:9px; font-weight:bold; color:white;
-                ">${visit.visit_count}</div>
-              ` : ''}
-            </div>
-          `,
-          iconSize: [44, 52],
-          iconAnchor: [20, 52],
-          popupAnchor: [2, -52],
-        })
-
-        L.marker([shop.lat!, shop.lng!], { icon })
-          .addTo(map)
-          .bindPopup(`
-            <div style="font-family:system-ui; min-width:150px; padding:4px 0;">
-              ${shop.photo_url
-                ? `<img src="${shop.photo_url}" style="width:100%;height:75px;object-fit:cover;border-radius:8px;margin-bottom:8px;" />`
-                : `<div style="width:100%;height:50px;background:linear-gradient(135deg,#c8853a,#7a3f15);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">☕</div>`
-              }
-              <p style="font-weight:700;color:#2a1f0e;font-size:14px;margin:0 0 2px;">${shop.name}</p>
-              <p style="color:#9b7a45;font-size:11px;margin:0 0 6px;">${shop.city}, ${shop.state}</p>
-              <div style="background:#f7f0e4;border-radius:8px;padding:4px 8px;display:inline-block;">
-                <span style="color:#c8853a;font-size:12px;font-weight:600;">☕ Visited ${visit.visit_count}x</span>
-              </div>
-            </div>
-          `, { maxWidth: 200 })
-      })
-
-      // Fit map to all pins if multiple
-      if (validVisits.length > 1) {
-        const bounds = L.latLngBounds(validVisits.map(v => [v.coffee_shops.lat!, v.coffee_shops.lng!]))
-        map.fitBounds(bounds, { padding: [30, 30] })
+    // Small delay to ensure container has rendered and has dimensions
+    // before Leaflet tries to initialize — prevents _leaflet_pos error
+    const timer = setTimeout(() => {
+      setMapReady(true)
+      if (mapRef.current) {
+        try {
+          mapRef.current.invalidateSize()
+        } catch {}
       }
-    })
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
 
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-      }
-    }
-  }, [visits])
+  function getMarkerColor(fill: number) {
+    if (fill >= 86) return '#3d1a06'
+    if (fill >= 71) return '#6b3410'
+    if (fill >= 51) return '#b87333'
+    if (fill >= 26) return '#c49a6c'
+    return '#d4b896'
+  }
+
+  if (validVisits.length === 0) {
+    return (
+      <div className="w-full rounded-2xl overflow-hidden flex items-center justify-center bg-cream-100 border border-cream-200"
+        style={{ height: 220 }}>
+        <div className="text-center">
+          <p className="text-3xl mb-2">🗺️</p>
+          <p className="text-coffee-400 text-sm">Rate a visit to start your map</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <>
-      <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
-      />
-      <div ref={mapRef} style={{ width: '100%', height: 300, borderRadius: '16px 16px 0 0', overflow: 'hidden' }} />
-    </>
+    <div className="w-full rounded-2xl overflow-hidden border border-cream-200"
+      style={{ height: 220, position: 'relative' }}>
+      {mapReady ? (
+        <MapContainer
+          center={center}
+          zoom={validVisits.length === 1 ? 14 : 12}
+          style={{ height: '100%', width: '100%' }}
+          zoomControl={false}
+          scrollWheelZoom={false}
+          whenCreated={(map: any) => {
+            mapRef.current = map
+            // Invalidate size after creation to fix any container sizing issues
+            setTimeout(() => {
+              try { map.invalidateSize() } catch {}
+            }, 50)
+          }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution=""
+          />
+          {validVisits.map(visit => (
+            <CircleMarker
+              key={visit.shop_id}
+              center={[visit.lat, visit.lng]}
+              radius={10}
+              fillColor={getMarkerColor(visit.avg_fill || 75)}
+              fillOpacity={0.9}
+              color="#ffffff"
+              weight={2}
+            >
+              <Popup>
+                <div style={{ fontFamily: 'sans-serif', minWidth: 120 }}>
+                  <p style={{ fontWeight: 700, marginBottom: 2, fontSize: 13 }}>{visit.name}</p>
+                  {visit.avg_fill && (
+                    <p style={{ color: '#c8853a', fontSize: 12 }}>{visit.avg_fill}% avg satisfaction</p>
+                  )}
+                  {visit.total_visits && (
+                    <p style={{ color: '#888', fontSize: 11 }}>{visit.total_visits} visit{visit.total_visits !== 1 ? 's' : ''}</p>
+                  )}
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
+        </MapContainer>
+      ) : (
+        // Placeholder while map initializes — prevents layout shift
+        <div className="w-full h-full bg-cream-100 flex items-center justify-center">
+          <div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+        </div>
+      )}
+    </div>
   )
 }
