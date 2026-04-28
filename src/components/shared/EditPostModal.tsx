@@ -29,6 +29,16 @@ interface Props {
 
 const VIBE_OPTIONS = ['☕ Cozy', '⚡ Energizing', '❤️ Loved', '📚 Quiet', '🎉 Social', '🌙 Date Night', '💻 Work-friendly', '✨ Aesthetic']
 
+function getFillLabel(fill: number) {
+  if (fill === 0)  return ''
+  if (fill <= 25)  return 'Disappointing'
+  if (fill <= 50)  return 'Just Okay'
+  if (fill <= 70)  return 'Pretty Good'
+  if (fill <= 85)  return 'Really Good'
+  if (fill <= 99)  return 'Excellent'
+  return 'Perfect Brew ✨'
+}
+
 export default function EditPostModal({ rating, onClose, onSaved }: Props) {
   const { profile } = useAuth()
 
@@ -164,10 +174,11 @@ export default function EditPostModal({ rating, onClose, onSaved }: Props) {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${fillLevel}%`,
-                    background: fillLevel < 30 ? '#7ab0c8' : fillLevel < 60 ? '#c8a05a' : fillLevel < 85 ? '#c8853a' : '#6b3410'
+                    background: fillLevel <= 25 ? '#d4b896' : fillLevel <= 50 ? '#c49a6c' : fillLevel <= 70 ? '#b87333' : fillLevel <= 85 ? '#9b5e1a' : fillLevel <= 99 ? '#6b3410' : '#3d1a06'
                   }}
                 />
               </div>
+              <p className="text-xs font-semibold mt-1" style={{ color: '#c8853a' }}>{getFillLabel(fillLevel)}</p>
             </div>
           )}
 
