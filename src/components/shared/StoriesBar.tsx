@@ -57,13 +57,26 @@ export default function StoriesBar() {
     const followingIds = (followingData || []).map((f: any) => f.following_id)
     const allIds = [...followingIds, profile.id]
 
-    // Get active stories from followed users + own
-    const { data: storiesData } = await supabase
-      .from('stories')
-      .select('*, profiles(username, avatar_url)')
-      .in('user_id', allIds)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
+    // Get active stories from followed users + own stories (separate query ensures own always loads)
+    const now = new Date().toISOString()
+    const [followingStoriesRes, ownStoriesRes] = await Promise.all([
+      supabase
+        .from('stories')
+        .select('*, profiles(username, avatar_url)')
+        .in('user_id', followingIds.length > 0 ? followingIds : ['00000000-0000-0000-0000-000000000000'])
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('stories')
+        .select('*, profiles(username, avatar_url)')
+        .eq('user_id', profile.id)
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false })
+    ])
+    // Merge and deduplicate
+    const allStories = [...(ownStoriesRes.data || []), ...(followingStoriesRes.data || [])]
+    const seenIds = new Set<string>()
+    const storiesData = allStories.filter(s => { if (seenIds.has(s.id)) return false; seenIds.add(s.id); return true })
 
     if (!storiesData) { setLoading(false); return }
 
