@@ -829,8 +829,23 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     // Realtime: new posts, likes, comments update automatically
     const channel = supabase
       .channel('feed-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ratings' }, () => {
-        loadFeed()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ratings' }, async (payload) => {
+        // Fetch the new rating with full joins so manual shops appear immediately
+        const { data: newRating } = await supabase
+          .from('ratings')
+          .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified)')
+          .eq('id', payload.new.id)
+          .single()
+        if (newRating) {
+          setRatings(prev => {
+            // Avoid duplicate if already in feed
+            if (prev.some(r => r.id === newRating.id)) return prev
+            return [newRating, ...prev].slice(0, 30)
+          })
+        } else {
+          // Fallback: full reload if join failed (e.g. very new shop not indexed yet)
+          setTimeout(() => loadFeed(), 800)
+        }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ratings' }, (payload) => {
         // Surgically update counts and other fields without full reload
