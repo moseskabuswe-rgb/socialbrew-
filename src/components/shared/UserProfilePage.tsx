@@ -406,7 +406,6 @@ export default function UserProfilePage({ userId, onBack }: Props) {
         />
       </div>
     )}
-    </div>
       {showBadgeExplainer && (
         <BadgeExplainerModal
           type="badge"
@@ -414,5 +413,6 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           onClose={() => setShowBadgeExplainer(false)}
         />
       )}
+    </div>
   )
 }
