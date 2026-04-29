@@ -95,14 +95,14 @@ out body;`
   }
 }
 
-async function searchAnywhere(query: string): Promise<Partial<CoffeeShop>[]> {
+async function searchAnywhere(query: string, lat?: number | null, lng?: number | null): Promise<Partial<CoffeeShop>[]> {
   // Use Nominatim — OSM's search engine, designed for named global searches
   // Much more reliable than Overpass for finding specific named places
   try {
     const encoded = encodeURIComponent(query)
     // Add viewbox bias toward user's location if available for better local results
-    const viewboxParam = userLat && userLng
-      ? `&viewbox=${userLng - 1},${userLat + 1},${userLng + 1},${userLat - 1}&bounded=0`
+    const viewboxParam = lat && lng
+      ? `&viewbox=${lng - 1},${lat + 1},${lng + 1},${lat - 1}&bounded=0`
       : ''
     const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=15&addressdetails=1&extratags=1${viewboxParam}`
     const res = await fetch(url, {
@@ -251,7 +251,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
       }
 
       // Also search OSM for anything not in our DB
-      const osmData = await searchAnywhere(q)
+      const osmData = await searchAnywhere(q, userLat, userLng)
       setSearchResults([
         ...dbRes,
         ...osmData.filter(o => !dbRes.some(d => d.name.toLowerCase() === (o.name || '').toLowerCase()))
@@ -408,7 +408,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
           </div>
         )}
 
-        {!locating && locationDenied && !searchQuery && filtered.length === 0 && (
+        {!locating && locationDenied && !search && filtered.length === 0 && (
           <div className="flex flex-col items-center py-12 px-6 gap-3 text-center">
             <p className="text-3xl">📍</p>
             <p className="text-coffee-600 font-semibold text-base">Location access needed</p>
