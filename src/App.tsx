@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthForm from './components/auth/AuthForm'
 import HomeTab from './components/home/HomeTab'
@@ -13,134 +13,43 @@ import ShopToast from './components/shared/ShopToast'
 import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
-import WelcomeModal from './components/shared/WelcomeModal'
-import MilestoneCelebration, { WEEKLY_STREAK_MILESTONES, SHOP_STREAK_MILESTONES, GENERAL_MILESTONES } from './components/shared/MilestoneCelebration'
-import type { Milestone } from './components/shared/MilestoneCelebration'
 import { supabase } from './lib/supabase'
-import { notifyLike, notifyComment, notifyFollow, notifyMention, sendPushToUser } from './lib/push'
+import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
-export { notifyLike, notifyComment, notifyFollow, notifyMention, sendPushToUser }
+// Re-export notification helpers so other components can import from App
+export { notifyLike, notifyComment, notifyFollow, notifyMention }
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
+const PUSH_PROMPT_KEY = 'sb_push_prompted'
 const ADMIN_USER_ID = '47e5480e-e592-44bc-9b34-1111af76ea0e'
 
 function AppContent() {
   const { profile, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [feedRefresh, setFeedRefresh] = useState(0)
-  const [brewShop, setBrewShop] = useState<any>(null)
-
-  function navigateToBrew(shop?: any) {
-    setBrewShop(shop || null)
-    setActiveTab('brew')
-  }
   const [shopToast, setShopToast] = useState<string | null>(null)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
-  const [milestone, setMilestone] = useState<Milestone | null>(null)
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
   const [showPushPrompt, setShowPushPrompt] = useState(false)
-  const promptShown = useRef(false)
-  const [showWelcome, setShowWelcome] = useState(false)
-  const welcomeShown = useRef(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  // Secret tap counter on logo — 5 taps opens admin panel
   const [_logoTaps, setLogoTaps] = useState(0)
 
-  // ── Unread DM state — lives here so it survives tab switches ──
-  const [unreadPerSender, setUnreadPerSender] = useState<Record<string, number>>({})
-
+  // Show push prompt once, 3 seconds after login
   useEffect(() => {
     if (!profile) return
-    // Load initial unread counts from DB
-    supabase
-      .from('direct_messages')
-      .select('from_id')
-      .eq('to_id', profile.id)
-      .eq('read', false)
-      .then(({ data }) => {
-        if (data) {
-          const perSender: Record<string, number> = {}
-          data.forEach((m: any) => { perSender[m.from_id] = (perSender[m.from_id] || 0) + 1 })
-          setUnreadPerSender(perSender)
-        }
-      })
-    // Subscribe to new incoming messages
-    const channel = supabase
-      .channel('app-dm-unread-' + profile.id)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'direct_messages',
-        filter: `to_id=eq.${profile.id}`
-      }, (payload) => {
-        setUnreadPerSender(prev => ({
-          ...prev,
-          [payload.new.from_id]: (prev[payload.new.from_id] || 0) + 1
-        }))
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [profile])
-
-  // Smart push prompt — shows after user receives first notification
-  // so they understand exactly what they're enabling.
-  // Re-asks after 7 days if dismissed.
-  useEffect(() => {
-    if (!profile) return
-    if (promptShown.current) return
-    const hasToken = !!(profile as any).push_token
-    if (hasToken) return
-
-    const dismissed = localStorage.getItem('sb_push_dismissed')
-    if (dismissed) {
-      const daysSince = (Date.now() - parseInt(dismissed)) / (1000 * 60 * 60 * 24)
-      if (daysSince < 7) return
-    }
-
-    promptShown.current = true
-
-    supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', profile.id)
-      .eq('read', false)
-      .then(({ count }) => {
-        if (count && count > 0) {
-          setTimeout(() => setShowPushPrompt(true), 1000)
-        } else {
-          const interval = setInterval(async () => {
-            const { count: newCount } = await supabase
-              .from('notifications')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', profile.id)
-              .eq('read', false)
-            if (newCount && newCount > 0) {
-              clearInterval(interval)
-              setTimeout(() => setShowPushPrompt(true), 800)
-            }
-          }, 15000)
-          setTimeout(() => clearInterval(interval), 10 * 60 * 1000)
-        }
-      })
-  }, [profile])
-
-  // Show welcome modal for new signups only — never for returning users
-  useEffect(() => {
-    if (!profile) return
-    if (welcomeShown.current) return
-    if (localStorage.getItem('sb_welcomed')) return
-    // Only show if account was created within the last 5 minutes
-    const ageMs = Date.now() - new Date(profile.created_at).getTime()
-    if (ageMs > 5 * 60 * 1000) return
-    welcomeShown.current = true
-    // Small delay so the feed loads first
-    const timer = setTimeout(() => setShowWelcome(true), 800)
+    const already = localStorage.getItem(PUSH_PROMPT_KEY)
+    if (already) return
+    // Don't prompt if already granted
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return
+    const timer = setTimeout(() => setShowPushPrompt(true), 3000)
     return () => clearTimeout(timer)
   }, [profile])
 
   function dismissPushPrompt() {
     setShowPushPrompt(false)
-    localStorage.setItem('sb_push_dismissed', Date.now().toString())
+    localStorage.setItem(PUSH_PROMPT_KEY, '1')
   }
 
   // Secret logo tap handler — 5 taps within ~3s opens admin panel
@@ -174,34 +83,11 @@ function AppContent() {
 
   async function handlePostCreated(shopName?: string, wasFirst?: boolean) {
     if (wasFirst && shopName) setFirstRatingShop(shopName)
-    setBrewShop(null)
     setFeedRefresh(n => n + 1)
     setActiveTab('home')
     if (shopName) setShopToast(shopName)
 
-    // Notify followers of new post
-    if (profile) {
-      try {
-        const { data: followers } = await supabase
-          .from('follows')
-          .select('follower_id')
-          .eq('following_id', profile.id)
-        if (followers && followers.length > 0) {
-          const username = (profile as any).username || 'Someone'
-          const postText = shopName
-            ? `${username} just rated ${shopName} ☕`
-            : `${username} shared a new brew ☕`
-          followers.forEach(({ follower_id }) => {
-            sendPushToUser(follower_id, 'New brew from someone you follow', postText, { type: 'new_post' })
-          })
-        }
-      } catch (err) {
-        console.error('Failed to notify followers:', err)
-      }
-    }
-
     // Check if badge upgraded after this post
-    let badgeEarnedThisPost = false
     if (profile) {
       const { count } = await supabase
         .from('ratings')
@@ -221,141 +107,9 @@ function AppContent() {
         if (newCount >= tiers[i].min) { newBadge = tiers[i]; break }
       }
       if (profile.badge !== newBadge.label) {
-        badgeEarnedThisPost = true
-        setCelebrateBadge(newBadge)
         await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile.id)
-      }
-    }
-
-    // Check for milestone achievements after this post
-    if (profile) {
-      try {
-        // Fetch updated profile stats
-        const { data: updatedProfile } = await supabase
-          .from('profiles')
-          .select('current_streak')
-          .eq('id', profile.id)
-          .single()
-
-        // Fetch already-achieved milestones for this user
-        const { data: achieved } = await supabase
-          .from('milestones')
-          .select('type')
-          .eq('user_id', profile.id)
-        const achievedSet = new Set((achieved || []).map((m: any) => m.type))
-
-        const newStreak = updatedProfile?.current_streak || 0
-        let newMilestone = null
-
-        // Check weekly streak milestones
-        for (const m of WEEKLY_STREAK_MILESTONES) {
-          const weeks = parseInt(m.key.split('_')[2])
-          if (newStreak >= weeks && !achievedSet.has(m.key)) {
-            newMilestone = m
-            break
-          }
-        }
-
-        // Check shop-specific streak milestones
-        if (!newMilestone && shopName) {
-          const { data: shopData } = await supabase
-            .from('coffee_shops')
-            .select('id, name')
-            .eq('name', shopName)
-            .single()
-
-          if (shopData) {
-            // Count distinct weeks this user rated this shop
-            const { data: shopRatings } = await supabase
-              .from('ratings')
-              .select('created_at')
-              .eq('user_id', profile.id)
-              .eq('shop_id', shopData.id)
-              .order('created_at', { ascending: false })
-
-            if (shopRatings && shopRatings.length > 0) {
-              // Count consecutive weeks
-              const weeks = Array.from(new Set(shopRatings.map((r: any) => {
-                const d = new Date(r.created_at)
-                const year = d.getFullYear()
-                const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
-                return `${year}-${week}`
-              }))).sort().reverse()
-
-              // Count consecutive weeks from most recent
-              let consecutive = 1
-              for (let i = 0; i < weeks.length - 1; i++) {
-                const [y1, w1] = weeks[i].split('-').map(Number)
-                const [y2, w2] = weeks[i + 1].split('-').map(Number)
-                if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
-                  consecutive++
-                } else break
-              }
-
-              const shopMilestones = SHOP_STREAK_MILESTONES(shopData.name, shopData.id)
-              for (const m of shopMilestones) {
-                const mWeeks = parseInt(m.key.split('_')[2])
-                if (consecutive >= mWeeks && !achievedSet.has(m.key)) {
-                  newMilestone = m
-                  break
-                }
-              }
-            }
-          }
-        }
-
-        // Check unique shops milestone
-        if (!newMilestone) {
-          const { count: uniqueShops } = await supabase
-            .from('user_shop_visits')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.id)
-
-          for (const m of GENERAL_MILESTONES.filter(m => m.key.startsWith('unique'))) {
-            const threshold = parseInt(m.key.split('_')[2])
-            if ((uniqueShops || 0) >= threshold && !achievedSet.has(m.key)) {
-              newMilestone = m
-              break
-            }
-          }
-        }
-
-        // Check 7-day run milestone
-        if (!newMilestone && !achievedSet.has('7_day_run')) {
-          const { data: recentRatings } = await supabase
-            .from('ratings')
-            .select('created_at')
-            .eq('user_id', profile.id)
-            .gte('created_at', new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString())
-            .order('created_at', { ascending: false })
-
-          if (recentRatings && recentRatings.length >= 7) {
-            const days = new Set(recentRatings.map((r: any) =>
-              new Date(r.created_at).toDateString()
-            ))
-            if (days.size >= 7) {
-              newMilestone = GENERAL_MILESTONES.find(m => m.key === '7_day_run') || null
-            }
-          }
-        }
-
-        // Fire the milestone celebration and record it
-        if (newMilestone) {
-          await supabase.from('milestones').insert({
-            user_id: profile.id,
-            type: newMilestone.key,
-          })
-          // Delay slightly so it doesn't compete with badge celebration
-          setTimeout(() => setMilestone({
-            type: newMilestone!.type,
-            emoji: newMilestone!.emoji,
-            title: newMilestone!.title,
-            subtitle: newMilestone!.subtitle,
-            detail: newMilestone!.detail,
-          }), badgeEarnedThisPost ? 3000 : 500)
-        }
-      } catch (err) {
-        console.error('Milestone check failed:', err)
+        // Delay badge celebration until ShopToast finishes (~2s) so they don't overlap
+        setTimeout(() => setCelebrateBadge(newBadge), 2500)
       }
     }
   }
@@ -365,39 +119,25 @@ function AppContent() {
       {profile && !profile.email_verified && <EmailVerificationBanner />}
 
       <div className="pb-20">
-        {/* Always mounted tabs — hidden with CSS to preserve state */}
-        <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
-          {showPushPrompt && (
-            <PushPrompt
-              userId={profile.id}
-              onDismiss={dismissPushPrompt}
-              onSuccess={() => setShowPushPrompt(false)}
-            />
-          )}
-          <HomeTab
-            refresh={feedRefresh}
-            onLogoTap={handleLogoTap}
-            unreadPerSender={unreadPerSender}
-            onNavigateToBrew={navigateToBrew}
-            onMarkRead={(senderId) => {
-              if (senderId === '__all__') {
-                setUnreadPerSender({})
-              } else {
-                setUnreadPerSender(prev => { const n = {...prev}; delete n[senderId]; return n })
-              }
-            }}
-          />
-        </div>
-        {activeTab === 'discover' && <DiscoverTab onNavigateToBrew={navigateToBrew} />}
-        {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} initialShop={brewShop} />}
+        {activeTab === 'home' && (
+          <>
+            {/* Push prompt shows at top of home feed */}
+            {showPushPrompt && (
+              <PushPrompt
+                userId={profile.id}
+                onDismiss={dismissPushPrompt}
+              />
+            )}
+            <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} />
+          </>
+        )}
+        {activeTab === 'discover' && <DiscoverTab />}
+        {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
         {activeTab === 'trending' && <TrendingTab />}
-        {activeTab === 'profile' && <ProfileTab onNavigateToBrew={navigateToBrew} />}
+        {activeTab === 'profile' && <ProfileTab />}
       </div>
 
-      <BottomNav active={activeTab} onChange={(tab) => {
-        if (tab === 'brew') setBrewShop(null)
-        setActiveTab(tab)
-      }} />
+      <BottomNav active={activeTab} onChange={setActiveTab} />
       <FeedbackWidget />
 
       {shopToast && <ShopToast shopName={shopToast} onDone={() => setShopToast(null)} />}
@@ -429,30 +169,12 @@ function AppContent() {
       {celebrateBadge && (
         <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />
       )}
-      {milestone && (
-        <MilestoneCelebration milestone={milestone} onClose={() => setMilestone(null)} />
-      )}
 
       {/* Admin broadcast panel — triggered by 5 taps on logo, only for Moses */}
       {showAdminPanel && (
         <AdminBroadcast
           currentUserId={profile.id}
           onClose={() => setShowAdminPanel(false)}
-        />
-      )}
-
-      {showWelcome && (
-        <WelcomeModal
-          username={profile.username}
-          onClose={() => {
-            setShowWelcome(false)
-            localStorage.setItem('sb_welcomed', '1')
-          }}
-          onBrew={() => {
-            setShowWelcome(false)
-            localStorage.setItem('sb_welcomed', '1')
-            navigateToBrew()
-          }}
         />
       )}
     </div>
