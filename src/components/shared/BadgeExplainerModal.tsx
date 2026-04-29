@@ -16,7 +16,7 @@ interface BadgeInfo {
   label: string
   emoji: string
   color: string
-  min: number
+  min?: number  // optional — not all callers include it
 }
 
 interface Props {
