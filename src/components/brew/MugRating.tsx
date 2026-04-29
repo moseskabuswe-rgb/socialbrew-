@@ -30,6 +30,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [drinkName, setDrinkName] = useState('')
   const [caption, setCaption] = useState('')
   const [visitTime, setVisitTime] = useState('')
+  const [visitedAt, setVisitedAt] = useState<string>(new Date().toISOString().split('T')[0]) // defaults to today
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
@@ -121,6 +122,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       caption: captionParts.join(' · ') || null,
       photo_url: photoUrl,
       visit_time: visitTime || null,
+      visited_at: visitedAt,
     })
     if (!error) {
       const { data: newRating } = await supabase
@@ -334,6 +336,30 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Visit date */}
+            <div className="mb-4">
+              <label className="text-coffee-500 text-xs uppercase tracking-wider mb-2 block">When did you visit?</label>
+              <div className="flex gap-2 mb-2">
+                {[
+                  { label: 'Today', val: new Date().toISOString().split('T')[0] },
+                  { label: 'Yesterday', val: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
+                ].map(opt => (
+                  <button key={opt.label} onClick={() => setVisitedAt(opt.val)}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${visitedAt === opt.val ? 'text-white border-transparent' : 'bg-cream-50 text-coffee-500 border-cream-200'}`}
+                    style={visitedAt === opt.val ? { background: s.liquid } : {}}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="date"
+                value={visitedAt}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={e => setVisitedAt(e.target.value)}
+                className="w-full bg-cream-50 text-coffee-700 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none"
+              />
             </div>
 
             {/* Vibes */}

@@ -21,12 +21,14 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [fill, setFill] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [shop, setShop] = useState<any>(null)
+  const [drinkName, setDrinkName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
   const s = getMugStyle(fill)
   const showSteam = fill >= 60
 
+  const isDraggingRef = useRef(false)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -63,11 +65,41 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     setFill(Math.max(0, Math.min(100, Math.round((1 - (clientY - rect.top) / rect.height) * 100))))
   }, [])
 
-  const onMD = (e: React.MouseEvent) => { setIsDragging(true); calculateFill(e.clientY) }
-  const onMM = (e: React.MouseEvent) => { if (isDragging) calculateFill(e.clientY) }
-  const onMU = () => setIsDragging(false)
-  const onTS = (e: React.TouchEvent) => { setIsDragging(true); calculateFill(e.touches[0].clientY) }
-  const onTM = (e: React.TouchEvent) => { e.preventDefault(); if (isDragging) calculateFill(e.touches[0].clientY) }
+  const onMD = (e: React.MouseEvent) => { isDraggingRef.current = true; setIsDragging(true); calculateFill(e.clientY) }
+  const onMM = (e: React.MouseEvent) => { if (isDraggingRef.current) calculateFill(e.clientY) }
+  const onMU = () => { isDraggingRef.current = false; setIsDragging(false) }
+  const onTS = (e: React.TouchEvent) => { isDraggingRef.current = true; setIsDragging(true); calculateFill(e.touches[0].clientY) }
+
+  // Native passive:false touch listener — prevents page scroll while dragging mug
+  useEffect(() => {
+    const el = mugRef.current
+    if (!el) return
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingRef.current) return
+      e.preventDefault()
+      calculateFill(e.touches[0].clientY)
+    }
+    const handleTouchEnd = () => { isDraggingRef.current = false; setIsDragging(false) }
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd)
+    el.addEventListener('touchcancel', handleTouchEnd)
+    return () => {
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', handleTouchEnd)
+    }
+  }, [calculateFill])
+
+  function getVisitTime(): string {
+    const h = new Date().getHours()
+    if (h >= 5 && h < 8)   return 'Early Morning (5–8am)'
+    if (h >= 8 && h < 10)  return 'Morning (8–10am)'
+    if (h >= 10 && h < 12) return 'Late Morning (10am–12pm)'
+    if (h >= 12 && h < 14) return 'Lunch (12–2pm)'
+    if (h >= 14 && h < 17) return 'Afternoon (2–5pm)'
+    if (h >= 17 && h < 20) return 'Evening (5–8pm)'
+    return 'Night (8pm+)'
+  }
 
   async function handleSubmit() {
     if (!profile || fill === 0) return
@@ -85,6 +117,9 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       user_id: profile.id,
       shop_id: shopId,
       fill_level: fill,
+      drink_name: drinkName.trim() || null,
+      visit_time: getVisitTime(),
+      visited_at: new Date().toISOString().split('T')[0], // auto-capture today's date
       is_quick_sip: true,
       vibe_tags: [],
     })
@@ -177,12 +212,21 @@ export default function QuickSip({ onClose, onComplete }: Props) {
               </button>
             )}
 
+            {/* Optional drink name */}
+            <input
+              value={drinkName}
+              onChange={e => setDrinkName(e.target.value)}
+              placeholder="What did you drink? (optional)"
+              maxLength={60}
+              className="w-full bg-white/70 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300 mb-4"
+            />
+
             {/* Mug */}
             <div className="flex flex-col items-center">
               <div ref={mugRef}
                 onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}
-                onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onMU}
-                style={{ cursor: 'ns-resize', userSelect: 'none', width: W, height: H }}>
+                onTouchStart={onTS}
+                style={{ cursor: 'ns-resize', userSelect: 'none', touchAction: 'none', width: W, height: H }}>
                 <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
                   style={{ filter: fill > 0 ? `drop-shadow(0 0 10px ${s.glow})` : 'none', transition: 'filter 0.3s' }}>
                   <defs>
