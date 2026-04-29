@@ -126,6 +126,7 @@ function AppContent() {
               <PushPrompt
                 userId={profile.id}
                 onDismiss={dismissPushPrompt}
+                onSuccess={dismissPushPrompt}
               />
             )}
             <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} />
