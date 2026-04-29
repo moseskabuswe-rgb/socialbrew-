@@ -55,7 +55,6 @@ export default function StoriesBar() {
       .eq('follower_id', profile.id)
 
     const followingIds = (followingData || []).map((f: any) => f.following_id)
-    const allIds = [...followingIds, profile.id]
 
     // Get active stories from followed users + own stories (separate query ensures own always loads)
     const now = new Date().toISOString()
