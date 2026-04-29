@@ -100,7 +100,11 @@ async function searchAnywhere(query: string): Promise<Partial<CoffeeShop>[]> {
   // Much more reliable than Overpass for finding specific named places
   try {
     const encoded = encodeURIComponent(query)
-    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=15&addressdetails=1&extratags=1`
+    // Add viewbox bias toward user's location if available for better local results
+    const viewboxParam = userLat && userLng
+      ? `&viewbox=${userLng - 1},${userLat + 1},${userLng + 1},${userLat - 1}&bounded=0`
+      : ''
+    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=15&addressdetails=1&extratags=1${viewboxParam}`
     const res = await fetch(url, {
       headers: { 'User-Agent': 'SocialBrew/1.0 (social coffee app)' },
       signal: AbortSignal.timeout(10000),
@@ -171,6 +175,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   const [locating, setLocating] = useState(false)
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
+  const [locationDenied, setLocationDenied] = useState(false)
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [showSuggest, setShowSuggest] = useState(false)
   const [showAddShop, setShowAddShop] = useState(false)
@@ -200,7 +205,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
     setLocating(true)
     navigator.geolocation?.getCurrentPosition(
       pos => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); setLocating(false) },
-      () => { setUserLat(40.5089); setUserLng(-88.9906); setLocating(false) },
+      () => { setLocating(false); setLocationDenied(true) }, // User denied — show search prompt
       { timeout: 8000, maximumAge: 300000 }
     )
   }
@@ -400,6 +405,14 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
             <p className="text-coffee-400 text-sm">
               {locating ? 'Getting your location...' : searching ? `Searching for "${search}"...` : 'Finding coffee shops near you...'}
             </p>
+          </div>
+        )}
+
+        {!locating && locationDenied && !searchQuery && filtered.length === 0 && (
+          <div className="flex flex-col items-center py-12 px-6 gap-3 text-center">
+            <p className="text-3xl">📍</p>
+            <p className="text-coffee-600 font-semibold text-base">Location access needed</p>
+            <p className="text-coffee-400 text-sm leading-relaxed">Enable location in your browser settings to find independent coffee shops near you, or search by name above.</p>
           </div>
         )}
 
