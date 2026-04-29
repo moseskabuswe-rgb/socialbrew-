@@ -3,6 +3,7 @@ import PostDetailModal from './PostDetailModal'
 import ShopDetailPage from './ShopDetailPage'
 import { ArrowLeft, UserPlus, Check, MapPin, Coffee, Gift } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import BadgeExplainerModal from './BadgeExplainerModal'
 import { useAuth } from '../../contexts/AuthContext'
 
 const CoffeeMap = lazy(() => import('../profile/CoffeeMap'))
@@ -83,6 +84,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   const [profileStack, setProfileStack] = useState<string[]>([])
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showBadgeExplainer, setShowBadgeExplainer] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -206,10 +208,13 @@ export default function UserProfilePage({ userId, onBack }: Props) {
               <p className="text-coffee-800 font-bold text-xl">{user?.username}</p>
               {user?.full_name && <p className="text-coffee-500 text-sm">{user.full_name}</p>}
               {user?.bio && <p className="text-coffee-400 text-xs mt-1 line-clamp-2">{user.bio}</p>}
-              <div className="flex items-center gap-1.5 mt-2 w-fit bg-cream-100 rounded-full px-3 py-1 border border-cream-200">
+              <button
+                onClick={() => setShowBadgeExplainer(true)}
+                className="flex items-center gap-1.5 mt-2 w-fit bg-cream-100 rounded-full px-3 py-1 border border-cream-200 active:scale-95 transition-all">
                 <span>{badge.emoji}</span>
                 <span className="text-sm font-semibold" style={{ color: badge.color }}>{badge.label}</span>
-              </div>
+                <span className="text-coffee-300 text-xs">ⓘ</span>
+              </button>
             </div>
           </div>
 
@@ -402,5 +407,12 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       </div>
     )}
     </div>
+      {showBadgeExplainer && (
+        <BadgeExplainerModal
+          type="badge"
+          badge={badge}
+          onClose={() => setShowBadgeExplainer(false)}
+        />
+      )}
   )
 }
