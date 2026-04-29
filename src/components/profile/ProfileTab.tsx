@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Search, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import BadgeExplainerModal from '../shared/BadgeExplainerModal'
 import { notifyFollow } from '../../lib/push'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
@@ -176,14 +177,20 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     const file = e.target.files[0]
     if (!file.type.startsWith('image/')) { alert('Please select an image'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return }
-    // Upload directly as blob - bypassing cropper to diagnose upload issue
+    // Show cropper — on crop completion upload the result
+    setCropFile(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function uploadBlob(blob: Blob) {
+    if (!profile) return
     setUploadingAvatar(true)
     try {
       const path = `avatars/${profile.id}.jpg`
       await supabase.storage.from('avatars').remove([path]).catch(() => {})
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, {
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, {
         upsert: true,
-        contentType: file.type,
+        contentType: 'image/jpeg',
         cacheControl: '1'
       })
       if (upErr) throw new Error(`Storage: ${upErr.message}`)
@@ -192,49 +199,15 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
       const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id)
       if (updErr) throw new Error(`Profile: ${updErr.message}`)
       await refreshProfile()
-      alert('Photo updated successfully! ✓')
     } catch (err: any) {
       console.error('Upload error:', err)
       alert(`Failed: ${err.message}`)
     }
     setUploadingAvatar(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
   async function handleCroppedAvatar(blob: Blob) {
-    if (!profile) return
     setCropFile(null)
-    setUploadingAvatar(true)
-    try {
-      const path = `avatars/${profile.id}.jpg`
-      // Try remove first — ignore error if file doesn't exist yet
-      await supabase.storage.from('avatars').remove([path]).catch(() => {})
-      // Upload new file
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { 
-        upsert: true, 
-        contentType: 'image/jpeg',
-        cacheControl: '1'
-      })
-      if (upErr) {
-        console.error('Storage upload error:', upErr)
-        throw new Error(`Storage error: ${upErr.message}`)
-      }
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      // Add cache buster so browser shows new image immediately
-      const avatarUrl = `${publicUrl}?t=${Date.now()}`
-      console.log('Upload successful, updating profile with:', avatarUrl)
-      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id)
-      if (updErr) {
-        console.error('Profile update error:', updErr)
-        throw new Error(`Profile update error: ${updErr.message}`)
-      }
-      await refreshProfile()
-      // Show brief success feedback
-      alert('Profile photo updated! ✓')
-    } catch (err: any) { 
-      console.error('Avatar upload error:', err)
-      alert(`Upload failed: ${err.message || 'Please check your connection and try again'}`) 
-    }
-    setUploadingAvatar(false)
+    await uploadBlob(blob)
   }
   return (
     <>
@@ -437,6 +410,8 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [activeSection, setActiveSection] = useState<'sips' | 'map'>('sips')
   const [showSettings, setShowSettings] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
+  const [showBadgeExplainer, setShowBadgeExplainer] = useState(false)
+  const [showStreakExplainer, setShowStreakExplainer] = useState(false)
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [showShops, setShowShops] = useState(false)
   const [showFindFriends, setShowFindFriends] = useState(false)
@@ -535,10 +510,13 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               <h2 className="text-coffee-800 font-display text-xl font-bold truncate">{profile.username}</h2>
               {profile.full_name && <p className="text-coffee-500 text-sm truncate">{profile.full_name}</p>}
               {profile.bio && <p className="text-coffee-400 text-xs mt-1 line-clamp-2">{profile.bio}</p>}
-              <div className="flex items-center gap-1.5 mt-2 w-fit bg-cream-100 rounded-full px-3 py-1 border border-cream-200">
+              <button
+                onClick={() => setShowBadgeExplainer(true)}
+                className="flex items-center gap-1.5 mt-2 w-fit bg-cream-100 rounded-full px-3 py-1 border border-cream-200 active:scale-95 transition-all">
                 <span>{badgeInfo.current.emoji}</span>
                 <span className="text-sm font-semibold" style={{ color: badgeInfo.current.color }}>{badgeInfo.current.label}</span>
-              </div>
+                <span className="text-coffee-300 text-xs">ⓘ</span>
+              </button>
             </div>
           </div>
           {/* Stats */}
@@ -599,11 +577,13 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           )}
           {/* Brew Streak */}
           {(profile as any).current_streak > 0 && (
-            <div className="mt-4 pt-3 border-t border-cream-100 flex items-center justify-between">
+            <button
+              onClick={() => setShowStreakExplainer(true)}
+              className="mt-4 pt-3 border-t border-cream-100 flex items-center justify-between w-full text-left active:opacity-70 transition-opacity">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{(profile as any).current_streak >= 4 ? '🔥' : '☕'}</span>
                 <div>
-                  <p className="text-coffee-800 font-bold text-sm">{(profile as any).current_streak}-week streak</p>
+                  <p className="text-coffee-800 font-bold text-sm">{(profile as any).current_streak}-week streak <span className="text-coffee-300 text-xs font-normal">ⓘ</span></p>
                   <p className="text-coffee-400 text-xs">Best: {(profile as any).longest_streak || (profile as any).current_streak} weeks</p>
                 </div>
               </div>
@@ -614,7 +594,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                   </div>
                 ))}
               </div>
-            </div>
+            </button>
           )}
         </div>
         {/* Section toggle */}
@@ -758,6 +738,20 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
       {showFollowers && <FollowersModal userId={profile.id} type={showFollowers} onClose={() => setShowFollowers(null)} />}
       {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} onShopClick={(s) => setSelectedShop(s)} />}
       {celebrateBadge && <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />}
+      {showBadgeExplainer && (
+        <BadgeExplainerModal
+          type="badge"
+          badge={badgeInfo.current}
+          onClose={() => setShowBadgeExplainer(false)}
+        />
+      )}
+      {showStreakExplainer && (
+        <BadgeExplainerModal
+          type="streak"
+          streak={(profile as any).current_streak}
+          onClose={() => setShowStreakExplainer(false)}
+        />
+      )}
       {showFindFriends && <FindFriendsModal onClose={() => setShowFindFriends(false)} onViewProfile={(id) => { setShowFindFriends(false); setViewingUserId(id) }} />}
       {viewingUserId && (
         <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
