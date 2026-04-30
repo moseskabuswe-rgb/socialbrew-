@@ -17,7 +17,7 @@
 import { useState, useRef } from 'react'
 import { X, Camera, Smile } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import exifr from 'exifr'
+
 import { useAuth } from '../../contexts/AuthContext'
 
 type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
