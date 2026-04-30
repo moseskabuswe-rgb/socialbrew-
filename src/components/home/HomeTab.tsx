@@ -1061,7 +1061,6 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
         {/* Stories */}
         <StoriesBar />
-        <div className="h-px bg-cream-200" />
         {/* Wrapped Season Banner */}
         {isWrappedSeason && (
           <button
@@ -1084,7 +1083,67 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           const isOwn = user?.id === profile?.id
           const mugColor = getMugColor(rating.fill_level)
           const isQuickSip = rating.is_quick_sip === true
+          const isVibePost = rating.fill_level === 0 && !rating.is_quick_sip
           const visitTime = rating.visit_time
+
+          if (isVibePost) {
+            return (
+              <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
+                {/* Header */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-700 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
+                      <span className="text-coffee-400 text-xs">posted a vibe</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#f5e6d0', color: '#c8853a' }}>✨ Vibe Check</span>
+                      <span className="text-coffee-300 text-xs">·</span>
+                      <span className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setActiveMenu({ ...rating, _isOwn: isOwn })} className="text-coffee-300 p-1 flex-shrink-0"><MoreHorizontal size={15} /></button>
+                </div>
+                {/* Photo */}
+                {rating.photo_url && (
+                  <img src={rating.photo_url} alt="" loading="lazy" decoding="async"
+                    className="w-full object-cover" style={{ maxHeight: 320 }} />
+                )}
+                {/* Caption */}
+                {rating.caption && (
+                  <div className="px-4 py-3">
+                    <p className="text-coffee-700 text-sm leading-relaxed">{rating.caption}</p>
+                  </div>
+                )}
+                {/* Vibe tags */}
+                {rating.vibe_tags && rating.vibe_tags.length > 0 && (
+                  <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                    {rating.vibe_tags.map((v: string) => (
+                      <span key={v} className="text-xs px-2 py-0.5 rounded-full bg-cream-100 text-coffee-500 border border-cream-200">{v}</span>
+                    ))}
+                  </div>
+                )}
+                {/* Actions */}
+                <div className="flex items-center px-4 pb-3 gap-3 border-t border-cream-50 pt-2">
+                  <button onClick={() => toggleLike(rating.id)} className="flex items-center gap-1 active:scale-90" style={{ color: isLiked ? '#e05a5a' : '#9b7a45' }}>
+                    <Heart size={16} fill={isLiked ? '#e05a5a' : 'none'} />
+                    <button onClick={() => (rating.likes_count || 0) > 0 ? setLikedByRatingId(rating.id) : null} className="text-xs hover:text-caramel transition-colors">{rating.likes_count || 0}</button>
+                  </button>
+                  <button onClick={() => setActivePost(rating)} className="flex items-center gap-1 text-coffee-400 active:scale-90">
+                    <MessageCircle size={16} />
+                    <span className="text-xs">{rating.comments_count || 0}</span>
+                  </button>
+                  <button onClick={() => handleSave(rating.id)} className="flex items-center gap-1 text-coffee-400 active:scale-90 ml-auto">
+                    <Bookmark size={16} fill={isSaved ? '#9b7a45' : 'none'} />
+                  </button>
+                </div>
+              </div>
+            )
+          }
 
           if (isQuickSip) {
             return (
