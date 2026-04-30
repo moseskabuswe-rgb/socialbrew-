@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import exifr from 'exifr'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { resolveShopId } from '../../lib/shopUtils'
@@ -79,12 +80,26 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   }, [calculateFill])
   const toggleVibe = (v: string) => setSelectedVibes(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v].slice(0, 3))
 
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10MB'); return }
     setPhoto(file)
     setPhotoPreview(URL.createObjectURL(file))
+    // Auto-set visit date from photo EXIF if available
+    try {
+      const exif = await exifr.parse(file, ['DateTimeOriginal', 'DateTime', 'CreateDate'])
+      const exifDate = exif?.DateTimeOriginal || exif?.DateTime || exif?.CreateDate
+      if (exifDate) {
+        const d = exifDate instanceof Date ? exifDate : new Date(String(exifDate))
+        if (!isNaN(d.getTime())) {
+          const daysDiff = (Date.now() - d.getTime()) / 86400000
+          if (daysDiff >= 0 && daysDiff <= 30) {
+            setVisitedAt(d.toISOString().split('T')[0])
+          }
+        }
+      }
+    } catch { /* EXIF unavailable — keep current date */ }
   }
 
   async function handleSubmit() {

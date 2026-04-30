@@ -17,6 +17,7 @@
 import { useState, useRef } from 'react'
 import { X, Camera, Smile } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import exifr from 'exifr'
 import { useAuth } from '../../contexts/AuthContext'
 
 type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
@@ -34,7 +35,7 @@ export default function ShareMoment({ onClose, onComplete }: Props) {
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) { setError('Please select an image'); return }
@@ -83,11 +84,12 @@ export default function ShareMoment({ onClose, onComplete }: Props) {
      */
     const { error: postErr } = await supabase.from('ratings').insert({
       user_id: profile.id,
-      shop_id: null,       // No shop — this is just a social post
-      fill_level: 0,        // 0 = vibe post, not a drink rating
+      shop_id: null,
+      fill_level: 0,        // Vibe posts always 0 — no drink rating
       caption: caption.trim() || null,
       photo_url: photoUrl,
       vibe_tags: selectedVibes,
+      is_quick_sip: false,  // Explicitly not a quick sip
     })
 
     if (postErr) {
