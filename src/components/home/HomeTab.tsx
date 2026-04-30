@@ -1137,7 +1137,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                     <MessageCircle size={16} />
                     <span className="text-xs">{rating.comments_count || 0}</span>
                   </button>
-                  <button onClick={() => handleSave(rating.id)} className="flex items-center gap-1 text-coffee-400 active:scale-90 ml-auto">
+                  <button onClick={() => toggleSave(rating.id)} className="flex items-center gap-1 text-coffee-400 active:scale-90 ml-auto">
                     <Bookmark size={16} fill={isSaved ? '#9b7a45' : 'none'} />
                   </button>
                 </div>
