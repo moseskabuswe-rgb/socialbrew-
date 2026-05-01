@@ -451,7 +451,20 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         }
       }
       if (ratingsRes.data) setRatings(ratingsRes.data)
-      if (visitsRes.data) setVisitedShops(visitsRes.data)
+      // Use user_shop_visits if available, build from ratings as fallback
+      if (visitsRes.data && visitsRes.data.length > 0) {
+        setVisitedShops(visitsRes.data)
+      } else if (ratingsRes?.data && ratingsRes.data.length > 0) {
+        const shopMap: Record<string, any> = {}
+        for (const r of ratingsRes.data) {
+          if (!r.shop_id || !r.coffee_shops) continue
+          if (!shopMap[r.shop_id]) {
+            shopMap[r.shop_id] = { shop_id: r.shop_id, visit_count: 0, coffee_shops: r.coffee_shops }
+          }
+          shopMap[r.shop_id].visit_count++
+        }
+        setVisitedShops(Object.values(shopMap))
+      }
       if (wishlistRes.data) setWishlist(wishlistRes.data)
       setFollowerCount(followersRes.count ?? 0)
       setFollowingCount(followingRes.count ?? 0)
