@@ -1297,30 +1297,20 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 {(rating.photo_urls?.length > 0 || rating.photo_url) && (() => {
                   const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
                   return (
-                    <div className="relative overflow-hidden" style={{ maxHeight: 320 }}>
-                      {/* Swipeable photo carousel */}
-                      <div className="flex transition-transform duration-300 ease-out h-full"
-                        style={{ transform: `translateX(0%)` }}>
-                        <img
-                          src={urls[0]}
-                          alt="" loading="lazy" decoding="async"
-                          className="w-full object-cover flex-shrink-0 cursor-pointer"
-                          style={{ maxHeight: 320 }}
-                          onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(0) }}
-                        />
-                      </div>
-                      {urls.length > 1 && (
-                        <>
-                          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                            {urls.map((_: string, i: number) => (
-                              <div key={i} className="w-1.5 h-1.5 rounded-full bg-white opacity-80" />
-                            ))}
-                          </div>
-                          <div className="absolute top-2 right-2 bg-black/50 rounded-full px-2 py-0.5">
-                            <span className="text-white text-xs font-semibold">1/{urls.length}</span>
-                          </div>
-                        </>
-                      )}
+                    <div className={urls.length > 1 ? 'grid gap-0.5' : ''} style={{
+                      gridTemplateColumns: urls.length === 2 ? '1fr 1fr' : urls.length === 3 ? '1fr 1fr' : urls.length === 4 ? '1fr 1fr' : '1fr',
+                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? '1fr 1fr' : 'auto',
+                    }}>
+                      {urls.map((url: string, i: number) => (
+                        <button key={i}
+                          onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(i) }}
+                          className="w-full overflow-hidden"
+                          style={{ gridColumn: urls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
+                          <img src={url} alt="" loading="lazy" decoding="async"
+                            className="w-full object-cover"
+                            style={{ height: urls.length === 1 ? 320 : urls.length === 3 && i === 0 ? 200 : 160 }} />
+                        </button>
+                      ))}
                     </div>
                   )
                 })()}
@@ -1484,24 +1474,20 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 {(rating.photo_urls?.length > 0 || rating.photo_url) && (() => {
                   const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
                   return (
-                    <div className="relative rounded-xl overflow-hidden mb-2" style={{ height: 208 }}>
-                      <img loading="lazy" decoding="async" src={urls[0]} alt=""
-                        className="w-full h-full object-cover cursor-pointer"
-                        style={{ transform: 'translateZ(0)' }}
-                        onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(0) }}
-                      />
-                      {urls.length > 1 && (
-                        <>
-                          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                            {urls.map((_: string, i: number) => (
-                              <div key={i} className="w-1.5 h-1.5 rounded-full bg-white opacity-80" />
-                            ))}
-                          </div>
-                          <div className="absolute top-2 right-2 bg-black/50 rounded-full px-2 py-0.5">
-                            <span className="text-white text-xs font-semibold">1/{urls.length}</span>
-                          </div>
-                        </>
-                      )}
+                    <div className={`${urls.length > 1 ? 'grid gap-0.5' : ''} mb-2`} style={{
+                      gridTemplateColumns: urls.length >= 2 ? '1fr 1fr' : '1fr',
+                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? '1fr 1fr' : 'auto',
+                    }}>
+                      {urls.map((url: string, i: number) => (
+                        <button key={i}
+                          onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(i) }}
+                          className="w-full overflow-hidden rounded-sm"
+                          style={{ gridColumn: urls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
+                          <img loading="lazy" decoding="async" src={url} alt=""
+                            className="w-full object-cover"
+                            style={{ height: urls.length === 1 ? 208 : urls.length === 3 && i === 0 ? 160 : 120, transform: 'translateZ(0)' }} />
+                        </button>
+                      ))}
                     </div>
                   )
                 })()}
