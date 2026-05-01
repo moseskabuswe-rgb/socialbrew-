@@ -89,7 +89,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   useEffect(() => {
     async function load() {
       const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single()
-      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(name,photo_url,city,state,address)').eq('user_id', userId).order('created_at', { ascending: false })
+      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(id,name,photo_url,city,state,address,lat,lng)').eq('user_id', userId).order('created_at', { ascending: false })
       const visitsRes = await supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false })
       const wishlistRes = await supabase.from('wishlist').select('*').eq('user_id', userId).order('created_at', { ascending: false })
       const followersRes = await supabase.from('follows').select('follower_id, profiles!follows_follower_id_fkey(id,username,full_name,avatar_url,badge)').eq('following_id', userId)
@@ -97,7 +97,27 @@ export default function UserProfilePage({ userId, onBack }: Props) {
 
       if (profileRes.data) setUser(profileRes.data)
       if (ratingsRes.data) setRatings(ratingsRes.data)
-      if (visitsRes.data) setVisitedShops(visitsRes.data)
+
+      // Use user_shop_visits if available, otherwise build from ratings as fallback
+      // (handles case where trigger hasn't fired or RLS is blocking)
+      if (visitsRes.data && visitsRes.data.length > 0) {
+        setVisitedShops(visitsRes.data)
+      } else if (ratingsRes.data && ratingsRes.data.length > 0) {
+        // Build visit map from ratings — group by shop, count visits
+        const shopMap: Record<string, any> = {}
+        for (const r of ratingsRes.data) {
+          if (!r.shop_id || !r.coffee_shops) continue
+          if (!shopMap[r.shop_id]) {
+            shopMap[r.shop_id] = {
+              shop_id: r.shop_id,
+              visit_count: 0,
+              coffee_shops: r.coffee_shops,
+            }
+          }
+          shopMap[r.shop_id].visit_count++
+        }
+        setVisitedShops(Object.values(shopMap))
+      }
       if (wishlistRes.data) setWishlist(wishlistRes.data)
       if (followersRes.data) setFollowers(followersRes.data.map((f: any) => f.profiles).filter(Boolean))
       if (followingRes.data) setFollowing(followingRes.data.map((f: any) => f.profiles).filter(Boolean))
