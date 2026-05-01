@@ -34,9 +34,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [visitedAt, setVisitedAt] = useState<string>(new Date().toISOString().split('T')[0]) // defaults to today
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
-  // Keep single photo/photoPreview aliases for backward compat with upload logic
-  const photo = photos[0] || null
-  const photoPreview = photoPreviews[0] || null
   const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
   const [addToStory, setAddToStory] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
