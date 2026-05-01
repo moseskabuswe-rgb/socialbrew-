@@ -775,6 +775,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
   const [showWrapped, setShowWrapped] = useState(false)
   const [likedByRatingId, setLikedByRatingId] = useState<string | null>(null)
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -1109,10 +1110,21 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   <button onClick={() => setActiveMenu({ ...rating, _isOwn: isOwn })} className="text-coffee-300 p-1 flex-shrink-0"><MoreHorizontal size={15} /></button>
                 </div>
                 {/* Photo */}
-                {rating.photo_url && (
-                  <img src={rating.photo_url} alt="" loading="lazy" decoding="async"
-                    className="w-full object-cover" style={{ maxHeight: 320 }} />
-                )}
+                {/* Photo(s) — tap to fullscreen */}
+                {(rating.photo_urls?.length > 0 || rating.photo_url) && (() => {
+                  const urls = rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]
+                  return (
+                    <div className={urls.length > 1 ? 'grid grid-cols-2 gap-0.5' : ''}>
+                      {urls.map((url: string, i: number) => (
+                        <button key={i} onClick={() => setFullscreenImage(url)} className="w-full overflow-hidden">
+                          <img src={url} alt="" loading="lazy" decoding="async"
+                            className="w-full object-cover"
+                            style={{ maxHeight: urls.length === 1 ? 320 : 180, width: '100%' }} />
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
                 {/* Caption */}
                 {rating.caption && (
                   <div className="px-4 py-3">
@@ -1270,11 +1282,20 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                     </div>
                   </div>
                 </div>
-                {rating.photo_url && (
-                  <div className="rounded-xl overflow-hidden mb-2 h-52">
-                    <img loading="lazy" decoding="async" src={rating.photo_url} alt="moment" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
-                  </div>
-                )}
+                {(rating.photo_urls?.length > 0 || rating.photo_url) && (() => {
+                  const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
+                  return (
+                    <div className={`${urls.length > 1 ? 'grid grid-cols-2 gap-0.5' : ''} mb-2`}>
+                      {urls.map((url: string, i: number) => (
+                        <button key={i} onClick={() => setFullscreenImage(url)} className="w-full overflow-hidden rounded-xl">
+                          <img loading="lazy" decoding="async" src={url} alt=""
+                            className="w-full object-cover"
+                            style={{ height: urls.length === 1 ? 208 : 130, transform: 'translateZ(0)' }} />
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
                 {(rating.vibe_tags as any)?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {(rating.vibe_tags as any).map((tag: string) => (
@@ -1438,6 +1459,42 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           setEditingPost(null)
         }}
       />}
+      {/* Fullscreen image viewer — tap X or backdrop to close */}
+      {fullscreenImage && (
+        <div
+          className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+          onClick={() => setFullscreenImage(null)}
+          style={{ touchAction: 'none' }}>
+          <img
+            src={fullscreenImage}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '100vw', maxHeight: '100vh', objectFit: 'contain' }}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null) }}
+            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setFullscreenImage(null) }}
+            style={{
+              position: 'absolute',
+              top: 'max(16px, env(safe-area-inset-top, 16px))',
+              right: 16,
+              width: 44,
+              height: 44,
+              background: 'rgba(0,0,0,0.75)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: 20,
+              zIndex: 300,
+              border: 'none',
+              cursor: 'pointer',
+            }}>
+            ✕
+          </button>
+        </div>
+      )}
       {likedByRatingId && <LikedByModal ratingId={likedByRatingId} onClose={() => setLikedByRatingId(null)} onViewProfile={(id) => { setLikedByRatingId(null); setActiveUserProfile(id) }} />}
     </div>
   )
