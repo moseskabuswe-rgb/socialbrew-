@@ -761,6 +761,188 @@ function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClos
   )
 }
 
+
+/**
+ * FullscreenCarousel
+ * 
+ * Full-screen photo viewer with:
+ * - Swipe left/right to navigate between multiple photos
+ * - Swipe down to dismiss (like Instagram)
+ * - Tap X to dismiss
+ * - Tap outside photo area to dismiss
+ * - Dot indicators showing position
+ * - Works correctly on all phones including iOS Safari
+ */
+function FullscreenCarousel({ photos, initialIndex, onClose }: {
+  photos: string[]
+  initialIndex: number
+  onClose: () => void
+}) {
+  const [index, setIndex] = useState(initialIndex)
+  const [dragX, setDragX] = useState(0)
+  const [dragY, setDragY] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const startX = useRef(0)
+  const startY = useRef(0)
+  const startTime = useRef(0)
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX
+    startY.current = e.touches[0].clientY
+    startTime.current = Date.now()
+    setIsDragging(true)
+    setDragX(0)
+    setDragY(0)
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (!isDragging) return
+    const dx = e.touches[0].clientX - startX.current
+    const dy = e.touches[0].clientY - startY.current
+    setDragX(dx)
+    setDragY(dy)
+  }
+
+  function onTouchEnd() {
+    if (!isDragging) return
+    setIsDragging(false)
+    const duration = Date.now() - startTime.current
+    const isSwipe = duration < 300
+
+    // Swipe down to dismiss — vertical swipe takes priority
+    if (dragY > 80 && Math.abs(dragY) > Math.abs(dragX)) {
+      onClose()
+      return
+    }
+
+    // Swipe left/right to navigate
+    if (Math.abs(dragX) > 50 && isSwipe) {
+      if (dragX < -50 && index < photos.length - 1) {
+        setIndex(i => i + 1)
+      } else if (dragX > 50 && index > 0) {
+        setIndex(i => i - 1)
+      }
+    }
+
+    setDragX(0)
+    setDragY(0)
+  }
+
+  // Background opacity reduces as user swipes down (feels natural)
+  const bgOpacity = Math.max(0.3, 1 - Math.abs(dragY) / 300)
+  const imgTranslateY = dragY > 0 ? dragY : 0
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center"
+      style={{ background: `rgba(0,0,0,${bgOpacity})`, touchAction: 'none' }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Photo */}
+      <img
+        src={photos[index]}
+        alt=""
+        style={{
+          maxWidth: '100vw',
+          maxHeight: '90vh',
+          objectFit: 'contain',
+          transform: `translateX(${dragX * 0.3}px) translateY(${imgTranslateY}px)`,
+          transition: isDragging ? 'none' : 'transform 0.25s ease',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
+        draggable={false}
+      />
+
+      {/* Close button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose() }}
+        onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onClose() }}
+        style={{
+          position: 'absolute',
+          top: 'max(16px, env(safe-area-inset-top, 16px))',
+          right: 16,
+          width: 44,
+          height: 44,
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: 20,
+          border: 'none',
+          cursor: 'pointer',
+          zIndex: 10,
+        }}>
+        ✕
+      </button>
+
+      {/* Left arrow */}
+      {index > 0 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setIndex(i => i - 1) }}
+          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setIndex(i => i - 1) }}
+          style={{
+            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+            width: 40, height: 40, background: 'rgba(0,0,0,0.6)', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontSize: 18, border: 'none', cursor: 'pointer', zIndex: 10,
+          }}>‹</button>
+      )}
+
+      {/* Right arrow */}
+      {index < photos.length - 1 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setIndex(i => i + 1) }}
+          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setIndex(i => i + 1) }}
+          style={{
+            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+            width: 40, height: 40, background: 'rgba(0,0,0,0.6)', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontSize: 18, border: 'none', cursor: 'pointer', zIndex: 10,
+          }}>›</button>
+      )}
+
+      {/* Dot indicators */}
+      {photos.length > 1 && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+          left: 0, right: 0,
+          display: 'flex', justifyContent: 'center', gap: 8,
+        }}>
+          {photos.map((_, i) => (
+            <div key={i} style={{
+              width: i === index ? 20 : 8,
+              height: 8,
+              borderRadius: 4,
+              background: i === index ? 'white' : 'rgba(255,255,255,0.4)',
+              transition: 'all 0.2s ease',
+            }} />
+          ))}
+        </div>
+      )}
+
+      {/* Photo counter */}
+      {photos.length > 1 && (
+        <div style={{
+          position: 'absolute',
+          top: 'max(20px, env(safe-area-inset-top, 20px))',
+          left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.5)',
+          color: 'white', fontSize: 13, fontWeight: 600,
+          padding: '4px 12px', borderRadius: 20,
+        }}>
+          {index + 1} / {photos.length}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead, onNavigateToBrew }: {
   refresh: number
   onLogoTap?: () => void
@@ -775,7 +957,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set())
   const [showWrapped, setShowWrapped] = useState(false)
   const [likedByRatingId, setLikedByRatingId] = useState<string | null>(null)
-  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
+  const [fullscreenPhotos, setFullscreenPhotos] = useState<string[]>([])
+  const [fullscreenIndex, setFullscreenIndex] = useState(0)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -1112,16 +1295,32 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 {/* Photo */}
                 {/* Photo(s) — tap to fullscreen */}
                 {(rating.photo_urls?.length > 0 || rating.photo_url) && (() => {
-                  const urls = rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]
+                  const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
                   return (
-                    <div className={urls.length > 1 ? 'grid grid-cols-2 gap-0.5' : ''}>
-                      {urls.map((url: string, i: number) => (
-                        <button key={i} onClick={() => setFullscreenImage(url)} className="w-full overflow-hidden">
-                          <img src={url} alt="" loading="lazy" decoding="async"
-                            className="w-full object-cover"
-                            style={{ maxHeight: urls.length === 1 ? 320 : 180, width: '100%' }} />
-                        </button>
-                      ))}
+                    <div className="relative overflow-hidden" style={{ maxHeight: 320 }}>
+                      {/* Swipeable photo carousel */}
+                      <div className="flex transition-transform duration-300 ease-out h-full"
+                        style={{ transform: `translateX(0%)` }}>
+                        <img
+                          src={urls[0]}
+                          alt="" loading="lazy" decoding="async"
+                          className="w-full object-cover flex-shrink-0 cursor-pointer"
+                          style={{ maxHeight: 320 }}
+                          onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(0) }}
+                        />
+                      </div>
+                      {urls.length > 1 && (
+                        <>
+                          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                            {urls.map((_: string, i: number) => (
+                              <div key={i} className="w-1.5 h-1.5 rounded-full bg-white opacity-80" />
+                            ))}
+                          </div>
+                          <div className="absolute top-2 right-2 bg-black/50 rounded-full px-2 py-0.5">
+                            <span className="text-white text-xs font-semibold">1/{urls.length}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )
                 })()}
@@ -1285,14 +1484,24 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 {(rating.photo_urls?.length > 0 || rating.photo_url) && (() => {
                   const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
                   return (
-                    <div className={`${urls.length > 1 ? 'grid grid-cols-2 gap-0.5' : ''} mb-2`}>
-                      {urls.map((url: string, i: number) => (
-                        <button key={i} onClick={() => setFullscreenImage(url)} className="w-full overflow-hidden rounded-xl">
-                          <img loading="lazy" decoding="async" src={url} alt=""
-                            className="w-full object-cover"
-                            style={{ height: urls.length === 1 ? 208 : 130, transform: 'translateZ(0)' }} />
-                        </button>
-                      ))}
+                    <div className="relative rounded-xl overflow-hidden mb-2" style={{ height: 208 }}>
+                      <img loading="lazy" decoding="async" src={urls[0]} alt=""
+                        className="w-full h-full object-cover cursor-pointer"
+                        style={{ transform: 'translateZ(0)' }}
+                        onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(0) }}
+                      />
+                      {urls.length > 1 && (
+                        <>
+                          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                            {urls.map((_: string, i: number) => (
+                              <div key={i} className="w-1.5 h-1.5 rounded-full bg-white opacity-80" />
+                            ))}
+                          </div>
+                          <div className="absolute top-2 right-2 bg-black/50 rounded-full px-2 py-0.5">
+                            <span className="text-white text-xs font-semibold">1/{urls.length}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )
                 })()}
@@ -1460,40 +1669,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         }}
       />}
       {/* Fullscreen image viewer — tap X or backdrop to close */}
-      {fullscreenImage && (
-        <div
-          className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
-          onClick={() => setFullscreenImage(null)}
-          style={{ touchAction: 'none' }}>
-          <img
-            src={fullscreenImage}
-            alt=""
-            onClick={e => e.stopPropagation()}
-            style={{ maxWidth: '100vw', maxHeight: '100vh', objectFit: 'contain' }}
-          />
-          <button
-            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null) }}
-            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setFullscreenImage(null) }}
-            style={{
-              position: 'absolute',
-              top: 'max(16px, env(safe-area-inset-top, 16px))',
-              right: 16,
-              width: 44,
-              height: 44,
-              background: 'rgba(0,0,0,0.75)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: 20,
-              zIndex: 300,
-              border: 'none',
-              cursor: 'pointer',
-            }}>
-            ✕
-          </button>
-        </div>
+      {fullscreenPhotos.length > 0 && (
+        <FullscreenCarousel
+          photos={fullscreenPhotos}
+          initialIndex={fullscreenIndex}
+          onClose={() => { setFullscreenPhotos([]); setFullscreenIndex(0) }}
+        />
       )}
       {likedByRatingId && <LikedByModal ratingId={likedByRatingId} onClose={() => setLikedByRatingId(null)} onViewProfile={(id) => { setLikedByRatingId(null); setActiveUserProfile(id) }} />}
     </div>
