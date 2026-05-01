@@ -140,6 +140,7 @@ function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) 
   return (
     <div
       className="fixed inset-0 z-[70] bg-black flex items-center justify-center overflow-hidden"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -160,8 +161,27 @@ function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) 
           willChange: 'transform',
         }}
       />
-      <button onClick={onClose}
-        className="absolute top-4 right-4 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-sm z-10">
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose() }}
+        onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onClose() }}
+        style={{
+          position: 'absolute',
+          top: 'max(16px, env(safe-area-inset-top, 16px))',
+          right: 16,
+          width: 44,
+          height: 44,
+          background: 'rgba(0,0,0,0.75)',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: 20,
+          zIndex: 100,
+          WebkitTapHighlightColor: 'transparent',
+          cursor: 'pointer',
+          border: 'none',
+        }}>
         ✕
       </button>
     </div>
