@@ -32,8 +32,11 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [caption, setCaption] = useState('')
   const [visitTime, setVisitTime] = useState('')
   const [visitedAt, setVisitedAt] = useState<string>(new Date().toISOString().split('T')[0]) // defaults to today
-  const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  // Keep single photo/photoPreview aliases for backward compat with upload logic
+  const photo = photos[0] || null
+  const photoPreview = photoPreviews[0] || null
   const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
   const [addToStory, setAddToStory] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
@@ -81,40 +84,51 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const toggleVibe = (v: string) => setSelectedVibes(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v].slice(0, 3))
 
   async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10MB'); return }
-    setPhoto(file)
-    setPhotoPreview(URL.createObjectURL(file))
-    // Auto-set visit date from photo EXIF if available
-    try {
-      const exif = await exifr.parse(file, ['DateTimeOriginal', 'DateTime', 'CreateDate'])
-      const exifDate = exif?.DateTimeOriginal || exif?.DateTime || exif?.CreateDate
-      if (exifDate) {
-        const d = exifDate instanceof Date ? exifDate : new Date(String(exifDate))
-        if (!isNaN(d.getTime())) {
-          const daysDiff = (Date.now() - d.getTime()) / 86400000
-          if (daysDiff >= 0 && daysDiff <= 30) {
-            setVisitedAt(d.toISOString().split('T')[0])
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const remaining = 4 - photos.length
+    const toAdd = files.slice(0, remaining)
+    for (const file of toAdd) {
+      if (file.size > 10 * 1024 * 1024) { alert('Each image must be under 10MB'); return }
+    }
+    setPhotos(prev => [...prev, ...toAdd])
+    setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+    // Read EXIF from first new photo for date
+    if (toAdd[0]) {
+      try {
+        const exif = await exifr.parse(toAdd[0], ['DateTimeOriginal', 'DateTime', 'CreateDate'])
+        const exifDate = exif?.DateTimeOriginal || exif?.DateTime || exif?.CreateDate
+        if (exifDate) {
+          const d = exifDate instanceof Date ? exifDate : new Date(String(exifDate))
+          if (!isNaN(d.getTime())) {
+            const daysDiff = (Date.now() - d.getTime()) / 86400000
+            if (daysDiff >= 0 && daysDiff <= 30) setVisitedAt(d.toISOString().split('T')[0])
           }
         }
-      }
-    } catch { /* EXIF unavailable — keep current date */ }
+      } catch {}
+    }
+  }
+
+  function removePhoto(idx: number) {
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== idx))
   }
 
   async function handleSubmit() {
     if (!profile) return
     setStep('submitting')
-    let photoUrl: string | null = null
-    if (photo) {
-      const ext = photo.name.split('.').pop() || 'jpg'
-      const path = `moments/${profile.id}/${Date.now()}.${ext}`
-      const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, photo, { upsert: true })
+    // Upload all photos and collect URLs
+    const uploadedUrls: string[] = []
+    for (const p of photos) {
+      const ext = p.name.split('.').pop() || 'jpg'
+      const path = `moments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, p, { upsert: true })
       if (!uploadErr) {
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-        photoUrl = publicUrl
+        uploadedUrls.push(publicUrl)
       }
     }
+    const photoUrl = uploadedUrls[0] || null  // primary photo for backward compat
 
     const captionParts = [caption].filter(Boolean)
 
@@ -136,6 +150,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       vibe_tags: selectedVibes,
       caption: captionParts.join(' · ') || null,
       photo_url: photoUrl,
+      photo_urls: uploadedUrls,
       visit_time: visitTime || null,
       visited_at: visitedAt,
     })
@@ -307,26 +322,43 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               <button onClick={() => setStep('rate')} className="ml-auto text-caramel text-xs font-medium">Edit</button>
             </div>
 
-            {/* Photo */}
+            {/* Photos — up to 4 */}
             <div className="mb-4">
-              <label className="text-coffee-500 text-xs uppercase tracking-wider mb-2 block">Photo (optional)</label>
-              {photoPreview ? (
-                <div className="relative rounded-xl overflow-hidden h-36">
-                  <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
-                  <button onClick={() => { setPhoto(null); setPhotoPreview(null) }}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center">
-                    <X size={13} className="text-white" />
-                  </button>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-coffee-500 text-xs uppercase tracking-wider">Photos (optional · up to 4)</label>
+                {photoPreviews.length > 0 && photoPreviews.length < 4 && (
+                  <button onClick={() => fileRef.current?.click()} className="text-caramel text-xs font-semibold">+ Add more</button>
+                )}
+              </div>
+              {photoPreviews.length > 0 ? (
+                <div className={`grid gap-2 ${photoPreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {photoPreviews.map((preview, idx) => (
+                    <div key={idx} className="relative rounded-xl overflow-hidden" style={{ height: photoPreviews.length === 1 ? 160 : 100 }}>
+                      <img src={preview} alt="" className="w-full h-full object-cover" />
+                      <button onClick={() => removePhoto(idx)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
+                        <X size={11} className="text-white" />
+                      </button>
+                    </div>
+                  ))}
+                  {photoPreviews.length < 4 && (
+                    <button onClick={() => fileRef.current?.click()}
+                      className="rounded-xl border-2 border-dashed border-cream-300 flex flex-col items-center justify-center gap-1 bg-cream-50"
+                      style={{ height: 100 }}>
+                      <Camera size={16} className="text-coffee-300" />
+                      <span className="text-coffee-400 text-xs">Add photo</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button onClick={() => fileRef.current?.click()}
                   className="w-full h-24 rounded-xl border-2 border-dashed border-cream-300 flex items-center justify-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors">
                   <Camera size={18} className="text-coffee-300" />
-                  <span className="text-coffee-400 text-sm">Add a photo</span>
+                  <span className="text-coffee-400 text-sm">Add up to 4 photos</span>
                   <ImageIcon size={16} className="text-coffee-300" />
                 </button>
               )}
-              <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} className="hidden" />
             </div>
 
             {/* Drink name */}
