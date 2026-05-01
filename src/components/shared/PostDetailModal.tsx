@@ -98,7 +98,7 @@ function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) 
       const curDist = dist(touches[0], touches[1])
       if (startDist === 0) return
 
-      const newScale = Math.min(6, Math.max(1, startScaleRef.current * (curDist / startDist)))
+      const newScale = Math.min(6, Math.max(0.5, startScaleRef.current * (curDist / startDist)))
 
       // Pan based on midpoint movement
       const startMid = mid(start[0], start[1])
@@ -121,14 +121,19 @@ function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) 
 
   function onTouchEnd(e: React.TouchEvent) {
     e.preventDefault()
-    // Snap back if under-zoomed
+    // Pinch-to-close: if scale drops below 0.75, close the viewer
+    if (scaleRef.current < 0.75) {
+      onClose()
+      return
+    }
+    // Snap back if slightly under-zoomed (between 0.75 and 1.05)
     if (scaleRef.current < 1.05) {
       scaleRef.current = 1
       offsetRef.current = { x: 0, y: 0 }
       if (imgRef.current) {
-        imgRef.current.style.transition = 'transform 0.25s ease'
+        imgRef.current.style.transition = 'transform 0.2s ease'
         applyTransform(1, 0, 0)
-        setTimeout(() => { if (imgRef.current) imgRef.current.style.transition = 'none' }, 260)
+        setTimeout(() => { if (imgRef.current) imgRef.current.style.transition = 'none' }, 220)
       }
     }
     // Update start refs for next gesture
