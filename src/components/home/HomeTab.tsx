@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft, Share2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import ShareCard from '../shared/ShareCard'
 import { useAuth } from '../../contexts/AuthContext'
 import BrewWrapped from '../shared/BrewWrapped'
 import LikedByModal from '../shared/LikedByModal'
@@ -958,6 +959,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [showWrapped, setShowWrapped] = useState(false)
   const [likedByRatingId, setLikedByRatingId] = useState<string | null>(null)
   const [fullscreenPhotos, setFullscreenPhotos] = useState<string[]>([])
+  const [shareRating, setShareRating] = useState<any>(null)
   const [fullscreenIndex, setFullscreenIndex] = useState(0)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
   const [unreadNotifs, setUnreadNotifs] = useState(0)
@@ -1569,7 +1571,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 <button onClick={() => toggleSave(rating.id)} className="active:scale-90" style={{ color: isSaved ? '#c8853a' : '#9b7a45' }}>
                   <Bookmark size={18} fill={isSaved ? '#c8853a' : 'none'} />
                 </button>
-                <button onClick={() => sharePost(rating)} className="active:scale-90 text-coffee-400">
+                <button onClick={() => setShareRating(rating)} className="active:scale-90 text-coffee-400">
                   <Share2 size={18} />
                 </button>
               </div>
@@ -1655,6 +1657,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         }}
       />}
       {/* Fullscreen image viewer — tap X or backdrop to close */}
+      {shareRating && (
+        <ShareCard
+          rating={shareRating}
+          onClose={() => setShareRating(null)}
+        />
+      )}
       {fullscreenPhotos.length > 0 && (
         <FullscreenCarousel
           photos={fullscreenPhotos}
