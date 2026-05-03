@@ -1163,9 +1163,6 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     setShowReactions(null)
   }
 
-  async function sharePost(rating: any) {
-    setSharingPost(rating)
-  }
 
   async function shareExternal(rating: any) {
     const shop = rating.coffee_shops as any
