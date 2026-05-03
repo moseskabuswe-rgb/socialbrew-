@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import exifr from 'exifr'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import { resolveShopId } from '../../lib/shopUtils'
 import { sendPushToUser } from '../../lib/push'
 import { notifyMention } from '../../lib/push'
@@ -34,7 +35,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [visitedAt, setVisitedAt] = useState<string>(new Date().toISOString().split('T')[0]) // defaults to today
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
-  const [step, setStep] = useState<'rate' | 'details' | 'submitting' | 'done'>('rate')
+  const [step, setStep] = useState<'rate' | 'feedback' | 'details' | 'submitting' | 'done'>('rate')
   const [addToStory, setAddToStory] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -299,12 +300,30 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
                   style={{ width: `${fill}%`, background: `linear-gradient(90deg, ${s.crema}, ${s.liquid})` }} />
               </div>
             </div>
-            <button onClick={() => fill > 0 && setStep('details')} disabled={fill === 0}
+            <button onClick={() => {
+              if (fill === 0) return
+              // Show anonymous feedback modal for low ratings (50% and below)
+              if (fill <= 50 && shop?.id) {
+                setStep('feedback')
+              } else {
+                setStep('details')
+              }
+            }} disabled={fill === 0}
               className="w-full mt-5 py-3.5 rounded-2xl font-semibold text-white transition-all duration-300 disabled:opacity-40"
               style={{ background: fill > 0 ? `linear-gradient(135deg, ${s.liquid}, ${s.crema})` : '#d4c4b0', boxShadow: fill > 0 ? `0 8px 28px ${s.glow}` : 'none' }}>
               {fill === 0 ? 'Slide the mug to rate' : 'Continue →'}
             </button>
           </div>
+        )}
+
+        {step === 'feedback' && shop?.id && (
+          <AnonymousFeedbackModal
+            shopId={shop.id}
+            shopName={shop.name || 'this shop'}
+            fillLevel={fill}
+            onSkip={() => setStep('details')}
+            onSent={() => setStep('details')}
+          />
         )}
 
         {step === 'details' && (

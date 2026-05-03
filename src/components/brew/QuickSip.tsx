@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import { resolveShopId } from '../../lib/shopUtils'
 // push notifications handled in parent
 import { useAuth } from '../../contexts/AuthContext'
@@ -23,6 +24,8 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [shop, setShop] = useState<any>(null)
   const [drinkName, setDrinkName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [submittedShopId, setSubmittedShopId] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
   const s = getMugStyle(fill)
@@ -127,7 +130,15 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     const { data: newRating } = await supabase.from('ratings').select('id').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(1).single()
     if (newRating) { /* follower notifications handled server-side */ }
     setDone(true)
-    setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 2800 : 1400)
+    setTimeout(() => {
+      onComplete(shop?.name, willBeFirst)
+      if (fill <= 50 && shopId) {
+        setSubmittedShopId(shopId)
+        setShowFeedback(true)
+      } else {
+        onClose()
+      }
+    }, willBeFirst ? 2800 : 1400)
   }
 
   // SVG mug — slightly smaller, cleaner
@@ -296,5 +307,14 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         )}
       </div>
     </div>
+    {showFeedback && submittedShopId && (
+      <AnonymousFeedbackModal
+        shopId={submittedShopId}
+        shopName={shop?.name || 'this shop'}
+        fillLevel={fill}
+        onSkip={onClose}
+        onSent={onClose}
+      />
+    )}
   )
 }
