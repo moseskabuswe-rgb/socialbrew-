@@ -15,7 +15,6 @@ import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import { supabase } from './lib/supabase'
-import { useWishlistProximity } from './lib/useWishlistProximity'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
 // Re-export notification helpers so other components can import from App
