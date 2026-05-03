@@ -135,13 +135,22 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [activeTab, setActiveTab] = useState<'ratings' | 'photos'>('ratings')
   const [imgError, setImgError] = useState(false)
   const [resolvedShop, setResolvedShop] = useState<any>(shop)
+  const [wishlisted, setWishlisted] = useState(false)
+  const [wishlistLoading, setWishlistLoading] = useState(false)
   const [shopStreak, setShopStreak] = useState<number>(0)
 
   const isInDb = !String(shop.id).startsWith('osm-') &&
     !String(shop.id).startsWith('fsq-') &&
     !String(shop.id).startsWith('gpl-')
 
+ 
   useEffect(() => {
+    if (!profile?.id || !resolvedShop?.id) return
+    supabase.from('visit_wishlist')
+      .select('id').eq('user_id', profile.id).eq('shop_id', resolvedShop.id).maybeSingle()
+      .then(({ data }) => { if (data) setWishlisted(true) })
+  }, [profile?.id, resolvedShop?.id])
+ useEffect(() => {
     async function load() {
       // Resolve shop ID — look up by name if from OSM
       let shopId = isInDb ? shop.id : null
@@ -214,6 +223,28 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   ]
 
   const activeList = tab === 'overview' ? allRatings : tab === 'my-brews' ? myRatings : friendRatings
+
+  async function toggleWishlist() {
+    if (!profile?.id || !resolvedShop?.id || wishlistLoading) return
+    setWishlistLoading(true)
+    if (wishlisted) {
+      await supabase.from('visit_wishlist')
+        .delete().eq('user_id', profile.id).eq('shop_id', resolvedShop.id)
+      setWishlisted(false)
+    } else {
+      await supabase.from('visit_wishlist').upsert({
+        user_id: profile.id,
+        shop_id: resolvedShop.id,
+        shop_name: resolvedShop.name || 'Unknown Shop',
+        lat: resolvedShop.lat || null,
+        lng: resolvedShop.lng || null,
+        notified: false,
+      }, { onConflict: 'user_id,shop_id' })
+      setWishlisted(true)
+    }
+    setWishlistLoading(false)
+  }
+
 
   return (
     <div
@@ -386,6 +417,17 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           onClick={() => setShowCoffeeDate(true)}
           className="flex items-center justify-center gap-1.5 bg-cream-100 border border-cream-300 text-coffee-700 rounded-xl py-3 font-semibold text-sm px-4">
           📅 Date
+        </button>
+        <button
+          onClick={toggleWishlist}
+          disabled={wishlistLoading}
+          className="flex items-center justify-center gap-1 rounded-xl py-3 font-semibold text-sm px-3 border transition-all disabled:opacity-50"
+          style={{
+            background: wishlisted ? '#fdf0dc' : 'white',
+            borderColor: wishlisted ? '#c8853a' : '#e0c8a0',
+            color: wishlisted ? '#c8853a' : '#9b7a55',
+          }}>
+          {wishlisted ? '☕ Saved' : '+ Wishlist'}
         </button>
         {!onNavigateToBrew && (resolvedShop.lat && resolvedShop.lng) && null}
       </div>

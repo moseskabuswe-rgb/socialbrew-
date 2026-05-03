@@ -1,21 +1,19 @@
 /**
- * ShareCard.tsx
+ * ShareCard.tsx — Redesigned Instagram Stories share card
  *
- * Generates a beautiful Instagram Stories-ready image card from a rating post.
- * Uses HTML Canvas to render the mug fill graphic, shop info, rating label,
- * and Social Brew branding into a 1080x1920 image.
+ * Renders an offscreen div that mirrors the feed card exactly,
+ * then uses dom-to-image-more to convert to PNG.
  *
- * Share flow:
- * 1. User taps Share on a post
- * 2. ShareCard renders the canvas off-screen
- * 3. Canvas exports to PNG blob
- * 4. On iOS/Android: tries to open Instagram Stories directly via URL scheme
- * 5. Falls back to native Web Share API if Instagram isn't available
- * 6. Falls back to download if Web Share isn't supported
+ * Share paths (in priority order):
+ * 1. Web Share API with file (iOS 15+ / Android Chrome) → native share sheet
+ * 2. Instagram Stories URL scheme (ios-app://instagram) → direct to Stories
+ * 3. Download PNG + manual instructions
+ *
+ * UTM tags: ?utm_source=instagram_stories&utm_medium=share&utm_campaign=user_share
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Download } from 'lucide-react'
+import { X, Download, Share2 } from 'lucide-react'
 
 interface Rating {
   id: string
@@ -24,27 +22,15 @@ interface Rating {
   drink_name?: string | null
   vibe_tags?: string[]
   photo_url?: string | null
-  coffee_shops?: {
-    name: string
-    city?: string | null
-  }
-  profiles?: {
-    username: string
-  }
+  photo_urls?: string[]
+  visited_at?: string | null
+  coffee_shops?: { name: string; city?: string | null; state?: string | null }
+  profiles?: { username: string; avatar_url?: string | null; badge?: string | null }
 }
 
 interface Props {
   rating: Rating
   onClose: () => void
-}
-
-// Mug fill color matching the app's scale
-function getMugColor(fill: number): string {
-  if (fill >= 90) return '#3d1a06'
-  if (fill >= 80) return '#6b3410'
-  if (fill >= 70) return '#b87333'
-  if (fill >= 60) return '#c49a6c'
-  return '#d4b896'
 }
 
 function getFillLabel(fill: number): string {
@@ -56,336 +42,155 @@ function getFillLabel(fill: number): string {
   return 'Not My Cup'
 }
 
-// Draw the mug on canvas — matches the app's SVG mug shape
-function drawMug(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: number) {
-  const mugColor = getMugColor(fill)
-  const fillHeight = (fill / 100) * (h * 0.75)
-  const fillY = y + h * 0.1 + (h * 0.75 - fillHeight)
-
-  // Mug body outline
-  ctx.save()
-  ctx.beginPath()
-  ctx.roundRect(x, y + h * 0.08, w * 0.78, h * 0.82, 12)
-  ctx.fillStyle = '#f5ead8'
-  ctx.fill()
-  ctx.strokeStyle = '#d4b896'
-  ctx.lineWidth = 3
-  ctx.stroke()
-
-  // Liquid fill with clip
-  ctx.save()
-  ctx.beginPath()
-  ctx.roundRect(x + 3, y + h * 0.08 + 3, w * 0.78 - 6, h * 0.82 - 6, 10)
-  ctx.clip()
-  ctx.fillStyle = mugColor
-  ctx.fillRect(x, fillY, w * 0.78, fillHeight + h * 0.9)
-  ctx.restore()
-
-  // Mug handle
-  ctx.beginPath()
-  ctx.arc(x + w * 0.78 + w * 0.12, y + h * 0.42, w * 0.18, -Math.PI * 0.6, Math.PI * 0.6)
-  ctx.strokeStyle = '#d4b896'
-  ctx.lineWidth = 8
-  ctx.stroke()
-
-  // Steam lines (only if fill >= 65)
-  if (fill >= 65) {
-    ctx.strokeStyle = mugColor
-    ctx.lineWidth = 3
-    ctx.lineCap = 'round'
-    const steamPositions = [x + w * 0.18, x + w * 0.39, x + w * 0.6]
-    steamPositions.forEach((sx) => {
-      ctx.beginPath()
-      ctx.moveTo(sx, y + h * 0.06)
-      ctx.bezierCurveTo(sx + 8, y - h * 0.06, sx - 8, y - h * 0.14, sx, y - h * 0.22)
-      ctx.stroke()
-    })
-  }
-
-  ctx.restore()
+function getMugColors(fill: number) {
+  if (fill >= 90) return { liquid: '#3d1a06', crema: '#c8853a', glow: 'rgba(220,160,60,0.7)' }
+  if (fill >= 80) return { liquid: '#6b3410', crema: '#9b5520', glow: 'rgba(200,130,50,0.5)' }
+  if (fill >= 70) return { liquid: '#b87333', crema: '#d4894a', glow: 'rgba(184,115,51,0.35)' }
+  if (fill >= 60) return { liquid: '#c49a6c', crema: '#d9b48c', glow: 'rgba(196,154,108,0.3)' }
+  return { liquid: '#d4b896', crema: '#e8d4bc', glow: 'rgba(212,184,150,0.2)' }
 }
 
-export default function ShareCard({ rating, onClose }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [generating, setGenerating] = useState(true)
-  const [imageBlob, setImageBlob] = useState<Blob | null>(null)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [sharing, setSharing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+// Inline SVG mug — mirrors the app's actual mug SVG exactly
+function MugSVG({ fill, size = 80 }: { fill: number; size?: number }) {
+  const { liquid, crema } = getMugColors(fill)
+  const VW = size, VH = size * 1.15
+  const BX = VW * 0.08, BY = VH * 0.1
+  const BW = VW * 0.72, BH = VH * 0.78
+  const BR = VW * 0.12
+  const fillPct = fill / 100
+  const liquidH = BH * fillPct
+  const liquidY = BY + BH - liquidH
+  const showSteam = fill >= 65
 
-  const shopName = rating.coffee_shops?.name || 'Unknown Shop'
-  const city = rating.coffee_shops?.city || ''
-  const username = rating.profiles?.username || ''
+  return (
+    <svg width={VW} height={VH} viewBox={`0 0 ${VW} ${VH}`}>
+      <defs>
+        <clipPath id="sc-clip">
+          <rect x={BX + 3} y={BY + 3} width={BW - 6} height={BH - 6} rx={BR - 2} />
+        </clipPath>
+      </defs>
+      {/* Mug body */}
+      <rect x={BX} y={BY} width={BW} height={BH} rx={BR} fill="#f5ead8" stroke="#d4b896" strokeWidth="2" />
+      {/* Liquid fill */}
+      <rect x={BX} y={liquidY} width={BW} height={liquidH + 4} fill={liquid} clipPath="url(#sc-clip)" />
+      {/* Crema */}
+      {fill > 0 && <rect x={BX} y={liquidY} width={BW} height={Math.max(3, liquidH * 0.08)} fill={crema} clipPath="url(#sc-clip)" opacity="0.7" />}
+      {/* Handle */}
+      <path d={`M${BX + BW},${BY + BH * 0.22} Q${BX + BW + VW * 0.22},${BY + BH * 0.22} ${BX + BW + VW * 0.22},${BY + BH * 0.5} Q${BX + BW + VW * 0.22},${BY + BH * 0.78} ${BX + BW},${BY + BH * 0.78}`}
+        fill="none" stroke="#d4b896" strokeWidth="3.5" strokeLinecap="round" />
+      {/* Steam */}
+      {showSteam && [0.2, 0.45, 0.7].map((x, i) => (
+        <path key={i}
+          d={`M${BX + BW * x},${BY - VH * 0.04} Q${BX + BW * x + 5},${BY - VH * 0.1} ${BX + BW * x},${BY - VH * 0.17}`}
+          fill="none" stroke={liquid} strokeWidth="1.8" strokeLinecap="round" />
+      ))}
+    </svg>
+  )
+}
+
+const APP_URL = 'https://socialbrew-ani.pages.dev'
+const UTM = '?utm_source=instagram_stories&utm_medium=share&utm_campaign=user_share'
+
+export default function ShareCard({ rating, onClose }: Props) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [generating, setGenerating] = useState(true)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageBlob, setImageBlob] = useState<Blob | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+
+  const shop = rating.coffee_shops
+  const profile = rating.profiles
   const fill = rating.fill_level || 0
   const label = getFillLabel(fill)
-  const mugColor = getMugColor(fill)
+  const { liquid } = getMugColors(fill)
+  const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean)
+  const shareUrl = `${APP_URL}${UTM}`
 
   useEffect(() => {
-    generateCard()
-  }, [])
-
-  async function generateCard() {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    // Instagram Stories dimensions
-    canvas.width = 1080
-    canvas.height = 1920
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    // Background gradient — warm cream to light tan
-    const bg = ctx.createLinearGradient(0, 0, 0, 1920)
-    bg.addColorStop(0, '#fdfaf5')
-    bg.addColorStop(0.5, '#f5ead8')
-    bg.addColorStop(1, '#efe0c4')
-    ctx.fillStyle = bg
-    ctx.fillRect(0, 0, 1080, 1920)
-
-    // Subtle texture dots
-    ctx.fillStyle = 'rgba(200,133,58,0.04)'
-    for (let i = 0; i < 80; i++) {
-      const dx = Math.random() * 1080
-      const dy = Math.random() * 1920
-      ctx.beginPath()
-      ctx.arc(dx, dy, Math.random() * 20 + 5, 0, Math.PI * 2)
-      ctx.fill()
-    }
-
-    // Top Social Brew wordmark
-    ctx.fillStyle = '#1c0a02'
-    ctx.font = 'bold 52px Georgia, serif'
-    ctx.textAlign = 'center'
-    ctx.fillText('Social Brew', 540, 140)
-
-    // Tagline
-    ctx.fillStyle = '#b8956a'
-    ctx.font = '32px sans-serif'
-    ctx.letterSpacing = '4px'
-    ctx.fillText('INDEPENDENT COFFEE', 540, 195)
-    ctx.letterSpacing = '0px'
-
-    // Divider line
-    ctx.strokeStyle = '#e8d4b0'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(120, 225)
-    ctx.lineTo(960, 225)
-    ctx.stroke()
-
-    // Photo (if available) — load and draw
-    if (rating.photo_url) {
+    // Small delay to ensure the offscreen card is painted before capture
+    const timer = setTimeout(async () => {
+      if (!cardRef.current) { setGenerating(false); return }
       try {
-        const img = new Image()
-        img.crossOrigin = 'anonymous'
-        await new Promise<void>((resolve) => {
-          img.onload = () => resolve()
-          img.onerror = () => resolve() // fail silently
-          img.src = rating.photo_url!
-          setTimeout(resolve, 3000) // timeout after 3s
+        // @ts-ignore — dom-to-image-more loaded dynamically to avoid SSR issues
+        const domtoimage = await import('dom-to-image-more')
+        const blob = await domtoimage.default.toBlob(cardRef.current, {
+          width: 1080,
+          height: 1920,
+          style: { transform: 'scale(1)', transformOrigin: 'top left' },
+          quality: 0.95,
         })
-        if (img.complete && img.naturalWidth > 0) {
-          // Draw photo as a rounded rectangle
-          ctx.save()
-          ctx.beginPath()
-          ctx.roundRect(80, 260, 920, 680, 24)
-          ctx.clip()
-          // Cover fit
-          const ratio = Math.max(920 / img.naturalWidth, 680 / img.naturalHeight)
-          const dw = img.naturalWidth * ratio
-          const dh = img.naturalHeight * ratio
-          ctx.drawImage(img, 80 + (920 - dw) / 2, 260 + (680 - dh) / 2, dw, dh)
-          ctx.restore()
-          // Photo border
-          ctx.strokeStyle = '#e8d4b0'
-          ctx.lineWidth = 2
-          ctx.beginPath()
-          ctx.roundRect(80, 260, 920, 680, 24)
-          ctx.stroke()
-        }
-      } catch {}
-    }
-
-    // Main card area
-    const cardY = rating.photo_url ? 980 : 280
-    const cardH = rating.photo_url ? 760 : 1200
-
-    // Card background
-    ctx.fillStyle = 'rgba(255,255,255,0.85)'
-    ctx.save()
-    ctx.shadowColor = 'rgba(28,10,2,0.08)'
-    ctx.shadowBlur = 40
-    ctx.shadowOffsetY = 8
-    ctx.beginPath()
-    ctx.roundRect(60, cardY, 960, cardH, 32)
-    ctx.fill()
-    ctx.restore()
-
-    // Draw mug
-    const mugSize = rating.photo_url ? 160 : 220
-    const mugX = 540 - mugSize * 0.5
-    const mugY = cardY + (rating.photo_url ? 40 : 80)
-    drawMug(ctx, mugX, mugY, mugSize, mugSize * 1.1, fill)
-
-    // Fill percentage
-    const pctY = mugY + mugSize * 1.25
-    ctx.fillStyle = mugColor
-    ctx.font = `bold ${rating.photo_url ? 72 : 96}px Georgia, serif`
-    ctx.textAlign = 'center'
-    ctx.fillText(`${fill}%`, 540, pctY)
-
-    // Rating label
-    ctx.fillStyle = '#1c0a02'
-    ctx.font = `bold ${rating.photo_url ? 48 : 60}px Georgia, serif`
-    ctx.fillText(label, 540, pctY + (rating.photo_url ? 60 : 76))
-
-    // Divider
-    const divY = pctY + (rating.photo_url ? 90 : 110)
-    ctx.strokeStyle = '#e8d4b0'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(160, divY)
-    ctx.lineTo(920, divY)
-    ctx.stroke()
-
-    // Drink name
-    const drinkName = rating.drink_name || ''
-    if (drinkName) {
-      ctx.fillStyle = '#c8853a'
-      ctx.font = `${rating.photo_url ? 36 : 42}px sans-serif`
-      ctx.fillText(drinkName, 540, divY + (rating.photo_url ? 52 : 64))
-    }
-
-    // Shop name
-    const shopY = divY + (drinkName ? (rating.photo_url ? 110 : 130) : (rating.photo_url ? 60 : 70))
-    ctx.fillStyle = '#1c0a02'
-    ctx.font = `bold ${rating.photo_url ? 44 : 54}px Georgia, serif`
-    ctx.fillText(shopName, 540, shopY)
-
-    // City
-    if (city) {
-      ctx.fillStyle = '#9b7a55'
-      ctx.font = `${rating.photo_url ? 32 : 38}px sans-serif`
-      ctx.fillText(city, 540, shopY + (rating.photo_url ? 46 : 56))
-    }
-
-    // Caption
-    if (rating.caption) {
-      const capY = shopY + (city ? (rating.photo_url ? 90 : 110) : (rating.photo_url ? 60 : 70))
-      ctx.fillStyle = '#5a3e28'
-      ctx.font = `italic ${rating.photo_url ? 30 : 36}px Georgia, serif`
-      // Word wrap caption
-      const words = rating.caption.split(' ')
-      let line = ''
-      let lineY = capY
-      const maxWidth = 800
-      const lineHeight = rating.photo_url ? 42 : 50
-      for (const word of words) {
-        const test = line + (line ? ' ' : '') + word
-        if (ctx.measureText(test).width > maxWidth && line) {
-          ctx.fillText(`"${line}"`, 540, lineY)
-          line = word
-          lineY += lineHeight
-          if (lineY > cardY + cardH - 80) break
-        } else {
-          line = test
-        }
-      }
-      if (line) ctx.fillText(line.startsWith('"') ? `${line}"` : `"${line}"`, 540, lineY)
-    }
-
-    // Vibe tags
-    if (rating.vibe_tags && rating.vibe_tags.length > 0) {
-      const tagY = cardY + cardH - (rating.photo_url ? 80 : 100)
-      ctx.fillStyle = '#b8956a'
-      ctx.font = `${rating.photo_url ? 28 : 34}px sans-serif`
-      ctx.fillText(rating.vibe_tags.join('  ·  '), 540, tagY)
-    }
-
-    // Bottom username + CTA
-    ctx.fillStyle = '#9b7a55'
-    ctx.font = '34px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(`@${username} on Social Brew`, 540, 1800)
-
-    ctx.fillStyle = '#c8853a'
-    ctx.font = 'bold 36px sans-serif'
-    ctx.fillText('socialbrew-ani.pages.dev', 540, 1850)
-
-    // Convert to blob
-    canvas.toBlob(blob => {
-      if (blob) {
         setImageBlob(blob)
         setImageUrl(URL.createObjectURL(blob))
+      } catch (err) {
+        console.error('Card generation failed:', err)
+        setStatus('Could not generate card — try again')
       }
       setGenerating(false)
-    }, 'image/png', 0.95)
-  }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
 
-  async function shareToInstagramStories() {
+  async function share() {
     if (!imageBlob) return
     setSharing(true)
-    setError(null)
+    setStatus(null)
 
-    try {
-      // Method 1: Instagram Stories URL scheme (iOS/Android native app)
-      // Convert blob to base64 for URL scheme
-      const reader = new FileReader()
-      reader.onload = async () => {
-        // Try Web Share API first (works on modern iOS/Android)
-        if (navigator.share && navigator.canShare) {
-          const file = new File([imageBlob!], 'social-brew-share.png', { type: 'image/png' })
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: `${shopName} on Social Brew`,
-            })
-            setSharing(false)
-            return
-          }
-        }
+    const file = new File([imageBlob], 'social-brew.png', { type: 'image/png' })
 
-        // Method 2: Instagram Stories URL scheme
-        // Works when Instagram app is installed
-        const instagramUrl = `instagram-stories://share?source_application=social_brew`
-        window.location.href = instagramUrl
-
-        // If Instagram isn't installed, fall back after delay
-        setTimeout(() => {
-          // Fall back to downloading the image
-          handleDownload()
-          setError('Instagram not detected — image saved to download instead')
+    // Path 1: Web Share API with file (iOS 15+, Android Chrome)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: `${shop?.name} on Social Brew` })
+        setSharing(false)
+        return
+      } catch (e: any) {
+        if (e.name !== 'AbortError') {
+          // Fall through to next method
+        } else {
           setSharing(false)
-        }, 1500)
+          return
+        }
       }
-      reader.readAsDataURL(imageBlob)
-    } catch (err: any) {
-      // Fall back to download
-      handleDownload()
-      setError('Tap the downloaded image and share to Instagram Stories')
-      setSharing(false)
     }
+
+    // Path 2: Instagram Stories URL scheme (iOS only)
+    const ua = navigator.userAgent.toLowerCase()
+    if (/iphone|ipad/.test(ua)) {
+      window.location.href = 'instagram-stories://share'
+      // Download as fallback after 1.5s if Instagram didn't open
+      setTimeout(() => {
+        download()
+        setStatus('Save the image then open Instagram → Stories → add from camera roll')
+        setSharing(false)
+      }, 1500)
+      return
+    }
+
+    // Path 3: Download + instructions (Android or desktop)
+    download()
+    setStatus('Image saved — open Instagram, tap + → Story → select from gallery')
+    setSharing(false)
   }
 
-  function handleDownload() {
+  function download() {
     if (!imageUrl) return
     const a = document.createElement('a')
     a.href = imageUrl
-    a.download = `social-brew-${shopName.replace(/\s+/g, '-').toLowerCase()}.png`
+    a.download = `social-brew-${(shop?.name || 'post').replace(/\s+/g, '-').toLowerCase()}.png`
     a.click()
   }
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-end justify-center"
-      style={{ background: 'rgba(0,0,0,0.9)' }}
+    <div className="fixed inset-0 z-[300] flex flex-col items-center justify-end"
+      style={{ background: 'rgba(0,0,0,0.92)' }}
       onClick={onClose}>
-      <div
-        className="w-full max-w-sm bg-white rounded-t-3xl pb-8 px-5 pt-5"
+      <div className="w-full max-w-sm bg-white rounded-t-3xl pb-safe"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-coffee-800 text-lg">Share to Instagram</h3>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h3 className="font-bold text-coffee-800 text-base">Share to Instagram Stories</h3>
           <button onClick={onClose}
             className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center">
             <X size={15} className="text-coffee-500" />
@@ -393,50 +198,185 @@ export default function ShareCard({ rating, onClose }: Props) {
         </div>
 
         {/* Preview */}
-        <div className="w-full rounded-2xl overflow-hidden mb-4 bg-cream-100 flex items-center justify-center"
-          style={{ height: 280 }}>
+        <div className="mx-5 mb-4 rounded-2xl overflow-hidden border border-cream-200 bg-cream-50"
+          style={{ height: 240 }}>
           {generating ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
-              <p className="text-coffee-400 text-sm">Generating your card...</p>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+              <p className="text-coffee-400 text-xs">Generating card...</p>
             </div>
           ) : imageUrl ? (
-            <img src={imageUrl} alt="Share card preview"
+            <img src={imageUrl} alt="Share preview"
               className="w-full h-full object-contain" />
-          ) : null}
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <p className="text-coffee-300 text-xs">Preview unavailable</p>
+            </div>
+          )}
         </div>
 
-        {error && (
-          <p className="text-coffee-500 text-xs text-center mb-3 leading-relaxed">{error}</p>
+        {status && (
+          <p className="mx-5 mb-3 text-coffee-500 text-xs text-center leading-relaxed bg-cream-50 rounded-xl px-3 py-2">
+            {status}
+          </p>
         )}
 
-        {/* Share to Instagram Stories button */}
-        <button
-          onClick={shareToInstagramStories}
-          disabled={generating || sharing}
-          className="w-full py-4 rounded-2xl text-white font-bold text-base mb-3 flex items-center justify-center gap-2 disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-          </svg>
-          {sharing ? 'Opening Instagram...' : 'Share to Instagram Stories'}
-        </button>
+        {/* Share button */}
+        <div className="px-5 pb-3 flex flex-col gap-2">
+          <button
+            onClick={share}
+            disabled={generating || sharing || !imageBlob}
+            className="w-full py-3.5 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)' }}>
+            <Share2 size={17} />
+            {sharing ? 'Opening...' : 'Share to Instagram Stories'}
+          </button>
+          <button onClick={download} disabled={generating || !imageBlob}
+            className="w-full py-3 rounded-2xl bg-cream-100 text-coffee-700 font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40">
+            <Download size={15} />
+            Save image instead
+          </button>
+        </div>
 
-        {/* Download fallback */}
-        <button
-          onClick={handleDownload}
-          disabled={generating}
-          className="w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 bg-cream-100 text-coffee-700">
-          <Download size={16} />
-          Save Image Instead
-        </button>
-
-        <p className="text-coffee-300 text-xs text-center mt-3 leading-relaxed">
-          Save the image and open Instagram → tap + → Story → select from camera roll
+        <p className="px-5 pb-5 text-coffee-300 text-xs text-center">
+          Includes a link so your followers can join Social Brew ☕
         </p>
+      </div>
 
-        {/* Hidden canvas for rendering */}
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
+      {/* ── Offscreen card — rendered at Stories dimensions, captured by dom-to-image ── */}
+      <div
+        ref={cardRef}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: '-9999px',
+          width: 1080,
+          height: 1920,
+          background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 55%, #efe0c4 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          fontFamily: 'Georgia, serif',
+          overflow: 'hidden',
+        }}>
+
+        {/* Top brand */}
+        <div style={{ paddingTop: 90, paddingBottom: 32, textAlign: 'center' }}>
+          <p style={{ fontSize: 52, fontWeight: 'bold', color: '#1c0a02', letterSpacing: 2, margin: 0 }}>Social Brew</p>
+          <p style={{ fontSize: 26, color: '#b8956a', letterSpacing: 6, margin: '8px 0 0', fontFamily: 'sans-serif', textTransform: 'uppercase' }}>Independent Coffee</p>
+        </div>
+
+        {/* Thin divider */}
+        <div style={{ width: 900, height: 1, background: '#e8d4b0', marginBottom: 40 }} />
+
+        {/* User avatar + name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 40 }}>
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt=""
+              style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid #e8d4b0' }} />
+          ) : (
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg, ${liquid}, #9b5e1a)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: 'white', fontWeight: 'bold', fontSize: 32 }}>{profile?.username?.[0]?.toUpperCase()}</span>
+            </div>
+          )}
+          <div>
+            <p style={{ fontSize: 40, fontWeight: 'bold', color: '#1c0a02', margin: 0 }}>@{profile?.username}</p>
+            {profile?.badge && (
+              <p style={{ fontSize: 26, color: '#b8956a', margin: '4px 0 0', fontFamily: 'sans-serif' }}>{profile.badge}</p>
+            )}
+          </div>
+        </div>
+
+        {/* White card */}
+        <div style={{
+          width: 940,
+          background: 'rgba(255,255,255,0.92)',
+          borderRadius: 40,
+          padding: '60px 60px 50px',
+          boxShadow: '0 20px 60px rgba(28,10,2,0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}>
+          {/* Mug */}
+          <MugSVG fill={fill} size={200} />
+
+          {/* Fill % */}
+          <p style={{ fontSize: 96, fontWeight: 'bold', color: liquid, margin: '12px 0 0', lineHeight: 1 }}>
+            {fill}%
+          </p>
+
+          {/* Label */}
+          <p style={{ fontSize: 52, fontWeight: 'bold', color: '#1c0a02', margin: '8px 0 24px' }}>
+            {label}
+          </p>
+
+          {/* Divider */}
+          <div style={{ width: '100%', height: 1, background: '#e8d4b0', marginBottom: 28 }} />
+
+          {/* Drink name */}
+          {rating.drink_name && (
+            <p style={{ fontSize: 36, color: '#c8853a', fontFamily: 'sans-serif', margin: '0 0 16px', textAlign: 'center' }}>
+              {rating.drink_name}
+            </p>
+          )}
+
+          {/* Shop */}
+          <p style={{ fontSize: 48, fontWeight: 'bold', color: '#1c0a02', margin: 0, textAlign: 'center' }}>
+            {shop?.name}
+          </p>
+          {shop?.city && (
+            <p style={{ fontSize: 32, color: '#9b7a55', margin: '8px 0 0', fontFamily: 'sans-serif' }}>
+              {shop.city}{shop.state ? `, ${shop.state}` : ''}
+            </p>
+          )}
+
+          {/* Photo (first one) */}
+          {photos[0] && (
+            <div style={{ marginTop: 32, width: '100%', height: 340, borderRadius: 24, overflow: 'hidden' }}>
+              <img src={photos[0]} alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                crossOrigin="anonymous" />
+            </div>
+          )}
+
+          {/* Caption */}
+          {rating.caption && (
+            <p style={{
+              fontSize: 30, color: '#5a3e28', fontStyle: 'italic',
+              margin: '28px 0 0', textAlign: 'center', lineHeight: 1.5,
+              maxWidth: 760,
+            }}>
+              "{rating.caption}"
+            </p>
+          )}
+
+          {/* Vibe tags */}
+          {rating.vibe_tags && rating.vibe_tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 24, justifyContent: 'center' }}>
+              {rating.vibe_tags.map((v, i) => (
+                <span key={i} style={{
+                  fontSize: 26, background: '#f5ead8', color: '#7a5c3a',
+                  padding: '8px 20px', borderRadius: 40, fontFamily: 'sans-serif',
+                  border: '1px solid #e8d4b0',
+                }}>{v}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <div style={{ marginTop: 'auto', paddingBottom: 90, textAlign: 'center' }}>
+          <p style={{ fontSize: 28, color: '#9b7a55', margin: '40px 0 8px', fontFamily: 'sans-serif' }}>
+            Discover independent coffee shops
+          </p>
+          <p style={{ fontSize: 34, fontWeight: 'bold', color: '#c8853a', margin: 0, fontFamily: 'sans-serif' }}>
+            Join Social Brew → socialbrew-ani.pages.dev
+          </p>
+          <p style={{ fontSize: 22, color: '#b8a090', margin: '8px 0 0', fontFamily: 'sans-serif' }}>
+            {shareUrl}
+          </p>
+        </div>
       </div>
     </div>
   )
