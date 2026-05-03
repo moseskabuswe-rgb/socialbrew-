@@ -149,6 +149,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const fillY = BY + BH - fillH
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(8,4,1,0.92)'}}>
       <div className="w-full max-w-sm rounded-t-3xl animate-slide-up overflow-hidden"
@@ -316,5 +317,6 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         onSent={onClose}
       />
     )}
+    </>
   )
 }
