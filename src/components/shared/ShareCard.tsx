@@ -1,15 +1,16 @@
 /**
- * ShareCard.tsx — Redesigned Instagram Stories share card
+ * ShareCard.tsx — Instagram Stories share card
  *
- * Renders an offscreen div that mirrors the feed card exactly,
- * then uses dom-to-image-more to convert to PNG.
+ * Renders the EXACT feed card in a hidden div (same JSX as HomeTab),
+ * captures it with dom-to-image-more, wraps it with a Social Brew
+ * header and footer, and shares as a PNG.
  *
- * Share paths (in priority order):
- * 1. Web Share API with file (iOS 15+ / Android Chrome) → native share sheet
- * 2. Instagram Stories URL scheme (ios-app://instagram) → direct to Stories
- * 3. Download PNG + manual instructions
+ * The result looks like a screenshot of the actual app post.
  *
- * UTM tags: ?utm_source=instagram_stories&utm_medium=share&utm_campaign=user_share
+ * Share paths:
+ * 1. Web Share API with file (iOS 15+ / Android Chrome)
+ * 2. Instagram Stories URL scheme (iOS)
+ * 3. Download PNG + instructions (fallback)
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -23,9 +24,20 @@ interface Rating {
   vibe_tags?: string[]
   photo_url?: string | null
   photo_urls?: string[]
+  visit_time?: string | null
   visited_at?: string | null
-  coffee_shops?: { name: string; city?: string | null; state?: string | null }
-  profiles?: { username: string; avatar_url?: string | null; badge?: string | null }
+  is_quick_sip?: boolean
+  coffee_shops?: {
+    name: string
+    city?: string | null
+    state?: string | null
+    photo_url?: string | null
+  }
+  profiles?: {
+    username: string
+    avatar_url?: string | null
+    badge?: string | null
+  }
 }
 
 interface Props {
@@ -42,141 +54,134 @@ function getFillLabel(fill: number): string {
   return 'Not My Cup'
 }
 
-function getMugColors(fill: number) {
-  if (fill >= 90) return { liquid: '#3d1a06', crema: '#c8853a', glow: 'rgba(220,160,60,0.7)' }
-  if (fill >= 80) return { liquid: '#6b3410', crema: '#9b5520', glow: 'rgba(200,130,50,0.5)' }
-  if (fill >= 70) return { liquid: '#b87333', crema: '#d4894a', glow: 'rgba(184,115,51,0.35)' }
-  if (fill >= 60) return { liquid: '#c49a6c', crema: '#d9b48c', glow: 'rgba(196,154,108,0.3)' }
-  return { liquid: '#d4b896', crema: '#e8d4bc', glow: 'rgba(212,184,150,0.2)' }
+function getMugStyle(fill: number) {
+  if (fill === 0)   return { liquid: 'transparent', crema: 'transparent' }
+  if (fill <= 59)   return { liquid: '#d4b896', crema: '#e8d4bc' }
+  if (fill <= 69)   return { liquid: '#c49a6c', crema: '#d9b48c' }
+  if (fill <= 79)   return { liquid: '#b87333', crema: '#d4894a' }
+  if (fill <= 89)   return { liquid: '#9b5e1a', crema: '#c07830' }
+  if (fill <= 99)   return { liquid: '#6b3410', crema: '#9b5520' }
+  return              { liquid: '#3d1a06', crema: '#c8853a' }
 }
 
-// Inline SVG mug — mirrors the app's actual mug SVG exactly
-function MugSVG({ fill, size = 80 }: { fill: number; size?: number }) {
-  const { liquid, crema } = getMugColors(fill)
+// Inline mug SVG — matches the app exactly
+function MugInline({ fill, size = 56 }: { fill: number; size?: number }) {
+  const s = getMugStyle(fill)
   const VW = size, VH = size * 1.15
   const BX = VW * 0.08, BY = VH * 0.1
   const BW = VW * 0.72, BH = VH * 0.78
   const BR = VW * 0.12
-  const fillPct = fill / 100
-  const liquidH = BH * fillPct
-  const liquidY = BY + BH - liquidH
+  const fillH = (fill / 100) * BH
+  const fillY = BY + BH - fillH
   const showSteam = fill >= 65
 
   return (
-    <svg width={VW} height={VH} viewBox={`0 0 ${VW} ${VH}`}>
-      <defs>
-        <clipPath id="sc-clip">
-          <rect x={BX + 3} y={BY + 3} width={BW - 6} height={BH - 6} rx={BR - 2} />
+    <svg width={VW} height={VH} viewBox={`0 0 ${VW} ${VH}`} style={{ display: 'block' }}>
+      <rect x={BX} y={BY} width={BW} height={BH} rx={BR} fill="#f5ead8" stroke="#d4b896" strokeWidth="1.5" />
+      {fill > 0 && (
+        <clipPath id={`mc-${fill}`}>
+          <rect x={BX + 2} y={BY + 2} width={BW - 4} height={BH - 4} rx={BR - 1} />
         </clipPath>
-      </defs>
-      {/* Mug body */}
-      <rect x={BX} y={BY} width={BW} height={BH} rx={BR} fill="#f5ead8" stroke="#d4b896" strokeWidth="2" />
-      {/* Liquid fill */}
-      <rect x={BX} y={liquidY} width={BW} height={liquidH + 4} fill={liquid} clipPath="url(#sc-clip)" />
-      {/* Crema */}
-      {fill > 0 && <rect x={BX} y={liquidY} width={BW} height={Math.max(3, liquidH * 0.08)} fill={crema} clipPath="url(#sc-clip)" opacity="0.7" />}
-      {/* Handle */}
-      <path d={`M${BX + BW},${BY + BH * 0.22} Q${BX + BW + VW * 0.22},${BY + BH * 0.22} ${BX + BW + VW * 0.22},${BY + BH * 0.5} Q${BX + BW + VW * 0.22},${BY + BH * 0.78} ${BX + BW},${BY + BH * 0.78}`}
-        fill="none" stroke="#d4b896" strokeWidth="3.5" strokeLinecap="round" />
-      {/* Steam */}
+      )}
+      {fill > 0 && <rect x={BX} y={fillY} width={BW} height={fillH + 4} fill={s.liquid} clipPath={`url(#mc-${fill})`} />}
+      {fill > 0 && <rect x={BX} y={fillY} width={BW} height={Math.max(2, fillH * 0.06)} fill={s.crema} clipPath={`url(#mc-${fill})`} opacity="0.7" />}
+      <path d={`M${BX + BW},${BY + BH * 0.22} Q${BX + BW + VW * 0.2},${BY + BH * 0.22} ${BX + BW + VW * 0.2},${BY + BH * 0.5} Q${BX + BW + VW * 0.2},${BY + BH * 0.78} ${BX + BW},${BY + BH * 0.78}`}
+        fill="none" stroke="#d4b896" strokeWidth="2.5" strokeLinecap="round" />
       {showSteam && [0.2, 0.45, 0.7].map((x, i) => (
         <path key={i}
-          d={`M${BX + BW * x},${BY - VH * 0.04} Q${BX + BW * x + 5},${BY - VH * 0.1} ${BX + BW * x},${BY - VH * 0.17}`}
-          fill="none" stroke={liquid} strokeWidth="1.8" strokeLinecap="round" />
+          d={`M${BX + BW * x},${BY - VH * 0.04} Q${BX + BW * x + 4},${BY - VH * 0.09} ${BX + BW * x},${BY - VH * 0.16}`}
+          fill="none" stroke={s.liquid} strokeWidth="1.3" strokeLinecap="round" />
       ))}
     </svg>
   )
 }
 
 const APP_URL = 'https://socialbrew-ani.pages.dev'
-const UTM = '?utm_source=instagram_stories&utm_medium=share&utm_campaign=user_share'
 
 export default function ShareCard({ rating, onClose }: Props) {
-  const cardRef = useRef<HTMLDivElement>(null)
+  const captureRef = useRef<HTMLDivElement>(null)
   const [generating, setGenerating] = useState(true)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [imageBlob, setImageBlob] = useState<Blob | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [blob, setBlob] = useState<Blob | null>(null)
   const [sharing, setSharing] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
   const shop = rating.coffee_shops
-  const profile = rating.profiles
+  const user = rating.profiles
   const fill = rating.fill_level || 0
-  const label = getFillLabel(fill)
-  const { liquid } = getMugColors(fill)
-  const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean)
-  const shareUrl = `${APP_URL}${UTM}`
+  const fillLabel = getFillLabel(fill)
+  const mugStyle = getMugStyle(fill)
+  const isQuickSip = rating.is_quick_sip === true
+  const isVibePost = fill === 0 && !isQuickSip
+  const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean) as string[]
 
   useEffect(() => {
-    // Small delay to ensure the offscreen card is painted before capture
     const timer = setTimeout(async () => {
-      if (!cardRef.current) { setGenerating(false); return }
+      if (!captureRef.current) { setGenerating(false); return }
       try {
-        // @ts-ignore — dom-to-image-more loaded dynamically to avoid SSR issues
         const domtoimage = await import('dom-to-image-more')
-        const blob = await domtoimage.default.toBlob(cardRef.current, {
-          width: 1080,
-          height: 1920,
-          style: { transform: 'scale(1)', transformOrigin: 'top left' },
-          quality: 0.95,
+        const scale = 3 // 3x for crisp Instagram Stories quality
+        const w = captureRef.current.offsetWidth
+        const h = captureRef.current.offsetHeight
+        const b = await domtoimage.default.toBlob(captureRef.current, {
+          width: w * scale,
+          height: h * scale,
+          style: {
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: `${w}px`,
+            height: `${h}px`,
+          },
         })
-        setImageBlob(blob)
-        setImageUrl(URL.createObjectURL(blob))
+        setBlob(b)
+        setPreviewUrl(URL.createObjectURL(b))
       } catch (err) {
-        console.error('Card generation failed:', err)
+        console.error('Capture failed:', err)
         setStatus('Could not generate card — try again')
       }
       setGenerating(false)
-    }, 300)
+    }, 400)
     return () => clearTimeout(timer)
   }, [])
 
   async function share() {
-    if (!imageBlob) return
+    if (!blob) return
     setSharing(true)
     setStatus(null)
+    const file = new File([blob], 'social-brew-post.png', { type: 'image/png' })
 
-    const file = new File([imageBlob], 'social-brew.png', { type: 'image/png' })
-
-    // Path 1: Web Share API with file (iOS 15+, Android Chrome)
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Path 1: Web Share API (iOS 15+, Android Chrome)
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: `${shop?.name} on Social Brew` })
         setSharing(false)
         return
       } catch (e: any) {
-        if (e.name !== 'AbortError') {
-          // Fall through to next method
-        } else {
-          setSharing(false)
-          return
-        }
+        if (e.name === 'AbortError') { setSharing(false); return }
       }
     }
 
-    // Path 2: Instagram Stories URL scheme (iOS only)
-    const ua = navigator.userAgent.toLowerCase()
-    if (/iphone|ipad/.test(ua)) {
+    // Path 2: Instagram Stories URL scheme (iOS)
+    if (/iphone|ipad/i.test(navigator.userAgent)) {
+      download()
       window.location.href = 'instagram-stories://share'
-      // Download as fallback after 1.5s if Instagram didn't open
       setTimeout(() => {
-        download()
-        setStatus('Save the image then open Instagram → Stories → add from camera roll')
+        setStatus('Image saved — open Instagram → tap + → Story → select from Photos')
         setSharing(false)
       }, 1500)
       return
     }
 
-    // Path 3: Download + instructions (Android or desktop)
+    // Path 3: Download (Android / desktop)
     download()
     setStatus('Image saved — open Instagram, tap + → Story → select from gallery')
     setSharing(false)
   }
 
   function download() {
-    if (!imageUrl) return
+    if (!previewUrl) return
     const a = document.createElement('a')
-    a.href = imageUrl
+    a.href = previewUrl
     a.download = `social-brew-${(shop?.name || 'post').replace(/\s+/g, '-').toLowerCase()}.png`
     a.click()
   }
@@ -185,10 +190,10 @@ export default function ShareCard({ rating, onClose }: Props) {
     <div className="fixed inset-0 z-[300] flex flex-col items-center justify-end"
       style={{ background: 'rgba(0,0,0,0.92)' }}
       onClick={onClose}>
-      <div className="w-full max-w-sm bg-white rounded-t-3xl pb-safe"
+      <div className="w-full max-w-sm bg-white rounded-t-3xl pb-8"
         onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
+        {/* Sheet header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <h3 className="font-bold text-coffee-800 text-base">Share to Instagram Stories</h3>
           <button onClick={onClose}
@@ -199,15 +204,14 @@ export default function ShareCard({ rating, onClose }: Props) {
 
         {/* Preview */}
         <div className="mx-5 mb-4 rounded-2xl overflow-hidden border border-cream-200 bg-cream-50"
-          style={{ height: 240 }}>
+          style={{ height: 260 }}>
           {generating ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2">
               <div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
-              <p className="text-coffee-400 text-xs">Generating card...</p>
+              <p className="text-coffee-400 text-xs">Capturing your post...</p>
             </div>
-          ) : imageUrl ? (
-            <img src={imageUrl} alt="Share preview"
-              className="w-full h-full object-contain" />
+          ) : previewUrl ? (
+            <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <p className="text-coffee-300 text-xs">Preview unavailable</p>
@@ -216,165 +220,217 @@ export default function ShareCard({ rating, onClose }: Props) {
         </div>
 
         {status && (
-          <p className="mx-5 mb-3 text-coffee-500 text-xs text-center leading-relaxed bg-cream-50 rounded-xl px-3 py-2">
-            {status}
-          </p>
+          <p className="mx-5 mb-3 text-coffee-500 text-xs text-center leading-relaxed bg-cream-50 rounded-xl px-3 py-2">{status}</p>
         )}
 
-        {/* Share button */}
-        <div className="px-5 pb-3 flex flex-col gap-2">
-          <button
-            onClick={share}
-            disabled={generating || sharing || !imageBlob}
+        <div className="px-5 flex flex-col gap-2">
+          <button onClick={share} disabled={generating || sharing || !blob}
             className="w-full py-3.5 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)' }}>
+            style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}>
             <Share2 size={17} />
             {sharing ? 'Opening...' : 'Share to Instagram Stories'}
           </button>
-          <button onClick={download} disabled={generating || !imageBlob}
+          <button onClick={download} disabled={generating || !blob}
             className="w-full py-3 rounded-2xl bg-cream-100 text-coffee-700 font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40">
             <Download size={15} />
             Save image instead
           </button>
         </div>
 
-        <p className="px-5 pb-5 text-coffee-300 text-xs text-center">
-          Includes a link so your followers can join Social Brew ☕
+        <p className="px-5 pt-3 text-coffee-300 text-xs text-center">
+          Your followers can tap the link to join Social Brew ☕
         </p>
       </div>
 
-      {/* ── Offscreen card — rendered at Stories dimensions, captured by dom-to-image ── */}
+      {/* ── Offscreen capture div — exact post card + branded frame ── */}
       <div
-        ref={cardRef}
+        ref={captureRef}
         style={{
           position: 'fixed',
-          top: 0,
           left: '-9999px',
-          width: 1080,
-          height: 1920,
-          background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 55%, #efe0c4 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          fontFamily: 'Georgia, serif',
-          overflow: 'hidden',
+          top: 0,
+          width: 390,           // iPhone 15 Pro width — standard Stories canvas
+          background: '#fdfaf5',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
         }}>
 
-        {/* Top brand */}
-        <div style={{ paddingTop: 90, paddingBottom: 32, textAlign: 'center' }}>
-          <p style={{ fontSize: 52, fontWeight: 'bold', color: '#1c0a02', letterSpacing: 2, margin: 0 }}>Social Brew</p>
-          <p style={{ fontSize: 26, color: '#b8956a', letterSpacing: 6, margin: '8px 0 0', fontFamily: 'sans-serif', textTransform: 'uppercase' }}>Independent Coffee</p>
-        </div>
-
-        {/* Thin divider */}
-        <div style={{ width: 900, height: 1, background: '#e8d4b0', marginBottom: 40 }} />
-
-        {/* User avatar + name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 40 }}>
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt=""
-              style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid #e8d4b0' }} />
-          ) : (
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg, ${liquid}, #9b5e1a)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: 'white', fontWeight: 'bold', fontSize: 32 }}>{profile?.username?.[0]?.toUpperCase()}</span>
-            </div>
-          )}
+        {/* Social Brew header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1c0a02, #3d1a06)',
+          padding: '20px 20px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}>
+          <div style={{
+            width: 40, height: 40,
+            background: '#c8853a',
+            borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20,
+          }}>☕</div>
           <div>
-            <p style={{ fontSize: 40, fontWeight: 'bold', color: '#1c0a02', margin: 0 }}>@{profile?.username}</p>
-            {profile?.badge && (
-              <p style={{ fontSize: 26, color: '#b8956a', margin: '4px 0 0', fontFamily: 'sans-serif' }}>{profile.badge}</p>
-            )}
+            <p style={{ color: 'white', fontWeight: 'bold', fontSize: 18, margin: 0 }}>Social Brew</p>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, margin: 0 }}>Independent coffee only</p>
           </div>
         </div>
 
-        {/* White card */}
+        {/* THE ACTUAL POST CARD — mirrors feed exactly */}
         <div style={{
-          width: 940,
-          background: 'rgba(255,255,255,0.92)',
-          borderRadius: 40,
-          padding: '60px 60px 50px',
-          boxShadow: '0 20px 60px rgba(28,10,2,0.1)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          background: 'white',
+          margin: '0 16px',
+          borderRadius: 20,
+          overflow: 'hidden',
+          boxShadow: '0 2px 16px rgba(28,10,2,0.08)',
+          border: '1px solid #e8d4b0',
         }}>
-          {/* Mug */}
-          <MugSVG fill={fill} size={200} />
+          {/* Card header: avatar + username + time + shop */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 10px' }}>
+            {/* Avatar */}
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',
+              background: `linear-gradient(135deg, ${mugStyle.liquid || '#c8853a'}, #9b5e1a)`,
+              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+              ) : (
+                <span style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                  {user?.username?.[0]?.toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: '700', fontSize: 14, color: '#1c0a02' }}>{user?.username}</span>
+                {user?.badge && (
+                  <span style={{ fontSize: 11, color: '#9b7a55', background: '#f5ead8', padding: '2px 8px', borderRadius: 20, border: '1px solid #e8d4b0' }}>
+                    {user.badge}
+                  </span>
+                )}
+                {rating.visit_time && (
+                  <span style={{ fontSize: 11, color: '#9b7a55', background: '#f5f5f5', padding: '2px 8px', borderRadius: 20 }}>
+                    🕐 {rating.visit_time}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
 
-          {/* Fill % */}
-          <p style={{ fontSize: 96, fontWeight: 'bold', color: liquid, margin: '12px 0 0', lineHeight: 1 }}>
-            {fill}%
-          </p>
-
-          {/* Label */}
-          <p style={{ fontSize: 52, fontWeight: 'bold', color: '#1c0a02', margin: '8px 0 24px' }}>
-            {label}
-          </p>
-
-          {/* Divider */}
-          <div style={{ width: '100%', height: 1, background: '#e8d4b0', marginBottom: 28 }} />
-
-          {/* Drink name */}
+          {/* Drink name pill */}
           {rating.drink_name && (
-            <p style={{ fontSize: 36, color: '#c8853a', fontFamily: 'sans-serif', margin: '0 0 16px', textAlign: 'center' }}>
-              {rating.drink_name}
-            </p>
+            <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: '#9b7a55' }}>ordered</span>
+              <span style={{
+                fontSize: 13, color: '#1c0a02', background: '#f5f5f5',
+                padding: '4px 12px', borderRadius: 20, fontWeight: '500',
+              }}>{rating.drink_name}</span>
+            </div>
           )}
 
-          {/* Shop */}
-          <p style={{ fontSize: 48, fontWeight: 'bold', color: '#1c0a02', margin: 0, textAlign: 'center' }}>
-            {shop?.name}
-          </p>
-          {shop?.city && (
-            <p style={{ fontSize: 32, color: '#9b7a55', margin: '8px 0 0', fontFamily: 'sans-serif' }}>
-              {shop.city}{shop.state ? `, ${shop.state}` : ''}
-            </p>
+          {/* Mug + fill level (not for vibe posts) */}
+          {!isVibePost && fill > 0 && (
+            <div style={{ padding: '6px 16px 10px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <MugInline fill={fill} size={56} />
+              <div>
+                <p style={{ fontWeight: '700', fontSize: 18, color: '#1c0a02', margin: 0 }}>{fillLabel}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <div style={{ width: 100, height: 6, background: '#f0e4d0', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ width: `${fill}%`, height: '100%', background: mugStyle.liquid, borderRadius: 3 }} />
+                  </div>
+                  <span style={{ fontSize: 12, color: '#9b7a55', fontWeight: '600' }}>{fill}%</span>
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* Photo (first one) */}
-          {photos[0] && (
-            <div style={{ marginTop: 32, width: '100%', height: 340, borderRadius: 24, overflow: 'hidden' }}>
-              <img src={photos[0]} alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                crossOrigin="anonymous" />
+          {/* Quick sip badge */}
+          {isQuickSip && (
+            <div style={{ padding: '0 16px 8px' }}>
+              <span style={{ fontSize: 11, background: '#eff6ff', color: '#3b82f6', padding: '3px 10px', borderRadius: 20, fontWeight: '600' }}>⚡ Quick Sip</span>
+            </div>
+          )}
+
+          {/* Vibe check badge */}
+          {isVibePost && (
+            <div style={{ padding: '0 16px 8px' }}>
+              <span style={{ fontSize: 11, background: '#f5e6d0', color: '#c8853a', padding: '3px 10px', borderRadius: 20, fontWeight: '600' }}>✨ Vibe Check</span>
+            </div>
+          )}
+
+          {/* Photos collage */}
+          {photos.length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: photos.length === 1 ? '1fr' : '1fr 1fr',
+              gap: 2,
+            }}>
+              {photos.map((url, i) => (
+                <img key={i} src={url} alt="" crossOrigin="anonymous"
+                  style={{
+                    width: '100%',
+                    height: photos.length === 1 ? 280 : photos.length === 3 && i === 0 ? 200 : 140,
+                    objectFit: 'cover',
+                    gridColumn: photos.length === 3 && i === 0 ? '1 / -1' : 'auto',
+                    display: 'block',
+                  }} />
+              ))}
+            </div>
+          )}
+
+          {/* Vibe tags */}
+          {rating.vibe_tags && rating.vibe_tags.length > 0 && (
+            <div style={{ padding: '10px 16px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {rating.vibe_tags.map((v, i) => (
+                <span key={i} style={{
+                  fontSize: 12, color: '#7a5c3a', background: '#f5ead8',
+                  padding: '4px 10px', borderRadius: 20, border: '1px solid #e8d4b0',
+                }}>{v}</span>
+              ))}
             </div>
           )}
 
           {/* Caption */}
           {rating.caption && (
-            <p style={{
-              fontSize: 30, color: '#5a3e28', fontStyle: 'italic',
-              margin: '28px 0 0', textAlign: 'center', lineHeight: 1.5,
-              maxWidth: 760,
-            }}>
-              "{rating.caption}"
-            </p>
+            <div style={{ padding: '10px 16px' }}>
+              <p style={{ fontSize: 13, color: '#3d2010', lineHeight: 1.5, margin: 0 }}>{rating.caption}</p>
+            </div>
           )}
 
-          {/* Vibe tags */}
-          {rating.vibe_tags && rating.vibe_tags.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 24, justifyContent: 'center' }}>
-              {rating.vibe_tags.map((v, i) => (
-                <span key={i} style={{
-                  fontSize: 26, background: '#f5ead8', color: '#7a5c3a',
-                  padding: '8px 20px', borderRadius: 40, fontFamily: 'sans-serif',
-                  border: '1px solid #e8d4b0',
-                }}>{v}</span>
-              ))}
+          {/* Shop card */}
+          {shop && (
+            <div style={{
+              margin: '8px 16px 14px',
+              background: '#fdfaf5',
+              border: '1px solid #e8d4b0',
+              borderRadius: 14,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <p style={{ fontWeight: '700', fontSize: 14, color: '#1c0a02', margin: 0 }}>{shop.name}</p>
+                {shop.city && <p style={{ fontSize: 12, color: '#9b7a55', margin: '2px 0 0' }}>{shop.city}{shop.state ? `, ${shop.state}` : ''}</p>}
+              </div>
+              <span style={{ fontSize: 12, color: '#c8853a', fontWeight: '600' }}>View →</span>
             </div>
           )}
         </div>
 
-        {/* CTA */}
-        <div style={{ marginTop: 'auto', paddingBottom: 90, textAlign: 'center' }}>
-          <p style={{ fontSize: 28, color: '#9b7a55', margin: '40px 0 8px', fontFamily: 'sans-serif' }}>
+        {/* Social Brew CTA footer */}
+        <div style={{
+          padding: '16px 20px 20px',
+          textAlign: 'center',
+        }}>
+          <p style={{ fontSize: 13, color: '#9b7a55', margin: '0 0 4px' }}>
             Discover independent coffee shops
           </p>
-          <p style={{ fontSize: 34, fontWeight: 'bold', color: '#c8853a', margin: 0, fontFamily: 'sans-serif' }}>
-            Join Social Brew → socialbrew-ani.pages.dev
-          </p>
-          <p style={{ fontSize: 22, color: '#b8a090', margin: '8px 0 0', fontFamily: 'sans-serif' }}>
-            {shareUrl}
+          <p style={{
+            fontSize: 15, fontWeight: 'bold', color: '#c8853a', margin: 0,
+            textDecoration: 'underline',
+          }}>
+            {APP_URL}
           </p>
         </div>
       </div>
