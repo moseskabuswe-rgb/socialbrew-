@@ -965,21 +965,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const PAGE_SIZE = 20
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Infinite scroll — load more when bottom sentinel enters viewport
-  useEffect(() => {
-    if (!bottomRef.current) return
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          setLoadingMore(true)
-          loadFeed(false).finally(() => setLoadingMore(false))
-        }
-      },
-      { threshold: 0.1 }
-    )
-    observer.observe(bottomRef.current)
-    return () => observer.disconnect()
-  }, [hasMore, loadingMore, loading, loadFeed])
+
   const [shareRating, setShareRating] = useState<any>(null)
   const [fullscreenIndex, setFullscreenIndex] = useState(0)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
@@ -1048,6 +1034,22 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     if (reset) setLoading(false)
     else setLoadingMore(false)
   }, [page, PAGE_SIZE])
+
+  // Infinite scroll — placed after loadFeed declaration
+  useEffect(() => {
+    if (!bottomRef.current) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setLoadingMore(true)
+          loadFeed(false).finally(() => setLoadingMore(false))
+        }
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(bottomRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, loading, loadFeed])
 
   useEffect(() => {
     loadFeed()
