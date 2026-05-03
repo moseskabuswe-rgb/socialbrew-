@@ -959,6 +959,27 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [showWrapped, setShowWrapped] = useState(false)
   const [likedByRatingId, setLikedByRatingId] = useState<string | null>(null)
   const [fullscreenPhotos, setFullscreenPhotos] = useState<string[]>([])
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const PAGE_SIZE = 20
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Infinite scroll — load more when bottom sentinel enters viewport
+  useEffect(() => {
+    if (!bottomRef.current) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setLoadingMore(true)
+          loadFeed(false).finally(() => setLoadingMore(false))
+        }
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(bottomRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, loading, loadFeed])
   const [shareRating, setShareRating] = useState<any>(null)
   const [fullscreenIndex, setFullscreenIndex] = useState(0)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
@@ -981,28 +1002,52 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({})
   const [showReactions, setShowReactions] = useState<string | null>(null)
 
-  const loadFeed = useCallback(async () => {
+  const loadFeed = useCallback(async (reset = true) => {
+    if (reset) setLoading(true)
+    else setLoadingMore(true)
+    
+    const currentPage = reset ? 0 : page
+    const from = currentPage * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+
     const { data } = await supabase
       .from('ratings')
-      .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified)')
+      .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified, lat, lng)')
       .order('created_at', { ascending: false })
-      .limit(30)
-    setRatings(data || [])
-    setLoading(false)
-    // Load reaction counts
-    if (data && data.length > 0) {
-      const ratingIds = data.map((r: any) => r.id)
-      const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
-      if (rxData) {
-        const counts: Record<string, Record<string, number>> = {}
-        rxData.forEach((rx: any) => {
-          if (!counts[rx.rating_id]) counts[rx.rating_id] = {}
-          counts[rx.rating_id][rx.type] = (counts[rx.rating_id][rx.type] || 0) + 1
+      .range(from, to)
+
+    if (data) {
+      if (reset) {
+        setRatings(data)
+        setPage(1)
+      } else {
+        setRatings(prev => {
+          const ids = new Set(prev.map((r: any) => r.id))
+          return [...prev, ...data.filter((r: any) => !ids.has(r.id))]
         })
-        setReactionCounts(counts)
+        setPage(p => p + 1)
+      }
+      if (data.length < PAGE_SIZE) setHasMore(false)
+      else setHasMore(true)
+
+      // Load reaction counts for new batch
+      if (data.length > 0) {
+        const ratingIds = data.map((r: any) => r.id)
+        const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
+        if (rxData) {
+          const counts: Record<string, Record<string, number>> = {}
+          rxData.forEach((rx: any) => {
+            if (!counts[rx.rating_id]) counts[rx.rating_id] = {}
+            counts[rx.rating_id][rx.type] = (counts[rx.rating_id][rx.type] || 0) + 1
+          })
+          setReactionCounts(prev => ({ ...prev, ...counts }))
+        }
       }
     }
-  }, [])
+    
+    if (reset) setLoading(false)
+    else setLoadingMore(false)
+  }, [page, PAGE_SIZE])
 
   useEffect(() => {
     loadFeed()
@@ -1067,7 +1112,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [refresh, loadFeed, profile])
+  }, [refresh, profile])
 
   async function toggleLike(ratingId: string) {
     if (!profile) return
@@ -1653,6 +1698,17 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           setEditingPost(null)
         }}
       />}
+      {/* Infinite scroll sentinel */}
+      <div ref={bottomRef} className="h-4" />
+      {loadingMore && (
+        <div className="flex justify-center py-4">
+          <div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+        </div>
+      )}
+      {!hasMore && ratings.length > 0 && (
+        <p className="text-coffee-300 text-xs text-center py-4">You've seen all the brews ☕</p>
+      )}
+
       {/* Fullscreen image viewer — tap X or backdrop to close */}
       {shareRating && (
         <ShareCard
