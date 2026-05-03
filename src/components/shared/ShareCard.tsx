@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Download, Instagram } from 'lucide-react'
+import { X, Download } from 'lucide-react'
 
 interface Rating {
   id: string
@@ -94,7 +94,7 @@ function drawMug(ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
     ctx.lineWidth = 3
     ctx.lineCap = 'round'
     const steamPositions = [x + w * 0.18, x + w * 0.39, x + w * 0.6]
-    steamPositions.forEach((sx, i) => {
+    steamPositions.forEach((sx) => {
       ctx.beginPath()
       ctx.moveTo(sx, y + h * 0.06)
       ctx.bezierCurveTo(sx + 8, y - h * 0.06, sx - 8, y - h * 0.14, sx, y - h * 0.22)
@@ -178,7 +178,7 @@ export default function ShareCard({ rating, onClose }: Props) {
       try {
         const img = new Image()
         img.crossOrigin = 'anonymous'
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           img.onload = () => resolve()
           img.onerror = () => resolve() // fail silently
           img.src = rating.photo_url!
@@ -332,8 +332,6 @@ export default function ShareCard({ rating, onClose }: Props) {
       // Convert blob to base64 for URL scheme
       const reader = new FileReader()
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1]
-
         // Try Web Share API first (works on modern iOS/Android)
         if (navigator.share && navigator.canShare) {
           const file = new File([imageBlob!], 'social-brew-share.png', { type: 'image/png' })
@@ -418,7 +416,9 @@ export default function ShareCard({ rating, onClose }: Props) {
           disabled={generating || sharing}
           className="w-full py-4 rounded-2xl text-white font-bold text-base mb-3 flex items-center justify-center gap-2 disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}>
-          <Instagram size={20} />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+          </svg>
           {sharing ? 'Opening Instagram...' : 'Share to Instagram Stories'}
         </button>
 
