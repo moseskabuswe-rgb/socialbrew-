@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useWishlistProximity } from './lib/useWishlistProximity'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthForm from './components/auth/AuthForm'
 import HomeTab from './components/home/HomeTab'
@@ -14,6 +15,7 @@ import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import { supabase } from './lib/supabase'
+import { useWishlistProximity } from './lib/useWishlistProximity'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
 // Re-export notification helpers so other components can import from App
@@ -26,6 +28,7 @@ const ADMIN_USER_ID = '47e5480e-e592-44bc-9b34-1111af76ea0e'
 
 function AppContent() {
   const { profile, loading } = useAuth()
+  useWishlistProximity(profile?.id || null) // Proximity check for visit wishlist on app open
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [feedRefresh, setFeedRefresh] = useState(0)
   const [shopToast, setShopToast] = useState<string | null>(null)
