@@ -158,6 +158,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarKey, setAvatarKey] = useState(0) // increments to bust img cache
   const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   async function saveSettings() {
@@ -186,23 +187,40 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     if (!profile) return
     setUploadingAvatar(true)
     try {
-      // Use timestamp in path so each upload is unique — avoids race conditions
-      // with delete+upload and ensures CDN cache is busted automatically
+      // Method 1: Try Supabase Storage
       const path = `avatars/${profile.id}-${Date.now()}.jpg`
       const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, {
-        upsert: false,
+        upsert: true,
         contentType: 'image/jpeg',
         cacheControl: '3600',
       })
-      if (upErr) throw new Error(`Storage: ${upErr.message}`)
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      const avatarUrl = `${publicUrl}?t=${Date.now()}`
-      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id)
-      if (updErr) throw new Error(`Profile: ${updErr.message}`)
+
+      if (!upErr) {
+        // Storage worked — use the public URL
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+        const avatarUrl = `${publicUrl}?t=${Date.now()}`
+        const { error: updErr } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', profile.id)
+        if (updErr) throw new Error(`Profile update failed: ${updErr.message}`)
+      } else {
+        // Method 2: Storage failed — convert to base64 and store directly in profiles
+        console.warn('Storage upload failed, using base64 fallback:', upErr.message)
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+        const { error: updErr } = await supabase.from('profiles').update({ avatar_url: base64 }).eq('id', profile.id)
+        if (updErr) throw new Error(`Profile update failed: ${updErr.message}`)
+      }
+
+      console.log('Avatar uploaded successfully, refreshing profile...')
       await refreshProfile()
+      setAvatarKey(k => k + 1) // force img element to re-render
+      console.log('Profile refreshed, new avatar_url:', profile?.avatar_url)
     } catch (err: any) {
-      console.error('Upload error:', err)
-      alert(`Failed: ${err.message}`)
+      console.error('Avatar upload error:', err)
+      alert(`Could not update photo: ${err.message}`)
     }
     setUploadingAvatar(false)
   }
@@ -236,7 +254,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
                   {profile?.avatar_url
-                    ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                    ? <img key={avatarKey} src={profile.avatar_url ? `${profile.avatar_url.split("?")[0]}?cb=${avatarKey}` : ""} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-3xl">{profile?.username?.[0]?.toUpperCase()}</span></div>}
                   {uploadingAvatar && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
