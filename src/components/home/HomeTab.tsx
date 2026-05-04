@@ -194,8 +194,6 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
     setNewMsg('')
     setSending(false)
   }
-    setNewMsg(''); setSending(false)
-  }
 
   async function toggleReaction(messageId: string, emoji: string) {
     if (!profile) return
