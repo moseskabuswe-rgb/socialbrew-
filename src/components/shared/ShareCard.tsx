@@ -175,7 +175,12 @@ export default function ShareCard({ rating, onClose }: Props) {
   const fill = rating.fill_level || 0
   const isQuickSip = rating.is_quick_sip === true
   const isVibePost = fill === 0 && !isQuickSip
-  const photos = [...(rating.photo_urls || []), rating.photo_url].filter(Boolean) as string[]
+  // Use photo_urls array if available; fall back to single photo_url
+  // Never combine both — photo_url is already included in photo_urls
+  const photos = (rating.photo_urls?.length
+    ? rating.photo_urls
+    : rating.photo_url ? [rating.photo_url] : []
+  ).filter(Boolean) as string[]
   const liquidColor = getLiquidColor(fill)
 
   useEffect(() => {
