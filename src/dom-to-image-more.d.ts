@@ -7,6 +7,9 @@ declare module 'dom-to-image-more' {
     bgcolor?: string
     imagePlaceholder?: string
     cacheBust?: boolean
+    useCORS?: boolean
+    allowTaint?: boolean
+    foreignObjectRendering?: boolean
     filter?: (node: Node) => boolean
   }
   function toBlob(node: Node, options?: Options): Promise<Blob>
