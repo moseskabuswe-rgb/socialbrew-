@@ -176,36 +176,55 @@ export default function ShareCard({ rating, onClose }: Props) {
     const timer = setTimeout(async () => {
       if (!captureRef.current) { setGenerating(false); return }
       try {
-        const domtoimage = await import('dom-to-image-more')
-        const scale = 3 // 3x for crisp Instagram Stories quality
+        const html2canvas = (await import('html2canvas')).default
         const node = captureRef.current
 
-        // Must be in the DOM with real dimensions for some browsers
-        node.style.left = '-9999px'
-        node.style.top = '0px'
-        node.style.position = 'fixed'
-        if (!document.body.contains(node)) document.body.appendChild(node)
+        // Append to DOM so layout computes correctly
+        const wasDetached = !document.body.contains(node)
+        if (wasDetached) {
+          node.style.position = 'fixed'
+          node.style.left = '-9999px'
+          node.style.top = '0px'
+          document.body.appendChild(node)
+        }
 
-        // Small delay to ensure layout paint
-        await new Promise(r => setTimeout(r, 100))
+        // Wait for all img elements to load (critical for base64 images)
+        const imgs = Array.from(node.querySelectorAll('img'))
+        await Promise.all(imgs.map(img =>
+          img.complete ? Promise.resolve() : new Promise<void>(r => {
+            img.onload = () => r()
+            img.onerror = () => r()
+            setTimeout(r, 3000)
+          })
+        ))
 
-        const w = node.offsetWidth || 390
-        const h = node.offsetHeight || 700
+        // Extra paint frame
+        await new Promise(r => setTimeout(r, 200))
 
-        const b = await domtoimage.default.toBlob(node, {
-          width: w * scale,
-          height: h * scale,
-          style: {
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            width: `${w}px`,
-            height: `${h}px`,
-          },
-
+        const canvas = await html2canvas(node, {
+          scale: 3,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#fdfaf5',
+          logging: false,
+          imageTimeout: 8000,
+          onclone: (_doc: Document, el: HTMLElement) => {
+            el.style.left = '0px'
+            el.style.top = '0px'
+          }
         })
 
-        // Remove from DOM immediately after capture
-        if (document.body.contains(node)) node.style.left = '-9999px'
+        // Remove from DOM
+        if (wasDetached && document.body.contains(node)) {
+          document.body.removeChild(node)
+        }
+
+        const b = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob(
+            blob => blob ? resolve(blob) : reject(new Error('toBlob failed')),
+            'image/png', 0.95
+          )
+        )
         setBlob(b)
         setPreviewUrl(URL.createObjectURL(b))
       } catch (err) {
