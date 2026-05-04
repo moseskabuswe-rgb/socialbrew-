@@ -116,6 +116,21 @@ export default function ShareCard({ rating, onClose }: Props) {
   const isVibePost = fill === 0 && !isQuickSip
   const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean) as string[]
 
+  // Ensure offscreen node is in DOM on mount, removed on unmount
+  useEffect(() => {
+    const node = captureRef.current
+    if (!node) return
+    if (!document.body.contains(node)) {
+      node.style.position = 'fixed'
+      node.style.left = '-9999px'
+      node.style.top = '0px'
+      document.body.appendChild(node)
+    }
+    return () => {
+      if (document.body.contains(node)) document.body.removeChild(node)
+    }
+  }, [])
+
   // Kick off capture after a short delay — html2canvas handles CORS natively
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -124,14 +139,10 @@ export default function ShareCard({ rating, onClose }: Props) {
         const html2canvas = (await import('html2canvas')).default
         const node = captureRef.current
 
-        // Append to DOM so layout computes correctly
-        const wasDetached = !document.body.contains(node)
-        if (wasDetached) {
-          node.style.position = 'fixed'
-          node.style.left = '-9999px'
-          node.style.top = '0px'
-          document.body.appendChild(node)
-        }
+        // Node is guaranteed in DOM from mount effect
+        // Temporarily move to visible area for layout measurement
+        node.style.left = '-9999px'
+        node.style.top = '0px'
 
         // Wait for all img elements to load (critical for base64 images)
         const imgs = Array.from(node.querySelectorAll('img'))
@@ -156,17 +167,16 @@ export default function ShareCard({ rating, onClose }: Props) {
           logging: false,
           imageTimeout: 8000,
           onclone: (_doc: Document, el: HTMLElement) => {
-            el.style.left = '0px'
-            el.style.top = '0px'
+            el.style.left = '0'
+            el.style.top = '0'
           }
           }),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('html2canvas timeout')), 10000))
         ]) as HTMLCanvasElement
 
-        // Remove from DOM
-        if (wasDetached && document.body.contains(node)) {
-          document.body.removeChild(node)
-        }
+        // Move back offscreen — don't remove, keeps ref valid for re-use
+        node.style.left = '-9999px'
+        node.style.top = '0px'
 
         const b = await new Promise<Blob>((resolve, reject) =>
           canvas.toBlob(
@@ -175,7 +185,10 @@ export default function ShareCard({ rating, onClose }: Props) {
           )
         )
         setBlob(b)
-        setPreviewUrl(URL.createObjectURL(b))
+        setPreviewUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev) // free previous
+          return URL.createObjectURL(b)
+        })
       } catch (err) {
         console.error('Capture failed:', err)
         setStatus('Could not generate card — try again')
