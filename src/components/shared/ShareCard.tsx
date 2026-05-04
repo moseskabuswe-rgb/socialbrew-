@@ -105,10 +105,7 @@ export default function ShareCard({ rating, onClose }: Props) {
   const [blob, setBlob] = useState<Blob | null>(null)
   const [sharing, setSharing] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
-  // Base64 converted images — avoids CORS canvas taint
-  const [avatarB64, setAvatarB64] = useState<string | null>(null)
-  const [photosB64, setPhotosB64] = useState<string[]>([])
-  const [imagesReady, setImagesReady] = useState(false)
+
 
   const shop = rating.coffee_shops
   const user = rating.profiles
@@ -119,60 +116,8 @@ export default function ShareCard({ rating, onClose }: Props) {
   const isVibePost = fill === 0 && !isQuickSip
   const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean) as string[]
 
-  const PROXY_BASE = 'https://euxyleckowsfuyzgximo.supabase.co/functions/v1/image-proxy'
-
-  // Fetch image via server-side proxy to avoid CORS canvas taint
-  async function toBase64(url: string): Promise<string | null> {
-    // Try proxy first
-    try {
-      const proxied = `${PROXY_BASE}?url=${encodeURIComponent(url)}`
-      const res = await fetch(proxied)
-      if (!res.ok) throw new Error('proxy failed')
-      const b = await res.blob()
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(b)
-      })
-    } catch {}
-
-    // Fallback: direct fetch
-    try {
-      const res = await fetch(url, { mode: 'cors' })
-      if (!res.ok) throw new Error('direct fetch failed')
-      const b = await res.blob()
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(b)
-      })
-    } catch {
-      return null
-    }
-  }
-
-  // Pre-load all images as base64 before rendering the offscreen card
+  // Kick off capture after a short delay — html2canvas handles CORS natively
   useEffect(() => {
-    async function loadImages() {
-      const urls = [
-        user?.avatar_url || null,
-        ...photos,
-      ].filter(Boolean) as string[]
-
-      const results = await Promise.all(urls.map(u => toBase64(u)))
-
-      const [avatarResult, ...photoResults] = results
-      if (avatarResult) setAvatarB64(avatarResult)
-      setPhotosB64(photoResults.filter(Boolean) as string[])
-      setImagesReady(true)
-    }
-    loadImages()
-  }, [])
-
-  useEffect(() => {
-    if (!imagesReady) return
     const timer = setTimeout(async () => {
       if (!captureRef.current) { setGenerating(false); return }
       try {
@@ -201,7 +146,9 @@ export default function ShareCard({ rating, onClose }: Props) {
         // Extra paint frame
         await new Promise(r => setTimeout(r, 200))
 
-        const canvas = await html2canvas(node, {
+        // Hard timeout — if html2canvas hangs, bail after 10s
+        const canvas = await Promise.race([
+          html2canvas(node, {
           scale: 3,
           useCORS: true,
           allowTaint: false,
@@ -212,7 +159,9 @@ export default function ShareCard({ rating, onClose }: Props) {
             el.style.left = '0px'
             el.style.top = '0px'
           }
-        })
+          }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('html2canvas timeout')), 10000))
+        ]) as HTMLCanvasElement
 
         // Remove from DOM
         if (wasDetached && document.body.contains(node)) {
@@ -234,7 +183,7 @@ export default function ShareCard({ rating, onClose }: Props) {
       setGenerating(false)
     }, 400)
     return () => clearTimeout(timer)
-  }, [imagesReady])
+  }, [])
 
   async function share() {
     if (!blob) return
@@ -384,8 +333,8 @@ export default function ShareCard({ rating, onClose }: Props) {
               background: `linear-gradient(135deg, ${mugStyle.liquid || '#c8853a'}, #9b5e1a)`,
               flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {(avatarB64 || user?.avatar_url) ? (
-                <img src={avatarB64 || user!.avatar_url!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
                   {user?.username?.[0]?.toUpperCase()}
@@ -458,7 +407,7 @@ export default function ShareCard({ rating, onClose }: Props) {
               gap: 2,
             }}>
               {photos.map((url, i) => (
-                <img key={i} src={photosB64[i] || url} alt=""
+                <img key={i} src={url} alt="" crossOrigin="anonymous"
                   style={{
                     width: '100%',
                     height: photos.length === 1 ? 280 : photos.length === 3 && i === 0 ? 200 : 140,
