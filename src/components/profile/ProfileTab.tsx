@@ -174,16 +174,12 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     setSaving(false)
   }
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    console.log('handleAvatarUpload called, files:', e.target.files?.length)
     if (!e.target.files?.[0] || !profile) {
-      console.log('No file or no profile, returning')
-      return
+        return
     }
     const file = e.target.files[0]
-    console.log('File selected:', file.name, file.type, file.size)
     if (!file.type.startsWith('image/')) { alert('Please select an image'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return }
-    console.log('Setting cropFile...')
     setCropFile(file)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -219,10 +215,8 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         if (updErr) throw new Error(`Profile update failed: ${updErr.message}`)
       }
 
-      console.log('Avatar uploaded successfully, refreshing profile...')
       await refreshProfile()
       setAvatarKey(k => k + 1) // force img element to re-render
-      console.log('Profile refreshed, new avatar_url:', profile?.avatar_url)
     } catch (err: any) {
       console.error('Avatar upload error:', err)
       alert(`Could not update photo: ${err.message}`)
@@ -230,7 +224,6 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     setUploadingAvatar(false)
   }
   async function handleCroppedAvatar(blob: Blob) {
-    console.log('handleCroppedAvatar called, blob size:', blob.size)
     setCropFile(null)
     await uploadBlob(blob)
   }
