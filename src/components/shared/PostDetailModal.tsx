@@ -4,6 +4,7 @@ import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Shar
 import EditPostModal from './EditPostModal'
 import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
+import ShareCard from './ShareCard'
 import LikedByModal from './LikedByModal'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -211,6 +212,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [mentionUsers, setMentionUsers] = useState<any[]>([])
   const [mentionStart, setMentionStart] = useState(-1)
   const [showShareSheet, setShowShareSheet] = useState(false)
+  const [showShareCard, setShowShareCard] = useState(false)
   const swipeBack = useSwipeBack(() => onClose(comments.length, likesCount))
   const [zoomedPhoto, setZoomedPhoto] = useState(false)
 
@@ -619,18 +621,32 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                   <p className="text-coffee-400 text-xs">Share with someone on Social Brew</p>
                 </div>
               </button>
+              <button onClick={() => { setShowShareSheet(false); setShowShareCard(true) }}
+                className="w-full flex items-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors rounded-xl px-4 py-3.5 text-left border border-cream-200">
+                <span className="text-xl">📸</span>
+                <div>
+                  <p className="text-coffee-800 font-semibold text-sm">Share to Instagram Stories</p>
+                  <p className="text-coffee-400 text-xs">Generate a card and share externally</p>
+                </div>
+              </button>
               <button onClick={shareExternal}
                 className="w-full flex items-center gap-3 bg-cream-50 hover:bg-cream-100 transition-colors rounded-xl px-4 py-3.5 text-left border border-cream-200">
                 <span className="text-xl">🔗</span>
                 <div>
                   <p className="text-coffee-800 font-semibold text-sm">Share Link</p>
-                  <p className="text-coffee-400 text-xs">Send to WhatsApp, Instagram, etc.</p>
+                  <p className="text-coffee-400 text-xs">Send to WhatsApp, messages, etc.</p>
                 </div>
               </button>
             </div>
             <button onClick={() => setShowShareSheet(false)} className="w-full mt-3 py-3 text-coffee-500 text-sm font-medium">Cancel</button>
           </div>
         </div>
+      )}
+      {showShareCard && (
+        <ShareCard
+          rating={rating}
+          onClose={() => setShowShareCard(false)}
+        />
       )}
       {showEditPost && (
         <EditPostModal
