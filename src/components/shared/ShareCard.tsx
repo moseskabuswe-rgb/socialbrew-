@@ -184,8 +184,7 @@ export default function ShareCard({ rating, onClose }: Props) {
             width: `${w}px`,
             height: `${h}px`,
           },
-          useCORS: true,
-          allowTaint: false,
+
         })
 
         // Remove from DOM immediately after capture
