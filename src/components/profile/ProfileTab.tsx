@@ -186,12 +186,13 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     if (!profile) return
     setUploadingAvatar(true)
     try {
-      const path = `avatars/${profile.id}.jpg`
-      await supabase.storage.from('avatars').remove([path]).catch(() => {})
+      // Use timestamp in path so each upload is unique — avoids race conditions
+      // with delete+upload and ensures CDN cache is busted automatically
+      const path = `avatars/${profile.id}-${Date.now()}.jpg`
       const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, {
-        upsert: true,
+        upsert: false,
         contentType: 'image/jpeg',
-        cacheControl: '1'
+        cacheControl: '3600',
       })
       if (upErr) throw new Error(`Storage: ${upErr.message}`)
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
