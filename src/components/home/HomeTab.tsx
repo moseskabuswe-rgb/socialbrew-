@@ -175,19 +175,25 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   }
 
   async function sendMsg() {
-    if (!newMsg.trim() || !activeConvo || !profile || sending) return
+    const trimmed = newMsg.trim()
+    if (!trimmed || !activeConvo || !profile || sending) return
     setSending(true)
-    const { data } = await supabase.from('direct_messages')
-      .insert({ from_id: profile.id, to_id: activeConvo.id, content: newMsg.trim() })
+    const { data, error } = await supabase.from('direct_messages')
+      .insert({ from_id: profile.id, to_id: activeConvo.id, content: trimmed })
       .select('*, profiles!direct_messages_from_id_fkey(username,avatar_url)').single()
     if (data) {
       setMessages(prev => [...prev, data as any])
-      notifyDM(activeConvo.id, profile.username || 'Someone', newMsg.trim())
+      notifyDM(activeConvo.id, profile.username || 'Someone', trimmed.slice(0, 100))
       setTimeout(() => {
         const el = document.getElementById('msg-list')
         if (el) el.scrollTop = el.scrollHeight
       }, 50)
+    } else if (error) {
+      console.error('DM send error:', error.message)
     }
+    setNewMsg('')
+    setSending(false)
+  }
     setNewMsg(''); setSending(false)
   }
 
@@ -379,14 +385,14 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
                     {/* Message bubble */}
                     <div className="flex flex-col">
                       <div
-                        className={`max-w-[72vw] px-4 py-2.5 text-sm leading-relaxed cursor-pointer select-none ${
+                        className={`max-w-[72vw] px-4 py-2.5 text-sm leading-relaxed cursor-pointer select-none break-words ${
                           isMe
                             ? 'text-white rounded-2xl rounded-br-md'
                             : 'text-coffee-800 rounded-2xl rounded-bl-md'
                         } ${isLastInGroup ? '' : isMe ? 'rounded-br-2xl' : 'rounded-bl-2xl'}`}
                         style={isMe
-                          ? { background: '#c8853a' }
-                          : { background: '#ede0cc' }}
+                          ? { background: '#c8853a', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }
+                          : { background: '#ede0cc', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
                         onDoubleClick={() => setReactionPicker(reactionPicker === msg.id ? null : msg.id)}
                       >
                         {msg.content}
@@ -441,13 +447,23 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
 
           {/* Input */}
           <div className="px-4 py-3 border-t border-cream-200 bg-white flex gap-2 items-center flex-shrink-0">
-            <input
+            <textarea
               value={newMsg}
-              onChange={e => setNewMsg(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMsg()}
+              onChange={e => {
+                setNewMsg(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  sendMsg()
+                }
+              }}
               placeholder="Message..."
-              className="flex-1 rounded-full px-4 py-2.5 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200 focus:border-caramel transition-colors"
-              style={{ background: '#f8f4ef' }}
+              rows={1}
+              className="flex-1 rounded-2xl px-4 py-2.5 text-sm text-coffee-800 placeholder-coffee-300 focus:outline-none border border-cream-200 focus:border-caramel transition-colors"
+              style={{ background: '#f8f4ef', resize: 'none', minHeight: 40, maxHeight: 120, overflowY: 'auto' }}
             />
             <button
               onClick={sendMsg}
