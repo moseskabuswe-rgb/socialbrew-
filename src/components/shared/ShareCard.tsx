@@ -105,6 +105,10 @@ export default function ShareCard({ rating, onClose }: Props) {
   const [blob, setBlob] = useState<Blob | null>(null)
   const [sharing, setSharing] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  // Base64 converted images — avoids CORS canvas taint
+  const [avatarB64, setAvatarB64] = useState<string | null>(null)
+  const [photosB64, setPhotosB64] = useState<string[]>([])
+  const [imagesReady, setImagesReady] = useState(false)
 
   const shop = rating.coffee_shops
   const user = rating.profiles
@@ -115,15 +119,63 @@ export default function ShareCard({ rating, onClose }: Props) {
   const isVibePost = fill === 0 && !isQuickSip
   const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean) as string[]
 
+  // Convert a URL to base64 data URL — eliminates CORS canvas taint
+  async function toBase64(url: string): Promise<string | null> {
+    try {
+      const res = await fetch(url, { mode: 'cors', cache: 'force-cache' })
+      if (!res.ok) throw new Error('fetch failed')
+      const b = await res.blob()
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(b)
+      })
+    } catch {
+      return null // fail silently — image just won't appear
+    }
+  }
+
+  // Pre-load all images as base64 before rendering the offscreen card
   useEffect(() => {
+    async function loadImages() {
+      const urls = [
+        user?.avatar_url || null,
+        ...photos,
+      ].filter(Boolean) as string[]
+
+      const results = await Promise.all(urls.map(u => toBase64(u)))
+
+      const [avatarResult, ...photoResults] = results
+      if (avatarResult) setAvatarB64(avatarResult)
+      setPhotosB64(photoResults.filter(Boolean) as string[])
+      setImagesReady(true)
+    }
+    loadImages()
+  }, [])
+
+  useEffect(() => {
+    if (!imagesReady) return
     const timer = setTimeout(async () => {
       if (!captureRef.current) { setGenerating(false); return }
       try {
         const domtoimage = await import('dom-to-image-more')
         const scale = 3 // 3x for crisp Instagram Stories quality
-        const w = captureRef.current.offsetWidth
-        const h = captureRef.current.offsetHeight
-        const b = await domtoimage.default.toBlob(captureRef.current, {
+        const node = captureRef.current
+
+        // Must be in the DOM with real dimensions for some browsers
+        node.style.left = '-9999px'
+        node.style.top = '0px'
+        node.style.position = 'fixed'
+        if (!document.body.contains(node)) document.body.appendChild(node)
+
+        // Small delay to ensure layout paint
+        await new Promise(r => setTimeout(r, 100))
+
+        const w = node.offsetWidth || 390
+        const h = node.offsetHeight || 700
+
+        const b = await domtoimage.default.toBlob(node, {
           width: w * scale,
           height: h * scale,
           style: {
@@ -132,7 +184,12 @@ export default function ShareCard({ rating, onClose }: Props) {
             width: `${w}px`,
             height: `${h}px`,
           },
+          useCORS: true,
+          allowTaint: false,
         })
+
+        // Remove from DOM immediately after capture
+        if (document.body.contains(node)) node.style.left = '-9999px'
         setBlob(b)
         setPreviewUrl(URL.createObjectURL(b))
       } catch (err) {
@@ -142,7 +199,7 @@ export default function ShareCard({ rating, onClose }: Props) {
       setGenerating(false)
     }, 400)
     return () => clearTimeout(timer)
-  }, [])
+  }, [imagesReady])
 
   async function share() {
     if (!blob) return
@@ -292,8 +349,8 @@ export default function ShareCard({ rating, onClose }: Props) {
               background: `linear-gradient(135deg, ${mugStyle.liquid || '#c8853a'}, #9b5e1a)`,
               flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+              {(avatarB64 || user?.avatar_url) ? (
+                <img src={avatarB64 || user!.avatar_url!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
                   {user?.username?.[0]?.toUpperCase()}
@@ -366,7 +423,7 @@ export default function ShareCard({ rating, onClose }: Props) {
               gap: 2,
             }}>
               {photos.map((url, i) => (
-                <img key={i} src={url} alt="" crossOrigin="anonymous"
+                <img key={i} src={photosB64[i] || url} alt=""
                   style={{
                     width: '100%',
                     height: photos.length === 1 ? 280 : photos.length === 3 && i === 0 ? 200 : 140,
