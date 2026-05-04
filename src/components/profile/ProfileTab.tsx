@@ -174,11 +174,16 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     setSaving(false)
   }
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.[0] || !profile) return
+    console.log('handleAvatarUpload called, files:', e.target.files?.length)
+    if (!e.target.files?.[0] || !profile) {
+      console.log('No file or no profile, returning')
+      return
+    }
     const file = e.target.files[0]
+    console.log('File selected:', file.name, file.type, file.size)
     if (!file.type.startsWith('image/')) { alert('Please select an image'); return }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return }
-    // Show cropper — on crop completion upload the result
+    console.log('Setting cropFile...')
     setCropFile(file)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -225,17 +230,20 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     setUploadingAvatar(false)
   }
   async function handleCroppedAvatar(blob: Blob) {
+    console.log('handleCroppedAvatar called, blob size:', blob.size)
     setCropFile(null)
     await uploadBlob(blob)
   }
   return (
     <>
       {cropFile && (
-        <AvatarCropper
-          imageFile={cropFile}
-          onCrop={handleCroppedAvatar}
-          onCancel={() => setCropFile(null)}
-        />
+        <div className="fixed inset-0 z-[200]">
+          <AvatarCropper
+            imageFile={cropFile}
+            onCrop={handleCroppedAvatar}
+            onCancel={() => setCropFile(null)}
+          />
+        </div>
       )}
       <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white">
