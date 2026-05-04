@@ -119,11 +119,28 @@ export default function ShareCard({ rating, onClose }: Props) {
   const isVibePost = fill === 0 && !isQuickSip
   const photos = (rating.photo_urls?.length ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean) as string[]
 
-  // Convert a URL to base64 data URL — eliminates CORS canvas taint
+  const PROXY_BASE = 'https://euxyleckowsfuyzgximo.supabase.co/functions/v1/image-proxy'
+
+  // Fetch image via server-side proxy to avoid CORS canvas taint
   async function toBase64(url: string): Promise<string | null> {
+    // Try proxy first
     try {
-      const res = await fetch(url, { mode: 'cors', cache: 'force-cache' })
-      if (!res.ok) throw new Error('fetch failed')
+      const proxied = `${PROXY_BASE}?url=${encodeURIComponent(url)}`
+      const res = await fetch(proxied)
+      if (!res.ok) throw new Error('proxy failed')
+      const b = await res.blob()
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(b)
+      })
+    } catch {}
+
+    // Fallback: direct fetch
+    try {
+      const res = await fetch(url, { mode: 'cors' })
+      if (!res.ok) throw new Error('direct fetch failed')
       const b = await res.blob()
       return await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -132,7 +149,7 @@ export default function ShareCard({ rating, onClose }: Props) {
         reader.readAsDataURL(b)
       })
     } catch {
-      return null // fail silently — image just won't appear
+      return null
     }
   }
 
