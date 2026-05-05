@@ -3,6 +3,7 @@ import PostDetailModal from './PostDetailModal'
 import ShopDetailPage from './ShopDetailPage'
 import { ArrowLeft, UserPlus, Check, MapPin, Coffee, Gift } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { notifyFollow } from '../../lib/push'
 import BadgeExplainerModal from './BadgeExplainerModal'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -53,6 +54,9 @@ function FollowButton({ targetId, meId }: { targetId: string; meId?: string }) {
     } else {
       await supabase.from('follows').insert({ follower_id: meId, following_id: targetId })
       await supabase.from('notifications').insert({ user_id: targetId, actor_id: meId, type: 'follow' })
+      // Send push notification to followed user
+      const { data: me } = await supabase.from('profiles').select('username').eq('id', meId).single()
+      if (me?.username) notifyFollow(targetId, me.username)
       setIsFollowing(true)
     }
   }
