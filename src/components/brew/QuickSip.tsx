@@ -128,7 +128,6 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       vibe_tags: [],
     })
     trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
-    const { data: newRating } = await supabase.from('ratings').select('id').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(1).single()
     // Notify followers
     try {
       const { data: followers } = await supabase
