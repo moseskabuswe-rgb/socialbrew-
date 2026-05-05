@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Search, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { getBadge, TIER_LABELS } from '../../lib/badges'
 import BadgeExplainerModal from '../shared/BadgeExplainerModal'
 import { notifyFollow } from '../../lib/push'
 import BadgeCelebration from '../shared/BadgeCelebration'
@@ -11,22 +12,7 @@ import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
-function getBadgeInfo(count: number) {
-  const tiers = [
-    { label: 'Coffee Curious', emoji: '🌱', color: '#7aaa6a', min: 0 },
-    { label: 'Coffee Lover', emoji: '☕', color: '#c8853a', min: 3 },
-    { label: 'Regular', emoji: '⭐', color: '#d4a017', min: 10 },
-    { label: 'Enthusiast', emoji: '🔥', color: '#e06030', min: 25 },
-    { label: 'Connoisseur', emoji: '🏆', color: '#9b59b6', min: 50 },
-    { label: 'Brew Master', emoji: '👑', color: '#c0392b', min: 100 },
-  ]
-  let current = tiers[0], next = tiers[1]
-  for (let i = tiers.length - 1; i >= 0; i--) {
-    if (count >= tiers[i].min) { current = tiers[i]; next = tiers[Math.min(i + 1, tiers.length - 1)]; break }
-  }
-  const progress = next === current ? 100 : Math.round(((count - current.min) / (next.min - current.min)) * 100)
-  return { current, next, progress }
-}
+// getBadgeInfo replaced by getBadge from badges.ts
 // ── FOLLOWERS MODAL ─────────────────────────────────────
 function FollowersModal({ userId, type, onClose }: { userId: string; type: 'followers' | 'following'; onClose: () => void }) {
   const { profile: me } = useAuth()
@@ -430,6 +416,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [activeSection, setActiveSection] = useState<'sips' | 'map'>('sips')
   const [showSettings, setShowSettings] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
+  const [explorationStats, setExplorationStats] = useState<any>(null)
   const [showBadgeExplainer, setShowBadgeExplainer] = useState(false)
   const [showStreakExplainer, setShowStreakExplainer] = useState(false)
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
@@ -448,19 +435,19 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     if (!profile) return
     async function load() {
       const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
-        supabase.from('ratings').select('id, fill_level, drink_name, photo_url, caption, created_at, shop_id, coffee_shops(id, name, city, photo_url)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(50),
+        supabase.from('ratings').select('id, fill_level, drink_name, photo_url, caption, created_at, shop_id, is_first_brew, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(50),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),
         supabase.from('wishlist').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false }),
       ])
       const newCount = ratingsRes.data?.length || 0
-      const newBadge = getBadgeInfo(newCount).current
+      const newBadge = getBadge(newCount, explorationStats || undefined).current
       const storedBadge = profile!.badge
       if (!storedBadge) {
         await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
       } else if (storedBadge !== newBadge.label) {
-        const tiers = ['Coffee Curious','Coffee Lover','Regular','Enthusiast','Connoisseur','Brew Master']
+        const tiers = TIER_LABELS
         const oldIdx = tiers.indexOf(storedBadge)
         const newIdx = tiers.indexOf(newBadge.label)
         if (newIdx > oldIdx) {
@@ -470,7 +457,19 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile!.id)
         }
       }
-      if (ratingsRes.data) setRatings(ratingsRes.data)
+      if (ratingsRes.data) {
+        setRatings(ratingsRes.data)
+        // Compute exploration stats for advanced badge levels
+        const shops = ratingsRes.data.filter((r: any) => r.coffee_shops)
+        const uniqueShops = new Set(shops.map((r: any) => r.shop_id)).size
+        const uniqueCities = new Set(shops.map((r: any) => r.coffee_shops?.city).filter(Boolean)).size
+        const uniqueStates = new Set(shops.map((r: any) => r.coffee_shops?.state).filter(Boolean)).size
+        const uniqueCountries = new Set(shops.map((r: any) => r.coffee_shops?.country).filter(Boolean)).size
+        const uniqueContinents = new Set(shops.map((r: any) => r.coffee_shops?.continent).filter(Boolean)).size
+        const firstBrews = ratingsRes.data.filter((r: any) => r.is_first_brew).length
+        const streakWeeks = (profile as any)?.current_streak || 0
+        setExplorationStats({ uniqueShops, uniqueCities, uniqueStates, uniqueCountries, uniqueContinents, firstBrews, streakWeeks })
+      }
       // Use user_shop_visits if available, build from ratings as fallback
       if (visitsRes.data && visitsRes.data.length > 0) {
         setVisitedShops(visitsRes.data)
@@ -511,7 +510,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     await supabase.from('wishlist').delete().eq('id', id)
     setWishlist(prev => prev.filter(w => w.id !== id))
   }
-  const badgeInfo = getBadgeInfo(ratings.length)
+  const badgeInfo = getBadge(ratings.length, explorationStats || undefined)
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
