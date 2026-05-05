@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { sendPushToUser } from '../../lib/push'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import { resolveShopId } from '../../lib/shopUtils'
 // push notifications handled in parent
@@ -128,7 +129,21 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     })
     trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
     const { data: newRating } = await supabase.from('ratings').select('id').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(1).single()
-    if (newRating) { /* follower notifications handled server-side */ }
+    // Notify followers
+    try {
+      const { data: followers } = await supabase
+        .from('follows').select('follower_id').eq('following_id', profile.id)
+      if (followers && followers.length > 0) {
+        await Promise.all(followers.map((f: any) =>
+          sendPushToUser(
+            f.follower_id,
+            `${profile.username || 'Someone'} had a quick sip ⚡`,
+            shop?.name || 'a coffee shop',
+            { type: 'new_post', tag: 'new_post' }
+          )
+        ))
+      }
+    } catch {}
     setDone(true)
     setTimeout(() => {
       onComplete(shop?.name, willBeFirst)

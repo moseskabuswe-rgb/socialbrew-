@@ -17,7 +17,7 @@
 import { useState, useRef } from 'react'
 import { X, Camera, Smile } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-
+import { sendPushToUser } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 
 type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
@@ -99,6 +99,21 @@ export default function ShareMoment({ onClose, onComplete }: Props) {
     }
 
     setLoading(false)
+    // Notify followers
+    try {
+      const { data: followers } = await supabase
+        .from('follows').select('follower_id').eq('following_id', profile.id)
+      if (followers && followers.length > 0) {
+        await Promise.all(followers.map((f: any) =>
+          sendPushToUser(
+            f.follower_id,
+            `${profile.username || 'Someone'} posted a vibe ✨`,
+            caption.trim().slice(0, 80) || 'Check it out on Social Brew',
+            { type: 'new_post', tag: 'new_post' }
+          )
+        ))
+      }
+    } catch {}
     onComplete()
     onClose()
   }

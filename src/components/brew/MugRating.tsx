@@ -177,6 +177,24 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       }
       setStep('done')
 
+      // Notify ALL followers on every new post (not just when adding to story)
+      try {
+        const { data: followers } = await supabase
+          .from('follows').select('follower_id').eq('following_id', profile.id)
+        if (followers && followers.length > 0) {
+          await Promise.all(
+            followers.map((f: any) =>
+              sendPushToUser(
+                f.follower_id,
+                `${profile.username || 'Someone'} rated a visit ☕`,
+                `${shop?.name || 'a coffee shop'}${captionParts.length ? ` — ${captionParts[0]}` : ''}`,
+                { type: 'new_post', tag: 'new_post' }
+              )
+            )
+          )
+        }
+      } catch {}
+
       // If user toggled "add to story", silently create it from the rating data
       if (addToStory) {
         await supabase.from('stories').insert({
@@ -187,23 +205,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           caption: captionParts.join(' · ') || null,
           story_type: 'rating',
         })
-        // Notify followers
-        try {
-          const { data: followers } = await supabase
-            .from('follows').select('follower_id').eq('following_id', profile.id)
-          if (followers && followers.length > 0) {
-            await Promise.all(
-              followers.map((f: any) =>
-                sendPushToUser(
-                  f.follower_id,
-                  `${profile.username || 'Someone'} rated a visit`,
-                  `${shop?.name || 'a coffee shop'}${captionParts.length ? ` — ${captionParts[0]}` : ''}`,
-                  { type: 'story' }
-                )
-              )
-            )
-          }
-        } catch {}
       }
 
       setTimeout(() => { onComplete(shop?.name, willBeFirst); onClose() }, willBeFirst ? 3000 : 1600)
