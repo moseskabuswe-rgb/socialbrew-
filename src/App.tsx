@@ -15,6 +15,7 @@ import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import { supabase } from './lib/supabase'
+import { getBadge, TIER_LABELS } from './lib/badges'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
 
 // Re-export notification helpers so other components can import from App
@@ -96,18 +97,7 @@ function AppContent() {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', profile.id)
       const newCount = count || 0
-      const tiers = [
-        { label: 'Coffee Curious', emoji: '🌱', color: '#7aaa6a', min: 0 },
-        { label: 'Coffee Lover', emoji: '☕', color: '#c8853a', min: 3 },
-        { label: 'Regular', emoji: '⭐', color: '#d4a017', min: 10 },
-        { label: 'Enthusiast', emoji: '🔥', color: '#e06030', min: 25 },
-        { label: 'Connoisseur', emoji: '🏆', color: '#9b59b6', min: 50 },
-        { label: 'Brew Master', emoji: '👑', color: '#c0392b', min: 100 },
-      ]
-      let newBadge = tiers[0]
-      for (let i = tiers.length - 1; i >= 0; i--) {
-        if (newCount >= tiers[i].min) { newBadge = tiers[i]; break }
-      }
+      const newBadge = getBadge(newCount).current
       if (profile.badge !== newBadge.label) {
         await supabase.from('profiles').update({ badge: newBadge.label }).eq('id', profile.id)
         // Delay badge celebration until ShopToast finishes (~2s) so they don't overlap
