@@ -6,7 +6,8 @@
  */
 
 import { X } from 'lucide-react'
-import { BADGE_TIERS, BadgeTier } from '../../lib/badges'
+import { BADGE_TIERS } from '../../lib/badges'
+import type { BadgeTier } from '../../lib/badges'
 
 interface Props {
   type: 'badge' | 'streak'
