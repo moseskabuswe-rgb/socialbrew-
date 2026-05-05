@@ -417,6 +417,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [showSettings, setShowSettings] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [explorationStats, setExplorationStats] = useState<any>(null)
+  const [totalCount, setTotalCount] = useState(0)
   const [showBadgeExplainer, setShowBadgeExplainer] = useState(false)
   const [showStreakExplainer, setShowStreakExplainer] = useState(false)
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
@@ -435,13 +436,17 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     if (!profile) return
     async function load() {
       const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
-        supabase.from('ratings').select('id, fill_level, drink_name, photo_url, caption, created_at, shop_id, is_first_brew, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(50),
+        supabase.from('ratings').select('id, fill_level, drink_name, photo_url, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(500),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),
         supabase.from('wishlist').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false }),
       ])
-      const newCount = ratingsRes.data?.length || 0
+      // Use separate count for accurate badge (not limited by data fetch)
+      const { count: serverCount } = await supabase
+        .from('ratings').select('*', { count: 'exact', head: true }).eq('user_id', profile!.id)
+      const newCount = serverCount || ratingsRes.data?.length || 0
+      setTotalCount(newCount)
       const newBadge = getBadge(newCount, explorationStats || undefined).current
       const storedBadge = profile!.badge
       if (!storedBadge) {
@@ -466,7 +471,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         const uniqueStates = new Set(shops.map((r: any) => r.coffee_shops?.state).filter(Boolean)).size
         const uniqueCountries = new Set(shops.map((r: any) => r.coffee_shops?.country).filter(Boolean)).size
         const uniqueContinents = new Set(shops.map((r: any) => r.coffee_shops?.continent).filter(Boolean)).size
-        const firstBrews = ratingsRes.data.filter((r: any) => r.is_first_brew).length
+        const firstBrews = 0 // first_brew tracking coming soon
         const streakWeeks = (profile as any)?.current_streak || 0
         setExplorationStats({ uniqueShops, uniqueCities, uniqueStates, uniqueCountries, uniqueContinents, firstBrews, streakWeeks })
       }
@@ -510,7 +515,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     await supabase.from('wishlist').delete().eq('id', id)
     setWishlist(prev => prev.filter(w => w.id !== id))
   }
-  const badgeInfo = getBadge(ratings.length, explorationStats || undefined)
+  const badgeInfo = getBadge(totalCount || ratings.length, explorationStats || undefined)
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
