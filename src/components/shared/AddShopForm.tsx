@@ -18,11 +18,67 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
   const { profile } = useAuth()
   const [name, setName] = useState(initialName)
   const [address, setAddress] = useState('')
+  const [lat, setLat] = useState<number | null>(null)
+  const [lng, setLng] = useState<number | null>(null)
+  const [country, setCountry] = useState<string | null>(null)
+  const [continent, setContinent] = useState<string | null>(null)
+  const [geocoding, setGeocoding] = useState(false)
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [website, setWebsite] = useState('')
   const [hours, setHours] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  function getContinent(countryCode: string): string | null {
+    const map: Record<string, string> = {
+      // North America
+      US: 'North America', CA: 'North America', MX: 'North America',
+      // South America
+      BR: 'South America', CO: 'South America', AR: 'South America', CL: 'South America',
+      PE: 'South America', VE: 'South America', EC: 'South America', BO: 'South America',
+      // Europe
+      GB: 'Europe', FR: 'Europe', DE: 'Europe', IT: 'Europe', ES: 'Europe', PT: 'Europe',
+      NL: 'Europe', BE: 'Europe', SE: 'Europe', NO: 'Europe', DK: 'Europe', FI: 'Europe',
+      PL: 'Europe', CZ: 'Europe', AT: 'Europe', CH: 'Europe', GR: 'Europe', HU: 'Europe',
+      RO: 'Europe', BG: 'Europe', HR: 'Europe', SK: 'Europe', SI: 'Europe', IE: 'Europe',
+      // Africa
+      ET: 'Africa', KE: 'Africa', TZ: 'Africa', UG: 'Africa', RW: 'Africa', ZA: 'Africa',
+      NG: 'Africa', GH: 'Africa', CM: 'Africa', CD: 'Africa', EG: 'Africa', MA: 'Africa',
+      // Asia
+      JP: 'Asia', CN: 'Asia', KR: 'Asia', TH: 'Asia', VN: 'Asia', ID: 'Asia', MY: 'Asia',
+      SG: 'Asia', PH: 'Asia', IN: 'Asia', TR: 'Asia', AE: 'Asia', SA: 'Asia', IL: 'Asia',
+      // Oceania
+      AU: 'Oceania', NZ: 'Oceania', PG: 'Oceania', FJ: 'Oceania',
+    }
+    return map[countryCode] || null
+  }
+
+  async function geocodeAddress() {
+    const fullAddress = [address.trim(), city.trim(), state.trim()].filter(Boolean).join(', ')
+    if (!fullAddress || fullAddress.length < 5) return
+    setGeocoding(true)
+    try {
+      const encoded = encodeURIComponent(fullAddress)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&addressdetails=1`,
+        { headers: { 'User-Agent': 'SocialBrew/1.0' } }
+      )
+      const data = await res.json()
+      if (data && data[0]) {
+        setLat(parseFloat(data[0].lat))
+        setLng(parseFloat(data[0].lon))
+        // Capture country and continent from address details
+        const countryCode = data[0].address?.country_code?.toUpperCase() || null
+        const countryName = data[0].address?.country || null
+        if (countryName) setCountry(countryName)
+        if (countryCode) {
+          const cont = getContinent(countryCode)
+          if (cont) setContinent(cont)
+        }
+      }
+    } catch {}
+    setGeocoding(false)
+  }
   const [error, setError] = useState('')
 
   async function handleSubmit() {
@@ -59,6 +115,10 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
           state: state.trim() || null,
           website: website.trim() || null,
           opening_hours: hours.trim() || null,
+          lat: lat || null,
+          lng: lng || null,
+          country: country || null,
+          continent: continent || null,
           is_verified: false,
           is_active: true,
           avg_rating: 0,
@@ -129,7 +189,8 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
               <MapPin size={14} className="text-coffee-400 flex-shrink-0" />
               <input
                 value={city}
-                onChange={e => setCity(e.target.value)}
+                onChange={e => { setCity(e.target.value); setLat(null); setLng(null) }}
+                onBlur={geocodeAddress}
                 placeholder="e.g. Greenville"
                 className="flex-1 bg-transparent text-coffee-800 text-sm focus:outline-none placeholder-coffee-300"
               />
@@ -152,7 +213,8 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
             <label className="text-coffee-600 text-xs font-semibold block mb-1">Address</label>
             <input
               value={address}
-              onChange={e => setAddress(e.target.value)}
+              onChange={e => { setAddress(e.target.value); setLat(null); setLng(null) }}
+              onBlur={geocodeAddress}
               placeholder="e.g. 101 N Main St"
               className="w-full bg-cream-50 text-coffee-800 rounded-xl border border-cream-200 focus:border-caramel focus:outline-none px-3 py-2.5 text-sm placeholder-coffee-300"
             />
@@ -196,6 +258,10 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
               🌱 Community added shops get a <strong>Social Brew Verified</strong> badge automatically after 5 people rate them.
             </p>
           </div>
+
+          {/* Geocoding status */}
+          {geocoding && <p className="text-coffee-400 text-xs text-center py-1">📍 Finding coordinates...</p>}
+          {lat && lng && !geocoding && <p className="text-xs text-center py-1" style={{color:'#22c55e'}}>📍 Location found — map pin will appear automatically</p>}
 
           {/* Submit */}
           <button

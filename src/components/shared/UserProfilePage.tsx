@@ -3,20 +3,14 @@ import PostDetailModal from './PostDetailModal'
 import ShopDetailPage from './ShopDetailPage'
 import { ArrowLeft, UserPlus, Check, MapPin, Coffee, Gift } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { getBadge } from '../../lib/badges'
 import { notifyFollow } from '../../lib/push'
 import BadgeExplainerModal from './BadgeExplainerModal'
 import { useAuth } from '../../contexts/AuthContext'
 
 const CoffeeMap = lazy(() => import('../profile/CoffeeMap'))
 
-function getBadgeInfo(count: number) {
-  if (count >= 100) return { label: 'Brew Master', emoji: '👑', color: '#c0392b' }
-  if (count >= 50) return { label: 'Connoisseur', emoji: '🏆', color: '#9b59b6' }
-  if (count >= 25) return { label: 'Enthusiast', emoji: '🔥', color: '#e06030' }
-  if (count >= 10) return { label: 'Regular', emoji: '⭐', color: '#d4a017' }
-  if (count >= 3) return { label: 'Coffee Lover', emoji: '☕', color: '#c8853a' }
-  return { label: 'Coffee Curious', emoji: '🌱', color: '#7aaa6a' }
-}
+// getBadgeInfo replaced by getBadge from badges.ts
 
 function getMugColor(fill: number) {
   if (fill <= 20) return '#b0c4d4'
@@ -93,7 +87,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   useEffect(() => {
     async function load() {
       const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single()
-      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(id,name,photo_url,city,state,address,lat,lng)').eq('user_id', userId).order('created_at', { ascending: false })
+      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(id,name,photo_url,city,state,country,continent,address,lat,lng)').eq('user_id', userId).order('created_at', { ascending: false })
       const visitsRes = await supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false })
       const wishlistRes = await supabase.from('wishlist').select('*').eq('user_id', userId).order('created_at', { ascending: false })
       const followersRes = await supabase.from('follows').select('follower_id, profiles!follows_follower_id_fkey(id,username,full_name,avatar_url,badge)').eq('following_id', userId)
@@ -149,7 +143,21 @@ export default function UserProfilePage({ userId, onBack }: Props) {
     }
   }
 
-  const badge = getBadgeInfo(ratings.length)
+  // Compute exploration stats for badge
+  const explorationStats = (() => {
+    const shops = ratings.filter((r: any) => r.coffee_shops)
+    return {
+      uniqueShops: new Set(shops.map((r: any) => r.shop_id)).size,
+      uniqueCities: new Set(shops.map((r: any) => r.coffee_shops?.city).filter(Boolean)).size,
+      uniqueStates: new Set(shops.map((r: any) => r.coffee_shops?.state).filter(Boolean)).size,
+      uniqueCountries: new Set(shops.map((r: any) => r.coffee_shops?.country).filter(Boolean)).size,
+      uniqueContinents: new Set(shops.map((r: any) => r.coffee_shops?.continent).filter(Boolean)).size,
+      firstBrews: ratings.filter((r: any) => r.is_first_brew).length,
+      streakWeeks: 0,
+    }
+  })()
+  const badgeResult = getBadge(ratings.length, explorationStats)
+  const badge = badgeResult.current
   const isOwnProfile = me?.id === userId
 
   // ── FOLLOWERS/FOLLOWING SHEET ────────────────────────────

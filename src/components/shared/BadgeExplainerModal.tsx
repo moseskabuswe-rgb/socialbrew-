@@ -1,39 +1,19 @@
 /**
  * BadgeExplainerModal.tsx
  *
- * Tappable tooltip/modal explaining Social Brew badges and streaks.
- * Opens when a user taps their badge pill, a friend's badge, or a streak.
- *
- * Covers:
- *   - All 6 badge tiers with requirements and descriptions
- *   - Weekly streak system explanation
- *   - Milestone system overview
+ * Shows all 16 badge levels with descriptions.
+ * Current level highlighted. Streak explanation included.
  */
 
 import { X } from 'lucide-react'
-
-interface BadgeInfo {
-  label: string
-  emoji: string
-  color: string
-  min?: number  // optional — not all callers include it
-}
+import { BADGE_TIERS, BadgeTier } from '../../lib/badges'
 
 interface Props {
   type: 'badge' | 'streak'
-  badge?: BadgeInfo
+  badge?: { label: string; emoji: string; color: string }
   streak?: number
   onClose: () => void
 }
-
-const ALL_BADGES = [
-  { label: 'Coffee Curious', emoji: '🌱', color: '#7aaa6a', min: 0, max: 2, desc: 'Just getting started. Every great coffee journey begins with a first sip.' },
-  { label: 'Coffee Lover', emoji: '☕', color: '#c8853a', min: 3, max: 9, desc: 'You have a taste for the good stuff. Regulars at your favourite shops are starting to recognise you.' },
-  { label: 'Regular', emoji: '⭐', color: '#d4a017', min: 10, max: 24, desc: 'You show up. Consistency is its own form of loyalty and yours is showing.' },
-  { label: 'Enthusiast', emoji: '🔥', color: '#e06030', min: 25, max: 49, desc: 'Coffee isn\'t just a habit — it\'s a passion. You know your cortado from your cappuccino.' },
-  { label: 'Connoisseur', emoji: '🏆', color: '#9b59b6', min: 50, max: 99, desc: 'Rare. You\'ve explored widely, rated honestly, and built a real coffee story.' },
-  { label: 'Brew Master', emoji: '👑', color: '#c0392b', min: 100, max: null, desc: 'The highest level. You\'ve logged 100+ visits across independent shops. A true champion of local coffee culture.' },
-]
 
 export default function BadgeExplainerModal({ type, badge, streak, onClose }: Props) {
   return (
@@ -41,14 +21,14 @@ export default function BadgeExplainerModal({ type, badge, streak, onClose }: Pr
       style={{ background: 'rgba(8,4,1,0.85)' }}
       onClick={onClose}>
       <div
-        className="w-full max-w-sm bg-white rounded-t-3xl animate-slide-up pb-8"
-        style={{ maxHeight: '85vh', overflowY: 'auto' }}
+        className="w-full max-w-sm bg-white rounded-t-3xl pb-8"
+        style={{ maxHeight: '88vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200 sticky top-0 bg-white z-10">
           <h3 className="font-display font-bold text-coffee-800 text-lg">
-            {type === 'badge' ? '☕ Badge Levels' : '🔥 Brew Streak'}
+            {type === 'badge' ? '☕ Explorer Levels' : '🔥 Brew Streak'}
           </h3>
           <button onClick={onClose}
             className="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-coffee-500">
@@ -56,39 +36,41 @@ export default function BadgeExplainerModal({ type, badge, streak, onClose }: Pr
           </button>
         </div>
 
-        {/* Badge explanation */}
         {type === 'badge' && (
           <div className="px-5 pt-4">
-            <p className="text-coffee-400 text-sm mb-4 leading-relaxed">
-              Your badge reflects how deep your independent coffee journey goes.
-              Every rated visit counts — no chains, real visits only.
+            <p className="text-coffee-400 text-sm mb-2 leading-relaxed">
+              Your level reflects how wide your coffee world has grown — shops visited, cities explored, countries crossed, and continents discovered.
             </p>
-            <div className="space-y-3">
-              {ALL_BADGES.map(b => (
-                <div key={b.label}
-                  className={`flex items-start gap-3 p-3 rounded-2xl transition-all ${badge?.label === b.label ? 'border-2' : 'border border-cream-200 bg-cream-50'}`}
-                  style={badge?.label === b.label ? { borderColor: b.color, background: `${b.color}12` } : {}}>
-                  <span className="text-2xl flex-shrink-0">{b.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-bold text-sm" style={{ color: b.color }}>{b.label}</p>
-                      {badge?.label === b.label && (
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
-                          style={{ background: b.color }}>Your level</span>
-                      )}
-                    </div>
-                    <p className="text-coffee-400 text-xs mb-1">
-                      {b.max ? `${b.min}–${b.max} visits` : `${b.min}+ visits`}
-                    </p>
-                    <p className="text-coffee-600 text-xs leading-relaxed">{b.desc}</p>
-                  </div>
-                </div>
+            <p className="text-coffee-300 text-xs mb-4 leading-relaxed">
+              Levels 1–6 are based on rated visits. Levels 7–16 use an exploration score combining unique shops, cities, countries and continents.
+            </p>
+
+            {/* Group: Foundation levels */}
+            <p className="text-coffee-300 text-xs font-semibold uppercase tracking-widest mb-2">Foundation</p>
+            <div className="space-y-2 mb-4">
+              {BADGE_TIERS.filter(t => t.level <= 6).map(tier => (
+                <BadgeRow key={tier.label} tier={tier} isCurrentBadge={badge?.label === tier.label} />
+              ))}
+            </div>
+
+            {/* Group: Explorer levels */}
+            <p className="text-coffee-300 text-xs font-semibold uppercase tracking-widest mb-2">Explorer</p>
+            <div className="space-y-2 mb-4">
+              {BADGE_TIERS.filter(t => t.level >= 7 && t.level <= 10).map(tier => (
+                <BadgeRow key={tier.label} tier={tier} isCurrentBadge={badge?.label === tier.label} />
+              ))}
+            </div>
+
+            {/* Group: Global levels */}
+            <p className="text-coffee-300 text-xs font-semibold uppercase tracking-widest mb-2">Global</p>
+            <div className="space-y-2">
+              {BADGE_TIERS.filter(t => t.level >= 11).map(tier => (
+                <BadgeRow key={tier.label} tier={tier} isCurrentBadge={badge?.label === tier.label} />
               ))}
             </div>
           </div>
         )}
 
-        {/* Streak explanation */}
         {type === 'streak' && (
           <div className="px-5 pt-4">
             <div className="flex items-center gap-3 mb-4 p-4 rounded-2xl"
@@ -99,7 +81,6 @@ export default function BadgeExplainerModal({ type, badge, streak, onClose }: Pr
                 <p className="text-coffee-500 text-sm">Keep it going ☕</p>
               </div>
             </div>
-
             <div className="space-y-4 text-sm text-coffee-600 leading-relaxed">
               <div className="flex items-start gap-3">
                 <span className="text-lg flex-shrink-0">📅</span>
@@ -123,15 +104,43 @@ export default function BadgeExplainerModal({ type, badge, streak, onClose }: Pr
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-lg flex-shrink-0">🏆</span>
+                <span className="text-lg flex-shrink-0">🌍</span>
                 <div>
-                  <p className="font-semibold text-coffee-800 mb-1">Milestones unlock along the way</p>
-                  <p>Reach 4, 8, 12, and 16-week streaks to unlock special milestone celebrations. Each one is a real achievement.</p>
+                  <p className="font-semibold text-coffee-800 mb-1">Streaks contribute to your explorer score</p>
+                  <p>Each week of your streak adds 2 points to your exploration score — helping you unlock higher levels over time.</p>
                 </div>
               </div>
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function BadgeRow({ tier, isCurrentBadge }: { tier: BadgeTier; isCurrentBadge: boolean }) {
+  return (
+    <div
+      className={`flex items-start gap-3 p-3 rounded-2xl transition-all ${isCurrentBadge ? 'border-2' : 'border border-cream-200 bg-cream-50'}`}
+      style={isCurrentBadge ? { borderColor: tier.color, background: `${tier.color}12` } : {}}>
+      <span className="text-2xl flex-shrink-0">{tier.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <p className="font-bold text-sm" style={{ color: tier.color }}>{tier.label}</p>
+          {isCurrentBadge && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
+              style={{ background: tier.color }}>Your level</span>
+          )}
+        </div>
+        <p className="text-coffee-300 text-xs mb-1">
+          {tier.minVisits !== undefined
+            ? tier.level === 6
+              ? '100+ rated visits'
+              : `${tier.minVisits}${BADGE_TIERS[tier.level]?.minVisits ? `–${BADGE_TIERS[tier.level].minVisits! - 1}` : '+'} rated visits`
+            : `Exploration score ${tier.minScore?.toLocaleString()}+${tier.minCountries ? ` · ${tier.minCountries}+ countr${tier.minCountries > 1 ? 'ies' : 'y'}` : ''}${tier.minContinents ? ` · ${tier.minContinents}+ continents` : ''}`
+          }
+        </p>
+        <p className="text-coffee-600 text-xs leading-relaxed">{tier.desc}</p>
       </div>
     </div>
   )
