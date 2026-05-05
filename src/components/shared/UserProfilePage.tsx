@@ -152,7 +152,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       uniqueStates: new Set(shops.map((r: any) => r.coffee_shops?.state).filter(Boolean)).size,
       uniqueCountries: new Set(shops.map((r: any) => r.coffee_shops?.country).filter(Boolean)).size,
       uniqueContinents: new Set(shops.map((r: any) => r.coffee_shops?.continent).filter(Boolean)).size,
-      firstBrews: ratings.filter((r: any) => r.is_first_brew).length,
+      firstBrews: 0, // first_brew column not yet in schema
       streakWeeks: 0,
     }
   })()
