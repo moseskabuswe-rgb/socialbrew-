@@ -147,7 +147,7 @@ export default function CoffeeMap({ visits }: Props) {
             marker.bindPopup(`
               <div style="font-family: sans-serif; min-width: 130px; padding: 2px 0">
                 <p style="font-weight: 700; font-size: 13px; margin: 0 0 4px 0; color: #1c0a02">${v.name}</p>
-                ${v.city ? `<p style="font-size: 11px; color: #888; margin: 0 0 4px 0">${v.city}</p>` : ''}
+                ${(v.city || v.state || v.country) ? `<p style="font-size: 11px; color: #888; margin: 0 0 4px 0">${[v.city, v.state || v.country].filter(Boolean).join(', ')}</p>` : ''}
                 <p style="font-size: 12px; font-weight: 600; margin: 0 0 2px 0" style="color: ${color}">${v.avg_fill}% · ${label}</p>
                 <p style="font-size: 11px; color: #888; margin: 0">${v.visit_count} visit${v.visit_count !== 1 ? 's' : ''}</p>
               </div>
