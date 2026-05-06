@@ -34,6 +34,21 @@ function getFillLabel(fill: number) {
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+// Format shop location — handles US (City, State) and international (City, Country)
+// Gracefully handles missing fields
+function formatLocation(city?: string | null, state?: string | null, country?: string | null): string {
+  const c = city?.trim()
+  const s = state?.trim()
+  const co = country?.trim()
+  if (!c) return s || co || ''
+  // US: show City, State
+  if (s && (!co || co === 'United States')) return `${c}, ${s}`
+  // International: show City, Country
+  if (co && co !== 'United States') return `${c}, ${co}`
+  // Fallback: just city
+  return c
+}
+
 function timeAgo(d: string) {
   const diff = Date.now() - new Date(d).getTime()
   const m = Math.floor(diff / 60000)
@@ -1012,8 +1027,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
     const { data } = await supabase
       .from('ratings')
-      .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified, lat, lng)')
-      .order('created_at', { ascending: false })
+      .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified, lat, lng)')
+      .order('visited_at', { ascending: false, nullsFirst: false })
       .range(from, to)
 
     if (data) {
@@ -1080,7 +1095,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         // Fetch the new rating with full joins so manual shops appear immediately
         const { data: newRating } = await supabase
           .from('ratings')
-          .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified)')
+          .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
           .eq('id', payload.new.id)
           .single()
         if (newRating) {
@@ -1203,7 +1218,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     setShowSaved(true)
     const { data } = await supabase
       .from('saved_posts')
-      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating))')
+      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating))')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
     if (data) setSavedPostsList(data.map((s: any) => s.ratings).filter(Boolean))
@@ -1281,7 +1296,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               // Load the rating and open PostDetailModal
               const { data } = await supabase
                 .from('ratings')
-                .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, photo_url, avg_rating, is_verified)')
+                .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
                 .eq('id', id)
                 .single()
               if (data) setActivePost(data)
@@ -1347,7 +1362,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#f5e6d0', color: '#c8853a' }}>✨ Vibe Check</span>
                       <span className="text-coffee-300 text-xs">·</span>
-                      <span className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</span>
+                      <span className="text-coffee-400 text-xs">
+                        {rating.visited_at && rating.visited_at !== rating.created_at?.split('T')[0]
+                          ? `Visited ${new Date(rating.visited_at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · posted ${timeAgo(rating.created_at)}`
+                          : timeAgo(rating.created_at)
+                        }
+                      </span>
                     </div>
                   </div>
                   <button onClick={() => setActiveMenu({ ...rating, _isOwn: isOwn })} className="text-coffee-300 p-1 flex-shrink-0"><MoreHorizontal size={15} /></button>
@@ -1437,7 +1457,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                       </svg>
                       <span className="text-coffee-500 font-semibold text-xs">{rating.fill_level}%</span>
                       <span className="text-coffee-300 text-xs">·</span>
-                      <span className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</span>
+                      <span className="text-coffee-400 text-xs">
+                        {rating.visited_at && rating.visited_at !== rating.created_at?.split('T')[0]
+                          ? `Visited ${new Date(rating.visited_at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · posted ${timeAgo(rating.created_at)}`
+                          : timeAgo(rating.created_at)
+                        }
+                      </span>
                       <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-400">⚡ Quick Sip</span>
                     </div>
                   </div>
@@ -1578,7 +1603,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   </div>
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
-                    <p className="text-coffee-400 text-xs truncate">{shop.city ? shop.city : shop.address}</p>
+                    <p className="text-coffee-400 text-xs truncate">{formatLocation(shop.city, shop.state, shop.country) || shop.address || ""}</p>
                   </div>
                   <span className="text-caramel text-xs font-semibold flex-shrink-0 ml-1">View</span>
                 </button>
