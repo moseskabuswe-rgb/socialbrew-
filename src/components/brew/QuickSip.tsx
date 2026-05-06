@@ -10,12 +10,15 @@ import { trackEvent } from '../../lib/analytics'
 
 type Props = { onClose: () => void; onComplete: (shopName?: string, wasFirst?: boolean) => void }
 
+// Unified mug scale — identical to MugRating.tsx
 function getMugStyle(fill: number) {
-  if (fill === 0)  return { liquid: 'transparent', crema: 'transparent', glow: 'none', label: 'Slide to rate', color: '#9b7a45' }
-  if (fill <= 25)  return { liquid: '#b0c4d4', crema: '#ccdde8', glow: 'rgba(176,196,212,0.3)', label: 'Just a Sip', color: '#7a9ab0' }
-  if (fill <= 50)  return { liquid: '#c8924a', crema: '#dba96a', glow: 'rgba(200,146,74,0.35)', label: 'Getting There', color: '#c8924a' }
-  if (fill <= 75)  return { liquid: '#a06428', crema: '#c07c38', glow: 'rgba(160,100,40,0.4)', label: 'Good Pour', color: '#a06428' }
-  return             { liquid: '#4e2008', crema: '#7a3a12', glow: 'rgba(210,140,60,0.6)', label: '✨ Loved it', color: '#c8853a' }
+  if (fill === 0)   return { liquid: 'transparent', crema: 'transparent', glow: 'none',                  label: 'Slide to rate',    color: '#9b7a45' }
+  if (fill <= 59)   return { liquid: '#d4b896',      crema: '#e8d4bc',     glow: 'rgba(212,184,150,0.2)', label: 'Not My Cup',       color: '#d4b896' }
+  if (fill <= 69)   return { liquid: '#c49a6c',      crema: '#d9b48c',     glow: 'rgba(196,154,108,0.3)', label: 'Just a Sip',       color: '#c49a6c' }
+  if (fill <= 79)   return { liquid: '#b87333',      crema: '#d4894a',     glow: 'rgba(184,115,51,0.35)', label: 'Decent Pour',      color: '#b87333' }
+  if (fill <= 89)   return { liquid: '#9b5e1a',      crema: '#c07830',     glow: 'rgba(155,94,26,0.4)',   label: 'Good Brew',        color: '#9b5e1a' }
+  if (fill <= 99)   return { liquid: '#6b3410',      crema: '#9b5520',     glow: 'rgba(200,130,50,0.5)',  label: 'Loved It',         color: '#6b3410' }
+  return              { liquid: '#3d1a06',      crema: '#c8853a',     glow: 'rgba(220,160,60,0.7)',  label: '✨ Perfect Brew',  color: '#3d1a06' }
 }
 
 export default function QuickSip({ onClose, onComplete }: Props) {
