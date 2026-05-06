@@ -41,6 +41,8 @@ interface NormalizedVisit {
   lat: number
   lng: number
   city: string | null
+  state: string | null
+  country: string | null
   avg_fill: number
   visit_count: number
 }
@@ -81,6 +83,8 @@ export default function CoffeeMap({ visits }: Props) {
         lat: Number(shop.lat ?? v.lat),
         lng: Number(shop.lng ?? v.lng),
         city: shop.city || v.city || null,
+        state: shop.state || null,
+        country: shop.country || null,
         avg_fill: Number(shop.avg_fill ?? v.avg_fill ?? 75),
         visit_count: Number(v.visit_count ?? v.total_visits ?? 1),
       }
