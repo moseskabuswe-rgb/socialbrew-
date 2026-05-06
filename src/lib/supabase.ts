@@ -25,6 +25,8 @@ export type CoffeeShop = {
   address: string
   city: string
   state: string
+  country: string | null
+  continent: string | null
   lat: number
   lng: number
   photo_url: string | null
