@@ -149,6 +149,8 @@ async function searchAnywhere(query: string, lat?: number | null, lng?: number |
           is_certified: false,
           website: r.extratags?.website || null,
           opening_hours: r.extratags?.opening_hours || null,
+          country: addr.country || null,
+          continent: null, // not available from OSM without reverse geocoding
         }
       })
   } catch { return [] }
