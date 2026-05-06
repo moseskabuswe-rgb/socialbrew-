@@ -139,64 +139,117 @@ function drawMug(
   size: number,
   fill: number
 ) {
+  // Proportions mirrored from MugRating.tsx SVG
+  // MugRating uses: VW=200, BX=30, BY=35, BW=110, BH=105, BR=12
+  // Scale factor: size / 200
+  const sc = size / 200
+  const BX = x + 30 * sc
+  const BY = y + 35 * sc
+  const BW = 110 * sc
+  const BH = 105 * sc
+  const BR = 12 * sc
   const liquidColor = getLiquidColor(fill)
-  const bx = x + size * 0.06
-  const by = y + size * 0.08
-  const bw = size * 0.72
-  const bh = size * 0.88
-  const br = size * 0.1
 
-  // Body
-  roundRect(ctx, bx, by, bw, bh, br)
-  ctx.fillStyle = '#f5ead8'
+  // Saucer ellipse (under the mug)
+  ctx.beginPath()
+  ctx.ellipse(BX + BW / 2, BY + BH + 18 * sc, BW / 2 + 16 * sc, 9 * sc, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#e8d8bc'
   ctx.fill()
-  ctx.strokeStyle = '#d4b896'
-  ctx.lineWidth = Math.max(1.5, size * 0.025)
+  ctx.strokeStyle = '#c8b090'
+  ctx.lineWidth = 1 * sc
   ctx.stroke()
 
-  // Liquid fill with clip
+  // Handle (bezier curves matching MugRating exactly)
+  ctx.beginPath()
+  ctx.moveTo(BX + BW - 2 * sc, BY + 20 * sc)
+  ctx.bezierCurveTo(
+    BX + BW + 36 * sc, BY + 16 * sc,
+    BX + BW + 36 * sc, BY + BH - 16 * sc,
+    BX + BW - 2 * sc, BY + BH - 20 * sc
+  )
+  ctx.strokeStyle = '#c8b090'
+  ctx.lineWidth = 8 * sc
+  ctx.stroke()
+  // Inner handle line
+  ctx.beginPath()
+  ctx.moveTo(BX + BW - 2 * sc, BY + 20 * sc)
+  ctx.bezierCurveTo(
+    BX + BW + 24 * sc, BY + 17 * sc,
+    BX + BW + 24 * sc, BY + BH - 17 * sc,
+    BX + BW - 2 * sc, BY + BH - 20 * sc
+  )
+  ctx.strokeStyle = '#dcc8a8'
+  ctx.lineWidth = 4 * sc
+  ctx.stroke()
+
+  // Mug body — ceramic gradient
+  const ceramicGrad = ctx.createLinearGradient(BX, BY, BX + BW, BY)
+  ceramicGrad.addColorStop(0, '#f8f0e0')
+  ceramicGrad.addColorStop(0.4, '#fdfaf5')
+  ceramicGrad.addColorStop(1, '#e8d8bc')
+  roundRect(ctx, BX, BY, BW, BH, BR)
+  ctx.fillStyle = ceramicGrad
+  ctx.fill()
+  ctx.strokeStyle = '#c8b090'
+  ctx.lineWidth = 1.5 * sc
+  ctx.stroke()
+
+  // Liquid fill
   if (fill > 0) {
-    const fillH = bh * (fill / 100)
-    const fillY = by + bh - fillH
+    const IH = BH - 8 * sc
+    const fillH = IH * (fill / 100)
+    const fillY = BY + BH - fillH
+
     ctx.save()
-    roundRect(ctx, bx + 2, by + 2, bw - 4, bh - 4, br - 1)
+    ctx.beginPath()
+    ctx.rect(BX + 4 * sc, BY + 4 * sc, BW - 8 * sc, BH - 8 * sc)
     ctx.clip()
-    // Gradient for liquid — darker at bottom, lighter at top
-    const grad = ctx.createLinearGradient(bx, fillY, bx, by + bh)
-    grad.addColorStop(0, liquidColor + 'cc')
-    grad.addColorStop(1, liquidColor)
-    ctx.fillStyle = grad
-    ctx.fillRect(bx, fillY, bw, fillH + 4)
-    // Crema highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.18)'
-    ctx.fillRect(bx, fillY, bw, Math.max(3, fillH * 0.07))
+
+    ctx.fillStyle = liquidColor
+    ctx.fillRect(BX + 4 * sc, fillY, BW - 8 * sc, fillH)
+
+    // Crema ellipse on top of liquid
+    ctx.beginPath()
+    const cremaCX = BX + BW / 2
+    const cremaRX = (BW - 14 * sc) / 2
+    ctx.ellipse(cremaCX, fillY + 1, cremaRX, 4 * sc, 0, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(210,170,100,0.85)'
+    ctx.fill()
+
     ctx.restore()
   }
 
-  // Handle
-  const handleCX = bx + bw + size * 0.14
-  const handleCY = by + bh * 0.5
-  const handleR = size * 0.15
-  ctx.beginPath()
-  ctx.arc(handleCX, handleCY, handleR, -Math.PI * 0.55, Math.PI * 0.55)
-  ctx.strokeStyle = '#d4b896'
-  ctx.lineWidth = Math.max(3, size * 0.06)
+  // Rim (top band)
+  roundRect(ctx, BX - 3 * sc, BY - 6 * sc, BW + 6 * sc, 12 * sc, 6 * sc)
+  ctx.fillStyle = '#e8d8bc'
+  ctx.fill()
+  ctx.strokeStyle = '#c8b090'
+  ctx.lineWidth = 1 * sc
   ctx.stroke()
+  // Rim inner
+  roundRect(ctx, BX, BY - 4 * sc, BW, 7 * sc, 4 * sc)
+  ctx.fillStyle = '#dcc8a8'
+  ctx.fill()
 
-  // Steam (fill >= 65%)
+  // Highlight stripe
+  roundRect(ctx, BX + 8 * sc, BY + 6 * sc, 12 * sc, BH - 16 * sc, 6 * sc)
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'
+  ctx.fill()
+
+  // Steam (fill >= 65)
   if (fill >= 65) {
     ctx.strokeStyle = liquidColor
-    ctx.lineWidth = Math.max(1.5, size * 0.025)
+    ctx.lineWidth = 2 * sc
     ctx.lineCap = 'round'
-    ;[0.2, 0.45, 0.7].forEach((xPct, i) => {
-      const sx = bx + bw * xPct
-      const offset = i % 2 === 0 ? 3 : -3
+    const steamPositions = [BX + BW * 0.25, BX + BW * 0.5, BX + BW * 0.75]
+    steamPositions.forEach((sx, i) => {
+      const offset = i % 2 === 0 ? 5 * sc : -5 * sc
       ctx.beginPath()
-      ctx.moveTo(sx, by - size * 0.04)
+      ctx.moveTo(sx, BY - 8 * sc)
       ctx.bezierCurveTo(
-        sx + offset, by - size * 0.1,
-        sx - offset, by - size * 0.16,
-        sx, by - size * 0.23
+        sx + offset, BY - 18 * sc,
+        sx - offset, BY - 28 * sc,
+        sx, BY - 38 * sc
       )
       ctx.stroke()
     })
@@ -549,20 +602,25 @@ export default function ShareCard({ rating, onClose }: Props) {
           ctx.restore()
         })
       } else {
-        // 4 photos: 2x2 grid
+        // 4 photos: 2x2 grid — cover fit but centred to avoid distortion
         const colW = CARD_W / 2
         const rowH = PHOTO_H / 2
         loadedPhotos.slice(0, 4).forEach((img, i) => {
           const col = i % 2, row = Math.floor(i / 2)
           const ix = CX + col * colW
           const iy = CY + row * rowH
-          const ratio = Math.max(colW / img.naturalWidth, rowH / img.naturalHeight)
+          const cw = colW - 1
+          const ch = rowH - 1
+          // Cover fit: scale to fill cell, crop equally on both sides
+          const scaleW = cw / img.naturalWidth
+          const scaleH = ch / img.naturalHeight
+          const ratio = Math.max(scaleW, scaleH)
           const dw = img.naturalWidth * ratio
           const dh = img.naturalHeight * ratio
           ctx.save()
-          ctx.rect(ix, iy, colW - 1, rowH - 1)
+          ctx.rect(ix, iy, cw, ch)
           ctx.clip()
-          ctx.drawImage(img, ix + (colW - dw) / 2, iy + (rowH - dh) / 2, dw, dh)
+          ctx.drawImage(img, ix + (cw - dw) / 2, iy + (ch - dh) / 2, dw, dh)
           ctx.restore()
         })
       }
