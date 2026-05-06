@@ -163,6 +163,16 @@ const FALLBACK_PHOTOS = [
   'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800',
 ]
 
+function formatLocation(city?: string | null, state?: string | null, country?: string | null): string {
+  const c = city?.trim()
+  const s = state?.trim()
+  const co = country?.trim()
+  if (!c) return s || co || ''
+  if (s && (!co || co === 'United States')) return `${c}, ${s}`
+  if (co && co !== 'United States') return `${c}, ${co}`
+  return c
+}
+
 export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop: any) => void }) {
   const [dbShops, setDbShops] = useState<CoffeeShop[]>([])
   const [nearbyShops, setNearbyShops] = useState<Partial<CoffeeShop>[]>([])
@@ -485,7 +495,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
                   <div className="flex items-center gap-1 mb-2">
                     <MapPin size={12} className="text-coffee-300 flex-shrink-0" />
                     <p className="text-coffee-400 text-xs truncate">
-                      {[shop.address, shop.city, shop.state].filter(Boolean).join(', ')}
+                      {formatLocation(shop.city, shop.state, shop.country) || shop.address || ""}
                     </p>
                   </div>
                 )}
