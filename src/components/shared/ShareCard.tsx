@@ -546,93 +546,58 @@ export default function ShareCard({ rating, onClose }: Props) {
       CY += BADGE_ROW_H
     }
 
-    // Photos — clipped to card edges at top if first element, rounded on sides
+    // Photos — each drawn in its own save/restore with its own clip
+    // No outer clip needed — white card background hides any overflow
     if (loadedPhotos.length > 0 && PHOTO_H > 0) {
-      ctx.save()
-      // Clip to card bounds
-      roundRect(ctx, CX, Y, CARD_W, CARD_H, CARD_R)
-      ctx.clip()
 
-      if (loadedPhotos.length === 1) {
-        const img = loadedPhotos[0]
-        const ratio = Math.max(CARD_W / img.naturalWidth, PHOTO_H / img.naturalHeight)
+      function drawPhoto(
+        img: HTMLImageElement,
+        px: number, py: number,
+        pw: number, ph: number
+      ) {
+        const scaleW = pw / img.naturalWidth
+        const scaleH = ph / img.naturalHeight
+        const ratio = Math.max(scaleW, scaleH) // cover fit
         const dw = img.naturalWidth * ratio
         const dh = img.naturalHeight * ratio
-        ctx.drawImage(img,
-          CX + (CARD_W - dw) / 2, CY + (PHOTO_H - dh) / 2,
-          dw, dh
-        )
-      } else if (loadedPhotos.length === 2) {
-        const colW = CARD_W / 2
-        loadedPhotos.forEach((img, i) => {
-          const ix = CX + i * colW
-          const ratio = Math.max(colW / img.naturalWidth, PHOTO_H / img.naturalHeight)
-          const dw = img.naturalWidth * ratio
-          const dh = img.naturalHeight * ratio
-          ctx.save()
-          ctx.rect(ix, CY, colW - 1, PHOTO_H)
-          ctx.clip()
-          ctx.drawImage(img, ix + (colW - dw) / 2, CY + (PHOTO_H - dh) / 2, dw, dh)
-          ctx.restore()
-        })
-      } else if (loadedPhotos.length === 3) {
-        // Wide top, two below
-        const topH = PHOTO_H * 0.58
-        const botH = PHOTO_H - topH - 1
-        const halfW = CARD_W / 2
-        // Top photo
-        const img0 = loadedPhotos[0]
-        const r0 = Math.max(CARD_W / img0.naturalWidth, topH / img0.naturalHeight)
+        const dx = px + (pw - dw) / 2
+        const dy = py + (ph - dh) / 2
         ctx.save()
-        ctx.rect(CX, CY, CARD_W, topH)
+        ctx.beginPath()
+        ctx.rect(px, py, pw, ph)
         ctx.clip()
-        ctx.drawImage(img0, CX + (CARD_W - img0.naturalWidth * r0) / 2, CY + (topH - img0.naturalHeight * r0) / 2, img0.naturalWidth * r0, img0.naturalHeight * r0)
+        ctx.drawImage(img, dx, dy, dw, dh)
         ctx.restore()
-        // Bottom two
-        ;[loadedPhotos[1], loadedPhotos[2]].forEach((img, i) => {
-          const ix = CX + i * halfW
-          const iy = CY + topH + 1
-          const ratio = Math.max(halfW / img.naturalWidth, botH / img.naturalHeight)
-          const dw = img.naturalWidth * ratio
-          const dh = img.naturalHeight * ratio
-          ctx.save()
-          ctx.rect(ix, iy, halfW - 1, botH)
-          ctx.clip()
-          ctx.drawImage(img, ix + (halfW - dw) / 2, iy + (botH - dh) / 2, dw, dh)
-          ctx.restore()
-        })
+      }
+
+      const GAP = 2 // white gap between photos
+
+      if (loadedPhotos.length === 1) {
+        drawPhoto(loadedPhotos[0], CX, CY, CARD_W, PHOTO_H)
+
+      } else if (loadedPhotos.length === 2) {
+        const colW = (CARD_W - GAP) / 2
+        drawPhoto(loadedPhotos[0], CX, CY, colW, PHOTO_H)
+        drawPhoto(loadedPhotos[1], CX + colW + GAP, CY, colW, PHOTO_H)
+
+      } else if (loadedPhotos.length === 3) {
+        const topH = Math.floor(PHOTO_H * 0.56)
+        const botH = PHOTO_H - topH - GAP
+        const colW = (CARD_W - GAP) / 2
+        drawPhoto(loadedPhotos[0], CX, CY, CARD_W, topH)
+        drawPhoto(loadedPhotos[1], CX, CY + topH + GAP, colW, botH)
+        drawPhoto(loadedPhotos[2], CX + colW + GAP, CY + topH + GAP, colW, botH)
+
       } else {
-        // 4 photos: 2x2 grid — cover fit but centred to avoid distortion
-        const colW = CARD_W / 2
-        const rowH = PHOTO_H / 2
-        loadedPhotos.slice(0, 4).forEach((img, i) => {
-          const col = i % 2, row = Math.floor(i / 2)
-          const ix = CX + col * colW
-          const iy = CY + row * rowH
-          const cw = colW - 1
-          const ch = rowH - 1
-          // Cover fit: scale to fill cell, crop equally on both sides
-          const scaleW = cw / img.naturalWidth
-          const scaleH = ch / img.naturalHeight
-          const ratio = Math.max(scaleW, scaleH)
-          const dw = img.naturalWidth * ratio
-          const dh = img.naturalHeight * ratio
-          ctx.save()
-          ctx.rect(ix, iy, cw, ch)
-          ctx.clip()
-          ctx.drawImage(img, ix + (cw - dw) / 2, iy + (ch - dh) / 2, dw, dh)
-          ctx.restore()
-        })
+        // 4 photos: equal 2x2 grid
+        const colW = (CARD_W - GAP) / 2
+        const rowH = (PHOTO_H - GAP) / 2
+        drawPhoto(loadedPhotos[0], CX,           CY,           colW, rowH)
+        drawPhoto(loadedPhotos[1], CX + colW + GAP, CY,        colW, rowH)
+        drawPhoto(loadedPhotos[2], CX,           CY + rowH + GAP, colW, rowH)
+        drawPhoto(loadedPhotos[3], CX + colW + GAP, CY + rowH + GAP, colW, rowH)
       }
 
-      // Subtle gap lines between photos
-      ctx.strokeStyle = 'white'
-      ctx.lineWidth = 2
-      if (loadedPhotos.length === 2) {
-        ctx.beginPath(); ctx.moveTo(CX + CARD_W / 2, CY); ctx.lineTo(CX + CARD_W / 2, CY + PHOTO_H); ctx.stroke()
-      }
-
-      ctx.restore()
       CY += PHOTO_H
     }
 
