@@ -67,6 +67,16 @@ function FollowButton({ targetId, meId }: { targetId: string; meId?: string }) {
   )
 }
 
+function formatLocation(city?: string | null, state?: string | null, country?: string | null): string {
+  const c = city?.trim()
+  const s = state?.trim()
+  const co = country?.trim()
+  if (!c) return s || co || ''
+  if (s && (!co || co === 'United States')) return `${c}, ${s}`
+  if (co && co !== 'United States') return `${c}, ${co}`
+  return c
+}
+
 export default function UserProfilePage({ userId, onBack }: Props) {
   const { profile: me } = useAuth()
   const [user, setUser] = useState<any>(null)
@@ -384,7 +394,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name}</p>
-                    <p className="text-coffee-400 text-xs">{shop?.city}, {shop?.state}</p>
+                    <p className="text-coffee-400 text-xs">{formatLocation(shop?.city, shop?.state, shop?.country)}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-caramel font-bold text-base">{v.visit_count}x</p>

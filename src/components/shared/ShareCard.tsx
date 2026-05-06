@@ -46,8 +46,9 @@ function getFillLabel(fill: number) {
 }
 
 function getLiquidColor(fill: number) {
-  if (fill >= 90) return '#3d1a06'
-  if (fill >= 80) return '#6b3410'
+  if (fill === 100) return '#3d1a06'
+  if (fill >= 90) return '#6b3410'
+  if (fill >= 80) return '#9b5e1a'
   if (fill >= 70) return '#b87333'
   if (fill >= 60) return '#c49a6c'
   return '#d4b896'

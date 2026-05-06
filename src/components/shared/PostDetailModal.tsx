@@ -8,21 +8,33 @@ import ShareCard from './ShareCard'
 import LikedByModal from './LikedByModal'
 import { useAuth } from '../../contexts/AuthContext'
 
+function formatLocation(city?: string | null, state?: string | null, country?: string | null): string {
+  const c = city?.trim()
+  const s = state?.trim()
+  const co = country?.trim()
+  if (!c) return s || co || ''
+  if (s && (!co || co === 'United States')) return `${c}, ${s}`
+  if (co && co !== 'United States') return `${c}, ${co}`
+  return c
+}
+
 function getMugColor(fill: number) {
-  if (fill <= 20) return '#d4b896'
-  if (fill <= 40) return '#c49a6c'
-  if (fill <= 60) return '#b87333'
-  if (fill <= 75) return '#9b5e1a'
-  if (fill <= 90) return '#6b3410'
+  if (fill === 0)  return 'transparent'
+  if (fill <= 59)  return '#d4b896'
+  if (fill <= 69)  return '#c49a6c'
+  if (fill <= 79)  return '#b87333'
+  if (fill <= 89)  return '#9b5e1a'
+  if (fill <= 99)  return '#6b3410'
   return '#3d1a06'
 }
 function getFillLabel(fill: number) {
-  if (fill <= 20) return 'Just a Sip'
-  if (fill <= 40) return 'Getting There'
-  if (fill <= 60) return 'Half Cup'
-  if (fill <= 80) return 'Good Pour'
-  if (fill <= 95) return 'Almost Perfect'
-  return 'Perfect Brew ✨'
+  if (fill === 0)  return ''
+  if (fill <= 59)  return 'Not My Cup'
+  if (fill <= 69)  return 'Just a Sip'
+  if (fill <= 79)  return 'Decent Pour'
+  if (fill <= 89)  return 'Good Brew'
+  if (fill <= 99)  return 'Loved It'
+  return '✨ Perfect Brew'
 }
 function timeAgo(d: string) {
   const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000)
@@ -390,7 +402,12 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           </button>
           <div>
             <button onClick={() => onUserClick?.(user?.id)} className="text-coffee-800 font-semibold text-sm hover:text-caramel">{user?.username}</button>
-            <p className="text-coffee-400 text-xs">{timeAgo(rating.created_at)}</p>
+            <p className="text-coffee-400 text-xs">
+              {rating.visited_at && rating.visited_at !== rating.created_at?.split('T')[0]
+                ? `Visited ${new Date(rating.visited_at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · posted ${timeAgo(rating.created_at)}`
+                : timeAgo(rating.created_at)
+              }
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -486,7 +503,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
-                  <p className="text-coffee-400 text-xs">{shop.address}{shop.city ? `, ${shop.city}` : ''}</p>
+                  <p className="text-coffee-400 text-xs">{formatLocation(shop.city, shop.state, shop.country) || shop.address || ""}</p>
                 </div>
                 <span className="text-caramel text-xs font-medium">View →</span>
               </button>
