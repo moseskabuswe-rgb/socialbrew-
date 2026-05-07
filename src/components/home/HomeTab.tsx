@@ -15,11 +15,12 @@ import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 
 function getMugColor(fill: number) {
-  if (fill <= 20) return '#d4b896'
-  if (fill <= 40) return '#c49a6c'
-  if (fill <= 60) return '#b87333'
-  if (fill <= 75) return '#9b5e1a'
-  if (fill <= 90) return '#6b3410'
+  if (fill === 0)  return 'transparent'
+  if (fill <= 59)  return '#d4b896'
+  if (fill <= 69)  return '#c49a6c'
+  if (fill <= 79)  return '#b87333'
+  if (fill <= 89)  return '#9b5e1a'
+  if (fill <= 99)  return '#6b3410'
   return '#3d1a06'
 }
 function getFillLabel(fill: number) {
@@ -739,13 +740,7 @@ function ShareSheet({ rating, onClose, onExternal, onDM }: {
 
 // ── SAVED POSTS PANEL ─────────────────────────────────────
 function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClose: () => void; onPostClick: (r: any) => void }) {
-  function getMugColor(fill: number) {
-    if (fill <= 20) return '#b0c4d4'
-    if (fill <= 40) return '#c8924a'
-    if (fill <= 60) return '#a06428'
-    if (fill <= 80) return '#7a3e10'
-    return '#4e2008'
-  }
+  // Uses top-level getMugColor — unified scale
   return (
     <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
@@ -1029,6 +1024,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
       .from('ratings')
       .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified, lat, lng)')
       .order('visited_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false, nullsFirst: false })
       .range(from, to)
 
     if (data) {
