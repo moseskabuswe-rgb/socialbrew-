@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import exifr from 'exifr'
 import { X, Clock, Camera, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import PriceInput, { PricePerception } from '../shared/PriceInput'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import { resolveShopId } from '../../lib/shopUtils'
 import { sendPushToUser } from '../../lib/push'
@@ -41,6 +42,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [step, setStep] = useState<'rate' | 'feedback' | 'details' | 'submitting' | 'done'>('rate')
   const [addToStory, setAddToStory] = useState(false)
+  const [drinkPrice, setDrinkPrice] = useState('')
+  const [pricePerception, setPricePerception] = useState<PricePerception>(null)
+  const [showPriceOnPost, setShowPriceOnPost] = useState(true)
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const s = getMugStyle(fill)
@@ -155,6 +159,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       photo_urls: uploadedUrls,
       visit_time: visitTime || null,
       visited_at: visitedAt,
+      drink_price: drinkPrice ? parseFloat(drinkPrice) : null,
+      price_perception: pricePerception || null,
+      show_price: showPriceOnPost,
     })
     if (!error) {
       const { data: newRating } = await supabase
@@ -443,6 +450,17 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
                 ))}
               </div>
             </div>
+
+            {/* Price input */}
+            <PriceInput
+              price={drinkPrice}
+              setPrice={setDrinkPrice}
+              perception={pricePerception}
+              setPerception={setPricePerception}
+              showOnPost={showPriceOnPost}
+              setShowOnPost={setShowPriceOnPost}
+              liquidColor={s.liquid}
+            />
 
             {/* Add to story toggle */}
             <div className="mb-4 flex items-center justify-between bg-cream-50 rounded-xl px-4 py-3 border border-cream-200">

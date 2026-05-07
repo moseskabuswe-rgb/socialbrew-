@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import PriceInput, { PricePerception } from '../shared/PriceInput'
 import { sendPushToUser } from '../../lib/push'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import { resolveShopId } from '../../lib/shopUtils'
@@ -28,6 +29,9 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [shop, setShop] = useState<any>(null)
   const [drinkName, setDrinkName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [drinkPrice, setDrinkPrice] = useState('')
+  const [pricePerception, setPricePerception] = useState<PricePerception>(null)
+  const [showPriceOnPost, setShowPriceOnPost] = useState(true)
   const [showFeedback, setShowFeedback] = useState(false)
   const [submittedShopId, setSubmittedShopId] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -133,6 +137,9 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       })(),
       is_quick_sip: true,
       vibe_tags: [],
+      drink_price: drinkPrice ? parseFloat(drinkPrice) : null,
+      price_perception: pricePerception || null,
+      show_price: showPriceOnPost,
     })
     trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
     // Notify followers
@@ -317,6 +324,19 @@ export default function QuickSip({ onClose, onComplete }: Props) {
             </div>
 
             {/* Submit */}
+            {/* Price input — optional */}
+            <div className="px-1">
+              <PriceInput
+                price={drinkPrice}
+                setPrice={setDrinkPrice}
+                perception={pricePerception}
+                setPerception={setPricePerception}
+                showOnPost={showPriceOnPost}
+                setShowOnPost={setShowPriceOnPost}
+                liquidColor={s.liquid}
+              />
+            </div>
+
             <button onClick={handleSubmit} disabled={fill === 0 || submitting}
               className="w-full mt-5 py-3.5 rounded-2xl font-bold text-white text-base transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-40"
               style={{
