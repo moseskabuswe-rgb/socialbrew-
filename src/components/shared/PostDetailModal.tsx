@@ -4,6 +4,7 @@ import { X, Heart, MessageCircle, Bookmark, ArrowLeft, Send, Trash2, Edit2, Shar
 import EditPostModal from './EditPostModal'
 import { notifyLike, notifyComment, notifyMention } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
+import PricePills from './PricePills'
 import ShareCard from './ShareCard'
 import LikedByModal from './LikedByModal'
 import { useAuth } from '../../contexts/AuthContext'
@@ -452,10 +453,15 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
 
           <div className="p-4">
             {/* Drink name */}
-            {rating.drink_name && (
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-coffee-400 text-sm">ordered</span>
-                <span className="bg-cream-100 text-coffee-700 px-3 py-1 rounded-full text-sm font-medium border border-cream-200">{rating.drink_name}</span>
+            {(rating.drink_name || (rating.show_price !== false && (rating.drink_price || rating.price_perception))) && (
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                {rating.drink_name && (
+                  <>
+                    <span className="text-coffee-400 text-sm">ordered</span>
+                    <span className="bg-cream-100 text-coffee-700 px-3 py-1 rounded-full text-sm font-medium border border-cream-200">{rating.drink_name}</span>
+                  </>
+                )}
+                <PricePills price={rating.drink_price} perception={rating.price_perception} showPrice={rating.show_price} />
               </div>
             )}
 

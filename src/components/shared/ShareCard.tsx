@@ -17,6 +17,9 @@ interface Rating {
   photo_urls?: string[]
   visit_time?: string | null
   is_quick_sip?: boolean
+  drink_price?: number | null
+  price_perception?: string | null
+  show_price?: boolean | null
   coffee_shops?: {
     name: string
     city?: string | null
@@ -311,6 +314,7 @@ export default function ShareCard({ rating, onClose }: Props) {
   const fill = rating.fill_level || 0
   const isQuickSip = rating.is_quick_sip === true
   const isVibePost = fill === 0 && !isQuickSip
+  const showPrice = rating.show_price !== false && (rating.drink_price || rating.price_perception)
   const photos = (
     rating.photo_urls?.length
       ? rating.photo_urls
@@ -338,7 +342,7 @@ export default function ShareCard({ rating, onClose }: Props) {
     const CARD_PAD_TOP = 16
     const AVATAR_R = 20       // avatar radius
     const AVATAR_ROW_H = 48
-    const DRINK_ROW_H = rating.drink_name ? 38 : 0
+    const DRINK_ROW_H = (rating.drink_name || showPrice) ? 38 : 0
     const MUG_SIZE = 72
     const MUG_ROW_H = (!isVibePost && fill > 0) ? MUG_SIZE + 16 : 0
     const BADGE_ROW_H = (isQuickSip || isVibePost) ? 34 : 0
@@ -475,19 +479,56 @@ export default function ShareCard({ rating, onClose }: Props) {
     CY += AVATAR_ROW_H
 
     // Drink name pill
-    if (rating.drink_name) {
+    if (rating.drink_name || showPrice) {
+      let drinkTx = CX + PAD
       ctx.font = `11px system-ui, -apple-system, sans-serif`
-      ctx.fillStyle = '#9b7a55'
-      ctx.fillText('ordered', CX + PAD, CY + 17)
-      const ordW = ctx.measureText('ordered').width
-      const pillX = CX + PAD + ordW + 8
-      ctx.font = `12px system-ui, -apple-system, sans-serif`
-      const pillW = ctx.measureText(rating.drink_name).width + 22
-      roundRect(ctx, pillX, CY + 5, pillW, 22, 11)
-      ctx.fillStyle = '#f0e8dc'
-      ctx.fill()
-      ctx.fillStyle = '#1c0a02'
-      ctx.fillText(rating.drink_name, pillX + 11, CY + 20)
+
+      if (rating.drink_name) {
+        ctx.fillStyle = '#9b7a55'
+        ctx.fillText('ordered', drinkTx, CY + 17)
+        drinkTx += ctx.measureText('ordered').width + 8
+        ctx.font = `12px system-ui, -apple-system, sans-serif`
+        const dpW = ctx.measureText(rating.drink_name).width + 22
+        roundRect(ctx, drinkTx, CY + 5, dpW, 22, 11)
+        ctx.fillStyle = '#f0e8dc'
+        ctx.fill()
+        ctx.fillStyle = '#1c0a02'
+        ctx.fillText(rating.drink_name, drinkTx + 11, CY + 20)
+        drinkTx += dpW + 8
+      }
+
+      // Price pill
+      if (showPrice && rating.drink_price && rating.drink_price > 0) {
+        ctx.font = `bold 11px system-ui, -apple-system, sans-serif`
+        const priceStr = `$${(rating.drink_price as number).toFixed(2)}`
+        const priceW = ctx.measureText(priceStr).width + 16
+        roundRect(ctx, drinkTx, CY + 5, priceW, 22, 11)
+        ctx.fillStyle = '#f5ead8'; ctx.fill()
+        ctx.strokeStyle = '#e8d4b0'; ctx.lineWidth = 0.8; ctx.stroke()
+        ctx.fillStyle = '#7a5c3a'
+        ctx.fillText(priceStr, drinkTx + 8, CY + 20)
+        drinkTx += priceW + 6
+      }
+
+      // Worth-it pill
+      if (showPrice && rating.price_perception) {
+        const pm: Record<string, {label: string; bg: string; text: string; border: string}> = {
+          steal:      { label: 'Steal 🤑',      bg: '#dcfce7', text: '#15803d', border: '#86efac' },
+          worth_it:   { label: 'Worth it ✓',    bg: '#fdf0dc', text: '#c8853a', border: '#c8853a' },
+          overpriced: { label: 'Overpriced 😬', bg: '#fef2f2', text: '#dc2626', border: '#fca5a5' },
+        }
+        const p = pm[rating.price_perception]
+        if (p) {
+          ctx.font = `bold 11px system-ui, -apple-system, sans-serif`
+          const pw = ctx.measureText(p.label).width + 18
+          roundRect(ctx, drinkTx, CY + 5, pw, 22, 11)
+          ctx.fillStyle = p.bg; ctx.fill()
+          ctx.strokeStyle = p.border; ctx.lineWidth = 0.8; ctx.stroke()
+          ctx.fillStyle = p.text
+          ctx.fillText(p.label, drinkTx + 9, CY + 20)
+        }
+      }
+
       CY += DRINK_ROW_H
     }
 
