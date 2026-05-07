@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft, Share2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import PricePills from '../shared/PricePills'
 import ShareCard from '../shared/ShareCard'
 import { useAuth } from '../../contexts/AuthContext'
 import BrewWrapped from '../shared/BrewWrapped'
@@ -1523,10 +1524,15 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
               <button onClick={() => setActivePost(rating)} className="w-full text-left">
               <div className="px-4 py-2">
-                {rating.drink_name && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-coffee-500 text-sm">ordered</span>
-                    <span className="bg-cream-100 text-coffee-700 px-2.5 py-0.5 rounded-full text-sm font-medium border border-cream-200">{rating.drink_name}</span>
+                {(rating.drink_name || (rating.show_price !== false && (rating.drink_price || rating.price_perception))) && (
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {rating.drink_name && (
+                      <>
+                        <span className="text-coffee-500 text-sm">ordered</span>
+                        <span className="bg-cream-100 text-coffee-700 px-2.5 py-0.5 rounded-full text-sm font-medium border border-cream-200">{rating.drink_name}</span>
+                      </>
+                    )}
+                    <PricePills price={rating.drink_price} perception={rating.price_perception} showPrice={rating.show_price} />
                   </div>
                 )}
                 <div className="flex items-center gap-3 my-3">
