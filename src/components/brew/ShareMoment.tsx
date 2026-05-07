@@ -90,6 +90,10 @@ export default function ShareMoment({ onClose, onComplete }: Props) {
       photo_url: photoUrl,
       vibe_tags: selectedVibes,
       is_quick_sip: false,  // Explicitly not a quick sip
+      visited_at: (() => {
+        const d = new Date()
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      })()
     })
 
     if (postErr) {

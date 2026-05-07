@@ -126,7 +126,11 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       fill_level: fill,
       drink_name: drinkName.trim() || null,
       visit_time: getVisitTime(),
-      visited_at: new Date().toISOString().split('T')[0], // auto-capture today's date
+      visited_at: (() => {
+        // Use local date not UTC to avoid timezone day shift
+        const d = new Date()
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      })(),
       is_quick_sip: true,
       vibe_tags: [],
     })

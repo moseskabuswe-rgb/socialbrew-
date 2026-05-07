@@ -32,7 +32,11 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [drinkName, setDrinkName] = useState('')
   const [caption, setCaption] = useState('')
   const [visitTime, setVisitTime] = useState('')
-  const [visitedAt, setVisitedAt] = useState<string>(new Date().toISOString().split('T')[0]) // defaults to today
+  const [visitedAt, setVisitedAt] = useState<string>(() => {
+    // Use local date not UTC to avoid timezone day shift
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }) // defaults to today
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [step, setStep] = useState<'rate' | 'feedback' | 'details' | 'submitting' | 'done'>('rate')
