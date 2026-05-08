@@ -1442,6 +1442,15 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                       <span className="text-coffee-400 text-xs">had a quick sip</span>
                       {shop && <button onClick={() => setSelectedShop(shop)} className="text-caramel text-xs font-semibold hover:underline">@ {shop.name}</button>}
                     </div>
+                    {/* Drink name + price pills for QuickSip */}
+                    {(rating.drink_name || (rating.show_price !== false && (rating.drink_price || rating.price_perception))) && (
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        {rating.drink_name && (
+                          <span className="bg-cream-100 text-coffee-700 px-2 py-0.5 rounded-full text-xs font-medium border border-cream-200">{rating.drink_name}</span>
+                        )}
+                        <PricePills price={rating.drink_price} perception={rating.price_perception} showPrice={rating.show_price} />
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <svg viewBox="0 0 56 68" width="28" height="34" className="flex-shrink-0">
                         <defs><clipPath id={`qs-${rating.id}`}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
