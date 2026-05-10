@@ -11,6 +11,7 @@ import AvatarCropper from '../shared/AvatarCropper'
 import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
+import { compressAvatar } from '../../lib/compressImage'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 // getBadgeInfo replaced by getBadge from badges.ts
 // ── FOLLOWERS MODAL ─────────────────────────────────────
@@ -174,9 +175,11 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     if (!profile) return
     setUploadingAvatar(true)
     try {
+      // Compress avatar before upload (400px, saves significant egress)
+      const compressed = await compressAvatar(blob)
       // Method 1: Try Supabase Storage
       const path = `avatars/${profile.id}-${Date.now()}.jpg`
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, {
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, compressed, {
         upsert: true,
         contentType: 'image/jpeg',
         cacheControl: '3600',
