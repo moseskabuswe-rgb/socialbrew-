@@ -38,7 +38,7 @@ interface Props {
   onClose: () => void
 }
 
-const APP_URL = 'socialbrew-ani.pages.dev'
+const APP_URL = 'https://socialbrewapp.com'
 const SUPABASE_URL = 'https://euxyleckowsfuyzgximo.supabase.co'
 const SCALE = 2 // retina quality
 
