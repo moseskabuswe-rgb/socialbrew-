@@ -96,7 +96,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const targetUrl = 'https://socialbrew-ani.pages.dev'
+  const targetUrl = 'https://socialbrewapp.com'
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
