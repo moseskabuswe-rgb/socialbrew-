@@ -6,6 +6,7 @@ import { X, Camera, Type } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { sendPushToUser } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
+import { compressImage } from '../../lib/compressImage'
 
 interface Props {
   onClose: () => void
@@ -42,15 +43,17 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillC
 
     let photoUrl: string | null = prefillPhoto || null
 
-    // Upload new photo if selected
+    // Upload new photo if selected (compressed before upload)
     if (photo) {
-      const ext = photo.name.split('.').pop() || 'jpg'
-      const path = `stories/${profile.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, photo, { upsert: true })
-      if (!upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-        photoUrl = publicUrl
-      }
+      try {
+        const compressed = await compressImage(photo)
+        const path = `stories/${profile.id}/${Date.now()}.jpg`
+        const { error: upErr } = await supabase.storage.from('avatars').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
+        if (!upErr) {
+          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+          photoUrl = publicUrl
+        }
+      } catch { /* skip compression error, continue without photo */ }
     }
 
     const storyType = prefillRatingId ? 'rating' : photoUrl ? 'moment' : 'text'
