@@ -40,7 +40,7 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if ('focus' in client) return client.focus()
       }
-      return clients.openWindow('https://socialbrew-ani.pages.dev')
+      return clients.openWindow('https://socialbrewapp.com')
     })
   )
 })
