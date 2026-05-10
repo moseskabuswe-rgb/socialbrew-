@@ -9,6 +9,7 @@ import { resolveShopId } from '../../lib/shopUtils'
 import { sendPushToUser } from '../../lib/push'
 import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
+import { compressImage } from '../../lib/compressImage'
 
 type Props = { shop: any; onClose: () => void; onComplete: (shopName?: string, wasFirst?: boolean) => void }
 
@@ -124,15 +125,19 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   async function handleSubmit() {
     if (!profile) return
     setStep('submitting')
-    // Upload all photos and collect URLs
+    // Upload all photos (compressed) and collect URLs
     const uploadedUrls: string[] = []
     for (const p of photos) {
-      const ext = p.name.split('.').pop() || 'jpg'
-      const path = `moments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, p, { upsert: true })
-      if (!uploadErr) {
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-        uploadedUrls.push(publicUrl)
+      try {
+        const compressed = await compressImage(p)
+        const path = `moments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+        const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
+        if (!uploadErr) {
+          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+          uploadedUrls.push(publicUrl)
+        }
+      } catch {
+        // skip failed photo, continue with rest
       }
     }
     const photoUrl = uploadedUrls[0] || null  // primary photo for backward compat

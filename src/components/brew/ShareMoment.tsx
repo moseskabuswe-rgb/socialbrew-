@@ -19,6 +19,7 @@ import { X, Camera, Smile } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { sendPushToUser } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
+import { compressImage } from '../../lib/compressImage'
 
 type Props = { onClose: () => void; onComplete: (shopName?: string) => void }
 
@@ -59,14 +60,14 @@ export default function ShareMoment({ onClose, onComplete }: Props) {
 
     let photoUrl: string | null = null
 
-    // Upload photo if selected
+    // Upload photo if selected (compressed before upload)
     if (photo) {
       try {
-        const ext = photo.name.split('.').pop() || 'jpg'
-        const path = `moments/${profile.id}/${Date.now()}.${ext}`
+        const compressed = await compressImage(photo)
+        const path = `moments/${profile.id}/${Date.now()}.jpg`
         const { error: uploadErr } = await supabase.storage
           .from('avatars')
-          .upload(path, photo, { upsert: true })
+          .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
         if (uploadErr) throw uploadErr
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
         photoUrl = publicUrl
