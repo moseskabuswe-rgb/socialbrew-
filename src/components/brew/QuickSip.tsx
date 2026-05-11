@@ -3,6 +3,7 @@ import { X, Zap, Search, CheckCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import MugSwipeHint from '../shared/MugSwipeHint'
+import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 
 type Props = { onClose: () => void; onComplete: () => void }
 
@@ -37,6 +38,8 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [loadingShops, setLoadingShops] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [submittedShop, setSubmittedShop] = useState<any>(null)
   const mugRef = useRef<HTMLDivElement>(null)
   const [showHint, setShowHint] = useState(!hasSeenHint())
 
@@ -153,7 +156,15 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       await supabase.rpc('increment_shop_visit', { shop_id_input: shopId })
 
       setDone(true)
-      setTimeout(() => { onComplete(); onClose() }, 1200)
+      setTimeout(() => {
+        onComplete()
+        if (fill <= 50) {
+          setSubmittedShop(shop)
+          setShowFeedback(true)
+        } else {
+          onClose()
+        }
+      }, 1200)
     } catch (err) {
       console.error(err)
       setSubmitting(false)
@@ -173,6 +184,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(13,9,4,0.95)' }}>
       <div
         className="w-full max-w-sm rounded-t-3xl animate-slide-up"
@@ -283,8 +295,25 @@ export default function QuickSip({ onClose, onComplete }: Props) {
               ))}
             </svg>
 
-            {/* Swipe hint */}
+            {/* Swipe hint — first use only */}
             <MugSwipeHint visible={showHint && fill === 0} />
+
+            {/* Swipe arrows — shows after hint dismissed, until first fill */}
+            {fill === 0 && !showHint && (
+              <div
+                className="absolute bottom-1 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 pointer-events-none"
+                style={{ animation: 'bounceUp 1.4s ease-in-out infinite' }}
+              >
+                {[0.3, 0.6, 1].map((opacity, i) => (
+                  <svg key={i} width="18" height="11" viewBox="0 0 18 11" style={{ opacity }}>
+                    <polyline points="2,9 9,2 16,9"
+                      fill="none" stroke="#9b7a45" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ))}
+                <p className="text-xs mt-0.5 font-medium" style={{ color: '#9b7a45' }}>Swipe up</p>
+              </div>
+            )}
           </div>
 
           {/* Rating label */}
@@ -363,5 +392,17 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         )}
       </div>
     </div>
+
+    {/* Anonymous feedback modal — appears after low-rating submit */}
+    {showFeedback && submittedShop && (
+      <AnonymousFeedbackModal
+        shopId={submittedShop.id || ''}
+        shopName={submittedShop.name || 'this shop'}
+        fillLevel={fill}
+        onSkip={onClose}
+        onSent={onClose}
+      />
+    )}
+    </>
   )
 }
