@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 
 interface Props {
-  visible: boolean       // parent controls when to show
-  onDismiss?: () => void // called after first real interaction
+  visible: boolean // parent controls when to show
 }
 
 /**
@@ -10,7 +9,7 @@ interface Props {
  * has not yet been touched. Fades out the moment the user starts dragging.
  * Stored in localStorage so it only shows on first use.
  */
-export default function MugSwipeHint({ visible, onDismiss }: Props) {
+export default function MugSwipeHint({ visible }: Props) {
   const [opacity, setOpacity] = useState(0)
   const [animPhase, setAnimPhase] = useState(0) // 0=idle, 1=moving, 2=fading
 
