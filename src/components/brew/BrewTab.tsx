@@ -6,7 +6,7 @@ import ShareMoment from './ShareMoment'
 import QuickSip from './QuickSip'
 
 type Props = {
-  onPostCreated: (shopName?: string, wasFirst?: boolean) => void
+  onPostCreated: (shopName?: string) => void
   initialShop?: any | null
 }
 type BrewAction = 'rate' | 'share' | 'quicksip' | 'gift'
@@ -33,43 +33,24 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
     setShowShopSelector(false)
   }
 
+  // onComplete wrappers that match () => void but forward shop name upward
+  function handleRateComplete() {
+    onPostCreated(selectedShop?.name)
+  }
+
+  function handleQuickSipComplete() {
+    onPostCreated(selectedShop?.name)
+  }
+
+  function handleShareComplete() {
+    onPostCreated()
+  }
+
   const actions = [
-    {
-      id: 'rate' as BrewAction,
-      icon: Coffee,
-      label: 'Rate a Visit',
-      sub: 'Rate your drink & share the full experience',
-      color: '#c8853a',
-      available: true,
-      badge: null,
-    },
-    {
-      id: 'quicksip' as BrewAction,
-      icon: Zap,
-      label: 'Quick Sip',
-      sub: 'Quick stop or drive-through? Log it fast',
-      color: '#7ab0c8',
-      available: true,
-      badge: '⚡ Fast',
-    },
-    {
-      id: 'gift' as BrewAction,
-      icon: Gift,
-      label: 'Gift a Drink',
-      sub: 'Send a coffee to a friend',
-      color: '#9b7a8a',
-      available: false,
-      badge: null,
-    },
-    {
-      id: 'share' as BrewAction,
-      icon: Camera,
-      label: 'Share a Vibe',
-      sub: 'Share a coffee moment without rating',
-      color: '#6a8a6a',
-      available: true,
-      badge: null,
-    },
+    { id: 'rate' as BrewAction,     icon: Coffee, label: 'Rate a Visit', sub: 'Full experience',  color: '#c8853a', available: true,  badge: null },
+    { id: 'quicksip' as BrewAction, icon: Zap,    label: 'Quick Sip',    sub: 'Log in seconds',   color: '#7ab0c8', available: true,  badge: '⚡ Fast' },
+    { id: 'gift' as BrewAction,     icon: Gift,   label: 'Gift a Drink', sub: 'Coming soon',      color: '#9b7a8a', available: false, badge: null },
+    { id: 'share' as BrewAction,    icon: Camera, label: 'Share Moment', sub: 'Post a photo',     color: '#6a8a6a', available: true,  badge: null },
   ]
 
   return (
@@ -78,38 +59,37 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
 
       <div className="text-center mb-10 animate-fade-in">
         <h1 className="font-display text-4xl font-bold text-coffee-700 tracking-tight">Brew</h1>
-        <p className="text-coffee-400 text-sm mt-2">What would you like to do?</p>
+        <p className="text-coffee-400 text-sm mt-2">Create your coffee experience</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 w-full max-w-sm animate-slide-up">
         {actions.map(({ id, icon: Icon, label, sub, color, available, badge }) => (
           <button key={id} onClick={() => handleAction(id)}
-            className={`relative flex flex-col items-start p-5 rounded-2xl transition-all duration-300 text-left ${available ? 'hover:scale-105 active:scale-95' : 'opacity-50 cursor-default'}`}
-            style={{
-              background: 'rgba(255,255,255,0.85)',
-              border: `1.5px solid ${available ? color + '55' : 'rgba(200,180,150,0.3)'}`,
-              backdropFilter: 'blur(10px)',
-              boxShadow: available ? `0 4px 20px ${color}22` : 'none',
-            }}>
-
+            className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 ${
+              available
+                ? 'bg-white shadow-md active:scale-95 hover:shadow-lg'
+                : 'bg-cream-100 opacity-60 cursor-not-allowed'
+            }`}
+            style={{ boxShadow: available ? '0 4px 20px rgba(0,0,0,0.06)' : 'none' }}
+            disabled={!available}
+          >
             {badge && (
-              <div className="absolute top-2 right-2 rounded-full px-1.5 py-0.5"
-                style={{ background: color + '22', border: `1px solid ${color}44` }}>
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full"
+                style={{ background: `${color}22` }}>
                 <span className="text-xs font-semibold" style={{ color }}>{badge}</span>
               </div>
             )}
             {!available && (
-              <div className="absolute top-2 right-2 bg-cream-200 rounded-full px-1.5 py-0.5">
+              <div className="absolute top-2 right-2 bg-latte rounded-full px-1.5 py-0.5">
                 <span className="text-coffee-400 text-xs">Soon</span>
               </div>
             )}
-
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
               style={{ background: available ? `${color}22` : 'rgba(200,180,150,0.15)' }}>
-              <Icon size={20} style={{ color: available ? color : '#b8a090' }} />
+              <Icon size={22} style={{ color: available ? color : '#b8a090' }} />
             </div>
-            <p className="text-coffee-700 font-semibold text-sm leading-tight">{label}</p>
-            <p className="text-coffee-400 text-xs mt-1 leading-snug">{sub}</p>
+            <p className="text-coffee-700 font-semibold text-sm">{label}</p>
+            <p className="text-coffee-400 text-xs mt-0.5">{sub}</p>
           </button>
         ))}
       </div>
@@ -117,14 +97,17 @@ export default function BrewTab({ onPostCreated, initialShop }: Props) {
       {showShopSelector && (
         <ShopSelector onSelect={handleShopSelect} onClose={handleClose} />
       )}
+
       {action === 'rate' && selectedShop && (
-        <MugRating shop={selectedShop} onClose={handleClose} onComplete={(name, wasFirst) => onPostCreated(name, wasFirst)} />
+        <MugRating shop={selectedShop} onClose={handleClose} onComplete={handleRateComplete} />
       )}
+
       {action === 'quicksip' && (
-        <QuickSip onClose={handleClose} onComplete={(name, wasFirst) => onPostCreated(name, wasFirst)} />
+        <QuickSip onClose={handleClose} onComplete={handleQuickSipComplete} />
       )}
+
       {action === 'share' && (
-        <ShareMoment onClose={handleClose} onComplete={onPostCreated} />
+        <ShareMoment onClose={handleClose} onComplete={handleShareComplete} />
       )}
     </div>
   )
