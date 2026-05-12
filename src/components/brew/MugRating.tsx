@@ -4,7 +4,6 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
-import PriceInput from '../shared/PriceInput'
 
 type Props = { shop: any; onClose: () => void; onComplete: () => void }
 
@@ -175,7 +174,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     }
 
     // Best-effort — don't block on RPC failure
-    supabase.rpc('increment_shop_visit', { shop_id_input: shopId }).catch(console.warn)
+    supabase.rpc("increment_shop_visit", { shop_id_input: shopId }).then(() => {}).catch(() => {})
 
     setStep('done')
     // Show anonymous feedback modal AFTER posting if fill was low
@@ -490,14 +489,54 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         {/* ── PRICE STEP ── */}
         {step === 'price' && (
           <div className="px-5 pb-8">
-            <PriceInput
-              drinkPrice={drinkPrice}
-              pricePerception={pricePerception}
-              showPriceOnPost={showPriceOnPost}
-              onPriceChange={setDrinkPrice}
-              onPerceptionChange={setPricePerception}
-              onShowToggle={setShowPriceOnPost}
-            />
+            {/* Price — inline, no separate component needed */}
+            <div className="mb-5">
+              <p className="text-stone-500 text-xs uppercase tracking-wider mb-3">
+                💰 What did you pay? <span className="normal-case text-stone-400">(optional)</span>
+              </p>
+              <div className="flex items-center bg-white rounded-xl px-4 py-3 border border-stone-200 mb-3 gap-2">
+                <span className="text-stone-400 font-semibold">$</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={drinkPrice}
+                  onChange={e => setDrinkPrice(e.target.value)}
+                  className="flex-1 bg-transparent text-stone-800 text-sm focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 mb-3">
+                {[
+                  { key: 'steal', label: '🤑 Steal' },
+                  { key: 'worth_it', label: '✅ Worth it' },
+                  { key: 'overpriced', label: '😬 Overpriced' },
+                ].map(opt => (
+                  <button key={opt.key}
+                    onClick={() => setPricePerception(pricePerception === opt.key ? '' : opt.key)}
+                    className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all"
+                    style={pricePerception === opt.key
+                      ? { background: '#c8853a', color: '#fff', borderColor: '#c8853a' }
+                      : { background: '#f5ead8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {(drinkPrice || pricePerception) && (
+                <div className="flex items-center justify-between bg-stone-50 rounded-xl px-4 py-3 border border-stone-100">
+                  <div>
+                    <p className="text-stone-700 text-xs font-semibold">Show on my post</p>
+                    <p className="text-stone-400 text-xs">Others can see the price &amp; value</p>
+                  </div>
+                  <button
+                    onClick={() => setShowPriceOnPost(v => !v)}
+                    className="w-10 h-6 rounded-full relative transition-all flex-shrink-0"
+                    style={{ background: showPriceOnPost ? '#c8853a' : '#d4c4b0' }}>
+                    <div className="w-4 h-4 bg-white rounded-full absolute top-1 transition-all"
+                      style={{ left: showPriceOnPost ? '22px' : '2px' }} />
+                  </button>
+                </div>
+              )}
+            </div>
             <button onClick={handleSubmit}
               className="w-full py-3.5 rounded-2xl font-semibold text-white mt-4 flex items-center justify-center gap-2"
               style={{ background: `linear-gradient(135deg, ${s.liquid}, #9b5e1a)`, boxShadow: `0 8px 30px ${s.glow}` }}>
