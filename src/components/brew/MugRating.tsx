@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
+import PriceInput from '../shared/PriceInput'
 
 type Props = { shop: any; onClose: () => void; onComplete: () => void }
 
@@ -44,8 +45,13 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [visitTime, setVisitTime] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  // Original steps + new 'feedback' step between 'rate' and 'details'
-  const [step, setStep] = useState<'rate' | 'feedback' | 'details' | 'submitting' | 'done'>('rate')
+  // Price fields — same as QuickSip
+  const [drinkPrice, setDrinkPrice] = useState('')
+  const [pricePerception, setPricePerception] = useState('')
+  const [showPriceOnPost, setShowPriceOnPost] = useState(true)
+  // Steps: rate → (feedback if low) → details → price → submitting → done
+  const [step, setStep] = useState<'rate' | 'feedback' | 'details' | 'price' | 'submitting' | 'done'>('rate')
+  const [showFeedback, setShowFeedback] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [showHint, setShowHint] = useState(!hasSeenHint())
@@ -123,7 +129,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     return inserted?.id ?? null
   }
 
-  // ── Original submit — with resolveShopId addition ──
+  // ── Submit — correct columns, proper error surfacing, price fields, RPC non-blocking ──
   async function handleSubmit() {
     if (!profile) return
     setStep('submitting')
@@ -131,48 +137,80 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     let photoUrl: string | null = null
     if (photo) {
       const ext = photo.name.split('.').pop() || 'jpg'
-      const path = `moments/${profile.id}/${Date.now()}.${ext}`
-      const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, photo, { upsert: true })
+      const path = `ratings/${profile.id}/${Date.now()}.${ext}`
+      // Use 'photos' bucket; fall back gracefully if upload fails — don't block the post
+      const { error: uploadErr } = await supabase.storage.from('photos').upload(path, photo, { upsert: true })
       if (!uploadErr) {
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
         photoUrl = publicUrl
+      } else {
+        console.warn('Photo upload failed (non-fatal):', uploadErr.message)
       }
     }
 
     const shopId = await resolveShopId(shop)
-    if (!shopId) { setStep('details'); alert('Something went wrong finding the shop.'); return }
+    if (!shopId) { setStep('details'); alert('Something went wrong finding the shop. Please try again.'); return }
 
-    const captionParts = [caption, visitTime ? `🕐 ${visitTime}` : ''].filter(Boolean)
-    const { error } = await supabase.from('ratings').insert({
+    const priceValue = drinkPrice ? parseFloat(drinkPrice) : null
+
+    const { error: insertError } = await supabase.from('ratings').insert({
       user_id: profile.id,
       shop_id: shopId,
       fill_level: fill,
       drink_name: drinkName.trim() || null,
       vibe_tags: selectedVibes,
-      caption: captionParts.join('\n') || null,
+      caption: caption.trim() || null,
+      visit_time: visitTime || null,
       photo_url: photoUrl,
+      drink_price: priceValue,
+      price_perception: pricePerception || null,
+      show_price: showPriceOnPost,
     })
 
-    if (!error) {
-      setStep('done')
-      setTimeout(() => { onComplete(); onClose() }, 1600)
-    } else {
-      setStep('details')
-      alert('Something went wrong. Please try again.')
+    if (insertError) {
+      console.error('MugRating insert error:', insertError)
+      alert(`Could not post: ${insertError.message}`)
+      setStep('price')
+      return
     }
+
+    // Best-effort — don't block on RPC failure
+    supabase.rpc('increment_shop_visit', { shop_id_input: shopId }).catch(console.warn)
+
+    setStep('done')
+    // Show anonymous feedback modal AFTER posting if fill was low
+    setTimeout(() => {
+      onComplete()
+      if (fill <= 50) {
+        setShowFeedback(true)
+      } else {
+        onClose()
+      }
+    }, 1600)
   }
 
-  // ── Original: step = 'done' ──
+  // ── DONE + optional feedback ──
   if (step === 'done') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ background: 'rgba(13,9,4,0.95)' }}>
-        <div className="text-center animate-bounce-in">
-          <div className="text-6xl mb-4">☕</div>
-          <p className="text-white font-display text-2xl font-bold">Brewed!</p>
-          <p className="text-amber-300 text-sm mt-2">{s.label}</p>
+      <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(13,9,4,0.95)' }}>
+          <div className="text-center animate-bounce-in">
+            <div className="text-6xl mb-4">☕</div>
+            <p className="text-white font-display text-2xl font-bold">Brewed!</p>
+            <p className="text-amber-300 text-sm mt-2">{s.label}</p>
+          </div>
         </div>
-      </div>
+        {showFeedback && (
+          <AnonymousFeedbackModal
+            shopId={String(shop?.id || '')}
+            shopName={shop?.name || 'this shop'}
+            fillLevel={fill}
+            onSkip={onClose}
+            onSent={onClose}
+          />
+        )}
+      </>
     )
   }
 
@@ -206,17 +244,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
             <X size={16} />
           </button>
         </div>
-
-        {/* ── FEEDBACK STEP (new, between rate and details) ── */}
-        {step === 'feedback' && (
-          <AnonymousFeedbackModal
-            shopId={shop.id || ''}
-            shopName={shop.name || 'this shop'}
-            fillLevel={fill}
-            onSkip={() => setStep('details')}
-            onSent={() => setStep('details')}
-          />
-        )}
 
         {/* ── RATE STEP ── */}
         {step === 'rate' && (
@@ -351,21 +378,11 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
             </div>
 
             <button
-              onClick={() => {
-                if (fill === 0) return
-                // Original feature: anonymous feedback for low ratings
-                if (fill <= 50 && shop?.id) {
-                  setStep('feedback')
-                } else {
-                  setStep('details')
-                }
-              }}
+              onClick={() => { if (fill > 0) setStep('details') }}
               disabled={fill === 0}
               className="w-full py-3.5 rounded-2xl font-semibold text-white transition-all duration-300"
               style={{
-                background: fill > 0
-                  ? `linear-gradient(135deg, ${s.liquid}, #9b5e1a)`
-                  : '#d4c4b0',
+                background: fill > 0 ? `linear-gradient(135deg, ${s.liquid}, #9b5e1a)` : '#d4c4b0',
                 boxShadow: fill > 0 ? `0 8px 30px ${s.glow}` : 'none',
                 opacity: fill > 0 ? 1 : 0.6,
               }}
@@ -461,11 +478,34 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
             </div>
 
-            <button onClick={handleSubmit}
+            <button onClick={() => setStep('price')}
               className="w-full py-3.5 rounded-2xl font-semibold text-white"
               style={{ background: `linear-gradient(135deg, ${s.liquid}, #9b5e1a)`, boxShadow: `0 8px 30px ${s.glow}` }}>
               <Zap size={16} className="inline mr-1.5" />
-              Share to Feed
+              Next →
+            </button>
+          </div>
+        )}
+
+        {/* ── PRICE STEP ── */}
+        {step === 'price' && (
+          <div className="px-5 pb-8">
+            <PriceInput
+              drinkPrice={drinkPrice}
+              pricePerception={pricePerception}
+              showPriceOnPost={showPriceOnPost}
+              onPriceChange={setDrinkPrice}
+              onPerceptionChange={setPricePerception}
+              onShowToggle={setShowPriceOnPost}
+            />
+            <button onClick={handleSubmit}
+              className="w-full py-3.5 rounded-2xl font-semibold text-white mt-4 flex items-center justify-center gap-2"
+              style={{ background: `linear-gradient(135deg, ${s.liquid}, #9b5e1a)`, boxShadow: `0 8px 30px ${s.glow}` }}>
+              <Zap size={16} /> Share to Feed
+            </button>
+            <button onClick={handleSubmit}
+              className="w-full py-2 mt-2 text-stone-400 text-sm">
+              Skip & post now
             </button>
           </div>
         )}
