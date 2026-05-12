@@ -174,7 +174,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     }
 
     // Best-effort — don't block on RPC failure
-    supabase.rpc("increment_shop_visit", { shop_id_input: shopId }).then(() => {}).catch(() => {})
+    Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
 
     setStep('done')
     // Show anonymous feedback modal AFTER posting if fill was low

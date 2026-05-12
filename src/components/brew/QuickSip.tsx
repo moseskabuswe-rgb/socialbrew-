@@ -158,7 +158,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       }
 
       // Best-effort — don't block post on RPC failure
-      supabase.rpc("increment_shop_visit", { shop_id_input: shopId }).then(() => {}).catch(() => {})
+      Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
 
       setStep('done')
       // Call onComplete first, then show feedback after the done animation
