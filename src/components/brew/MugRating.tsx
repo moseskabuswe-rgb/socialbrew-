@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { notifyFollowersOfPost, notifyMentions } from '../../lib/push'
+import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
@@ -182,10 +182,34 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-      .then(({ data: newRating }) => {
-        if (newRating) {
-          notifyFollowersOfPost(profile.id, newRating.id)
-          if (caption.trim()) notifyMentions(caption, profile.id, newRating.id)
+      .then(async ({ data: newRating }) => {
+        if (!newRating) return
+        // Notify all followers of new post via notifications table
+        const { data: followers } = await supabase
+          .from('follows')
+          .select('follower_id')
+          .eq('following_id', profile.id)
+        if (followers && followers.length > 0) {
+          await supabase.from('notifications').insert(
+            followers.map((f: any) => ({
+              user_id: f.follower_id,
+              actor_id: profile.id,
+              type: 'new_post',
+              rating_id: newRating.id,
+            }))
+          )
+        }
+        // Process @mentions in caption
+        if (caption.trim()) {
+          const mentions = caption.match(/@([a-z0-9_.]+)/gi) || []
+          for (const handle of mentions) {
+            const username = handle.slice(1)
+            const { data: mentioned } = await supabase
+              .from('profiles').select('id').eq('username', username).maybeSingle()
+            if (mentioned?.id && mentioned.id !== profile.id) {
+              notifyMention(mentioned.id, profile.username || 'Someone', caption)
+            }
+          }
         }
       })
 

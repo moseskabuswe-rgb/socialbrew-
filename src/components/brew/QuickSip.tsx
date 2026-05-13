@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap, Search, CheckCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { notifyFollowersOfPost } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
@@ -166,8 +165,22 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-        .then(({ data: newRating }) => {
-          if (newRating) notifyFollowersOfPost(profile.id, newRating.id)
+        .then(async ({ data: newRating }) => {
+          if (!newRating) return
+          const { data: followers } = await supabase
+            .from('follows')
+            .select('follower_id')
+            .eq('following_id', profile.id)
+          if (followers && followers.length > 0) {
+            await supabase.from('notifications').insert(
+              followers.map((f: any) => ({
+                user_id: f.follower_id,
+                actor_id: profile.id,
+                type: 'new_post',
+                rating_id: newRating.id,
+              }))
+            )
+          }
         })
 
       // Best-effort — don't block post on RPC failure
