@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import exifr from 'exifr'
 import { notifyMention } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
@@ -43,8 +44,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [drinkName, setDrinkName] = useState(shop?._prefillDrink || '')
   const [caption, setCaption] = useState('')
   const [visitTime, setVisitTime] = useState('')
-  const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [visitedAt, setVisitedAt] = useState<string>(new Date().toISOString().split('T')[0])
   // Price fields — same as QuickSip
   const [drinkPrice, setDrinkPrice] = useState('')
   const [pricePerception, setPricePerception] = useState('')
@@ -84,12 +86,35 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     if (showHint) { setShowHint(false); markHintSeen() }
   }
 
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10MB'); return }
-    setPhoto(file)
-    setPhotoPreview(URL.createObjectURL(file))
+  function removePhoto(idx: number) {
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+    async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const remaining = 4 - photos.length
+    const toAdd = files.slice(0, remaining)
+    for (const file of toAdd) {
+      if (file.size > 10 * 1024 * 1024) { alert('Each image must be under 10MB'); return }
+    }
+    setPhotos(prev => [...prev, ...toAdd])
+    setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+    // EXIF date from first photo
+    if (toAdd[0]) {
+      try {
+        const exif = await exifr.parse(toAdd[0], ['DateTimeOriginal', 'DateTime', 'CreateDate'])
+        const exifDate = exif?.DateTimeOriginal || exif?.DateTime || exif?.CreateDate
+        if (exifDate) {
+          const d = exifDate instanceof Date ? exifDate : new Date(String(exifDate))
+          if (!isNaN(d.getTime())) {
+            const daysDiff = (Date.now() - d.getTime()) / 86400000
+            if (daysDiff >= 0 && daysDiff <= 365) setVisitedAt(d.toISOString().split('T')[0])
+          }
+        }
+      } catch { /* EXIF unavailable — keep today */ }
+    }
   }
 
   // ── Addition: resolveShopId for OSM shops not yet in DB ──
@@ -134,19 +159,20 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     if (!profile) return
     setStep('submitting')
 
-    let photoUrl: string | null = null
-    if (photo) {
+    // Upload up to 4 photos
+    const photoUrls: string[] = []
+    for (const photo of photos) {
       const ext = photo.name.split('.').pop() || 'jpg'
-      const path = `ratings/${profile.id}/${Date.now()}.${ext}`
-      // Use 'photos' bucket; fall back gracefully if upload fails — don't block the post
+      const path = `ratings/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error: uploadErr } = await supabase.storage.from('photos').upload(path, photo, { upsert: true })
       if (!uploadErr) {
         const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
-        photoUrl = publicUrl
+        photoUrls.push(publicUrl)
       } else {
         console.warn('Photo upload failed (non-fatal):', uploadErr.message)
       }
     }
+    const photoUrl = photoUrls[0] || null
 
     const shopId = await resolveShopId(shop)
     if (!shopId) { setStep('details'); alert('Something went wrong finding the shop. Please try again.'); return }
@@ -162,6 +188,8 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       caption: caption.trim() || null,
       visit_time: visitTime || null,
       photo_url: photoUrl,
+      photo_urls: photoUrls.length > 0 ? photoUrls : null,
+      visited_at: visitedAt,
       drink_price: priceValue,
       price_perception: pricePerception || null,
       show_price: showPriceOnPost,
@@ -495,26 +523,62 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               />
             </div>
 
-            {/* Photo */}
+            {/* Visit Date */}
+            <div className="mb-4">
+              <label className="text-stone-500 text-xs uppercase tracking-wider mb-2 block">When did you visit?</label>
+              <div className="flex gap-2 mb-2">
+                {[
+                  { label: 'Today', val: new Date().toISOString().split('T')[0] },
+                  { label: 'Yesterday', val: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
+                ].map(opt => (
+                  <button key={opt.label} onClick={() => setVisitedAt(opt.val)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold border transition-all"
+                    style={visitedAt === opt.val
+                      ? { background: s.liquid, color: '#fff', borderColor: 'transparent' }
+                      : { background: '#f0e8d8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="date"
+                value={visitedAt}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={e => setVisitedAt(e.target.value)}
+                className="w-full bg-white rounded-xl px-4 py-2.5 text-sm text-stone-800 border border-stone-200 focus:border-amber-400 focus:outline-none"
+              />
+            </div>
+
+            {/* Photos — up to 4 */}
             <div className="mb-6">
               <label className="text-stone-500 text-xs uppercase tracking-wider mb-2 block flex items-center gap-1.5">
-                <Camera size={11} /> Add a photo
+                <Camera size={11} /> Add photos {photos.length > 0 && `(${photos.length}/4)`}
               </label>
-              {photoPreview ? (
-                <div className="relative">
-                  <img src={photoPreview} alt="preview" className="w-full h-36 object-cover rounded-xl" />
-                  <button onClick={() => { setPhoto(null); setPhotoPreview(null) }}
-                    className="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center text-white">
-                    <X size={12} />
-                  </button>
+              {photoPreviews.length > 0 && (
+                <div className={`grid gap-2 mb-2 ${photoPreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {photoPreviews.map((preview, i) => (
+                    <div key={i} className="relative">
+                      <img src={preview} alt={`photo ${i+1}`} className="w-full h-24 object-cover rounded-xl" />
+                      <button
+                        onClick={() => {
+                          setPhotos(prev => prev.filter((_, idx) => idx !== i))
+                          setPhotoPreviews(prev => prev.filter((_, idx) => idx !== i))
+                        }}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white">
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
+              )}
+              {photos.length < 4 && (
                 <button onClick={() => fileRef.current?.click()}
-                  className="w-full h-20 border-2 border-dashed border-stone-300 rounded-xl flex items-center justify-center gap-2 text-stone-400 text-sm transition-colors hover:border-amber-400 hover:text-amber-500">
-                  <ImageIcon size={16} /> Choose photo
+                  className="w-full h-16 border-2 border-dashed border-stone-300 rounded-xl flex items-center justify-center gap-2 text-stone-400 text-sm transition-colors hover:border-amber-400 hover:text-amber-500">
+                  <ImageIcon size={16} />
+                  {photos.length === 0 ? 'Add photos' : 'Add more'}
                 </button>
               )}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+              <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
             </div>
 
             <button onClick={() => setStep('price')}
