@@ -86,11 +86,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     if (showHint) { setShowHint(false); markHintSeen() }
   }
 
-  function removePhoto(idx: number) {
-    setPhotos(prev => prev.filter((_, i) => i !== idx))
-    setPhotoPreviews(prev => prev.filter((_, i) => i !== idx))
-  }
-
     async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
