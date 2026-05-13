@@ -50,7 +50,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [pricePerception, setPricePerception] = useState('')
   const [showPriceOnPost, setShowPriceOnPost] = useState(true)
   // Steps: rate → (feedback if low) → details → price → submitting → done
-  const [step, setStep] = useState<'rate' | 'feedback' | 'details' | 'price' | 'submitting' | 'done'>('rate')
+  const [step, setStep] = useState<'rate' | 'details' | 'price' | 'submitting' | 'done'>('rate')
   const [showFeedback, setShowFeedback] = useState(false)
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)

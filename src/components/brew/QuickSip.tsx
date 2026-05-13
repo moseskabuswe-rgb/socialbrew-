@@ -32,6 +32,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [shopList, setShopList] = useState<any[]>([])
   const [shopListFiltered, setShopListFiltered] = useState<any[]>([])
   const [loadingShops, setLoadingShops] = useState(false)
+  const [drinkName, setDrinkName] = useState('')
   const [drinkPrice, setDrinkPrice] = useState('')
   const [pricePerception, setPricePerception] = useState('')
   const [showPriceOnPost, setShowPriceOnPost] = useState(true)
@@ -124,6 +125,17 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     }
   }, [calculateFill, onMM, onMU])
 
+  function getVisitTime(): string {
+    const h = new Date().getHours()
+    if (h >= 5 && h < 8)   return 'Early Morning (5–8am)'
+    if (h >= 8 && h < 10)  return 'Morning (8–10am)'
+    if (h >= 10 && h < 12) return 'Late Morning (10am–12pm)'
+    if (h >= 12 && h < 14) return 'Lunch (12–2pm)'
+    if (h >= 14 && h < 17) return 'Afternoon (2–5pm)'
+    if (h >= 17 && h < 20) return 'Evening (5–8pm)'
+    return 'Night (8pm+)'
+  }
+
   async function handleSubmit() {
     if (!profile || fill === 0 || !shop) return
     setStep('submitting')
@@ -145,6 +157,8 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         shop_id: shopId,
         fill_level: fill,
         is_quick_sip: true,
+        drink_name: drinkName.trim() || null,
+        visit_time: getVisitTime(),
         drink_price: priceValue,
         price_perception: pricePerception || null,
         show_price: showPriceOnPost,
@@ -356,7 +370,15 @@ export default function QuickSip({ onClose, onComplete }: Props) {
                   ))}
                 </svg>
 
-                {/* Swipe hint — first use only */}
+                {/* Drink name input */}
+              <input
+                value={drinkName}
+                onChange={e => setDrinkName(e.target.value)}
+                placeholder="What did you drink? (optional)"
+                className="w-full bg-stone-100 text-stone-800 rounded-xl px-4 py-2.5 text-sm border border-stone-200 focus:border-amber-400 focus:outline-none placeholder-stone-400 mb-4"
+              />
+
+              {/* Swipe hint — first use only */}
                 <MugSwipeHint visible={showHint && fill === 0} />
 
                 {/* Swipe arrows — after hint dismissed */}
