@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { notifyFollowersOfPost, notifyMentions } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
@@ -172,6 +173,21 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       setStep('price')
       return
     }
+
+    // Notify followers and process @mentions — fire and forget
+    supabase
+      .from('ratings')
+      .select('id')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data: newRating }) => {
+        if (newRating) {
+          notifyFollowersOfPost(profile.id, newRating.id)
+          if (caption.trim()) notifyMentions(caption, profile.id, newRating.id)
+        }
+      })
 
     // Best-effort — don't block on RPC failure
     Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})

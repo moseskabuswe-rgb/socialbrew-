@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap, Search, CheckCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { notifyFollowersOfPost } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
@@ -156,6 +157,18 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         setStep('price')
         return
       }
+
+      // Notify followers — fire and forget
+      supabase
+        .from('ratings')
+        .select('id')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data: newRating }) => {
+          if (newRating) notifyFollowersOfPost(profile.id, newRating.id)
+        })
 
       // Best-effort — don't block post on RPC failure
       Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
