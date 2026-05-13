@@ -286,6 +286,8 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
         shop_id: shopId,
         fill_level: fill,
         is_quick_sip: true,
+        drink_name: drinkName.trim() || null,
+        visit_time: getVisitTime(),
         drink_price: priceValue,
         price_perception: pricePerception || null,
         show_price: showPriceOnPost,
@@ -323,6 +325,39 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
         if (fill <= 50) { setSubmittedShop(shop); setShowFeedback(true) }
         else onClose()
       }, 1200)"""),
+
+    ("Add drinkName state",
+     "const [shop, setShop] = useState<any>(null)\n  const [submitting, setSubmitting] = useState(false)",
+     """const [shop, setShop] = useState<any>(null)
+  const [drinkName, setDrinkName] = useState('')
+  const [submitting, setSubmitting] = useState(false)"""),
+
+    ("Add getVisitTime helper before handleSubmit",
+     "  async function handleSubmit() {",
+     """  function getVisitTime(): string {
+    const h = new Date().getHours()
+    if (h >= 5 && h < 8)   return 'Early Morning (5–8am)'
+    if (h >= 8 && h < 10)  return 'Morning (8–10am)'
+    if (h >= 10 && h < 12) return 'Late Morning (10am–12pm)'
+    if (h >= 12 && h < 14) return 'Lunch (12–2pm)'
+    if (h >= 14 && h < 17) return 'Afternoon (2–5pm)'
+    if (h >= 17 && h < 20) return 'Evening (5–8pm)'
+    return 'Night (8pm+)'
+  }
+
+  async function handleSubmit() {"""),
+
+    ("Add drink name input above mug in UI",
+     "{/* Mug */}",
+     """{/* Optional drink name */}
+            <input
+              value={drinkName}
+              onChange={e => setDrinkName(e.target.value)}
+              placeholder="What did you drink? (optional)"
+              className="w-full bg-coffee-800 text-white rounded-xl px-4 py-2.5 text-sm border border-coffee-600 focus:border-caramel focus:outline-none placeholder-coffee-500 mb-3"
+            />
+
+            {/* Mug */}"""),
 
 ])
 
