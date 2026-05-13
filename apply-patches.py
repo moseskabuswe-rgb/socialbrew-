@@ -2,7 +2,6 @@
 """
 Run from your project root: python3 apply-patches.py
 Reads your actual repo files and adds ONLY what's missing.
-Nothing existing is removed or rewritten.
 Prints OK, SKIP, or WARNING for every patch.
 Then run: npm run build
 """
@@ -10,17 +9,18 @@ import os
 
 def patch_file(path, patches):
     if not os.path.exists(path):
-        print(f"  ❌ NOT FOUND: {path} — are you running from project root?")
+        print(f"  ❌ NOT FOUND: {path} — run from project root")
         return
     with open(path) as f:
         content = f.read()
     original = content
     for desc, old, new in patches:
         if old not in content:
-            if new in content or new[:40] in content:
+            if new[:60] in content:
                 print(f"  ⏭  SKIP (already applied): {desc}")
             else:
                 print(f"  ⚠️  NOT FOUND — apply manually: {desc}")
+                print(f"      Looking for: {repr(old[:80])}")
             continue
         content = content.replace(old, new, 1)
         print(f"  ✅ Applied: {desc}")
@@ -37,22 +37,22 @@ print("MugRating.tsx")
 print("=" * 60)
 patch_file('src/components/brew/MugRating.tsx', [
 
-    ("Add imports: push, AnonymousFeedbackModal, MugSwipeHint",
+    ("1. Add imports: push/AnonymousFeedbackModal/MugSwipeHint",
      "import { supabase } from '../../lib/supabase'",
      """import { supabase } from '../../lib/supabase'
 import { notifyMention } from '../../lib/push'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'"""),
 
-    ("Add price step to step type union",
+    ("2. Add price step to step type",
      "useState<'rate' | 'details' | 'submitting' | 'done'>('rate')",
      "useState<'rate' | 'details' | 'price' | 'submitting' | 'done'>('rate')"),
 
-    ("Pre-fill drink name from Discover drink search",
+    ("3. Pre-fill drink name from Discover",
      "const [drinkName, setDrinkName] = useState('')",
      "const [drinkName, setDrinkName] = useState(shop?._prefillDrink || '')"),
 
-    ("Add price + hint + feedback state after fileRef",
+    ("4. Add price + hint + feedback state",
      "const fileRef = useRef<HTMLInputElement>(null)",
      """const fileRef = useRef<HTMLInputElement>(null)
   const [drinkPrice, setDrinkPrice] = useState('')
@@ -63,8 +63,7 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
     try { return localStorage.getItem('sb_mug_hint_seen') !== '1' } catch { return true }
   })"""),
 
-    # Single atomic patch — replaces the entire captionParts + insert block
-    ("Replace insert block: add OSM resolution, price fields, error surfacing",
+    ("5. Replace entire submit block with price/OSM/notifications/feedback",
      """    const captionParts = [caption].filter(Boolean)
     const { error } = await supabase.from('ratings').insert({
       user_id: profile.id,
@@ -75,8 +74,10 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
       drink_name: drinkName || null,
       vibe_tags: selectedVibes,
       caption: captionParts.join(' · ') || null,
-    })""",
-     """    // Resolve OSM/external IDs into real DB IDs before inserting rating
+    })
+    if (!error) { setStep('done'); setTimeout(() => { onComplete(shop?.name); onClose() }, 1600) }
+    else { setStep('details'); alert('Something went wrong. Please try again.') }""",
+     """    // Resolve OSM/external IDs into real DB IDs
     let shopId = shop.id
     if (String(shopId).startsWith('osm-') || String(shopId).startsWith('fb-')) {
       const { data: existing } = await supabase.from('coffee_shops').select('id').ilike('name', shop.name).maybeSingle()
@@ -107,17 +108,9 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
       drink_price: priceValue,
       price_perception: pricePerception || null,
       show_price: showPriceOnPost,
-    })"""),
+    })
 
-    ("Replace submit success/error with: error surfacing, notifications, price routing",
-     """    if (!error) {
-      setStep('done')
-      setTimeout(() => { onComplete(); onClose() }, 1600)
-    } else {
-      setStep('details')
-      alert('Something went wrong. Please try again.')
-    }""",
-     """    if (error) {
+    if (error) {
       console.error('MugRating insert error:', error)
       alert(`Could not post: ${error.message}`)
       setStep('price')
@@ -154,23 +147,23 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
 
     setStep('done')
     setTimeout(() => {
-      onComplete()
+      onComplete(shop?.name)
       if (fill <= 50) setShowFeedback(true)
       else onClose()
     }, 1600)"""),
 
-    ("Add percentage display after fill sub-label",
+    ("6. Add percentage display after fill sub-label",
      "{s.sub && <p className=\"text-coffee-400 text-sm mt-1\">{s.sub}</p>}",
      """{s.sub && <p className="text-coffee-400 text-sm mt-1">{s.sub}</p>}
               {fill > 0 && <p className="text-coffee-400 text-xs mt-1 font-mono">{fill}%</p>}"""),
 
-    ("Add MugSwipeHint inside mug div after closing SVG",
+    ("7. Add MugSwipeHint after closing SVG tag",
      "</svg>\n            </div>",
      """</svg>
               <MugSwipeHint visible={showHint && fill === 0} />
             </div>"""),
 
-    ("Add price step JSX before details step comment",
+    ("8. Add price step before details step",
      "{/* ── DETAILS STEP",
      """{/* ── PRICE STEP ── */}
         {step === 'price' && (
@@ -223,11 +216,13 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
 
         {/* ── DETAILS STEP"""),
 
-    ("Wire details step Next button to price step (not submit)",
-     """onClick={() => fill > 0 && setStep('details')}""",
-     """onClick={() => fill > 0 && setStep('details')}"""),  # no-op — keep existing
+    ("9. Wire details Share button to go to price step",
+     """onClick={handleSubmit}
+              className="w-full py-3.5 rounded-2xl bg-caramel""",
+     """onClick={() => setStep('price')}
+              className="w-full py-3.5 rounded-2xl bg-caramel"""),
 
-    ("Add feedback modal before final closing divs",
+    ("10. Add feedback modal before final closing tags",
      "      </div>\n    </div>\n  )\n}",
      """      </div>
     </div>
@@ -251,15 +246,15 @@ print("QuickSip.tsx")
 print("=" * 60)
 patch_file('src/components/brew/QuickSip.tsx', [
 
-    ("Add AnonymousFeedbackModal + MugSwipeHint imports",
+    ("1. Add AnonymousFeedbackModal + MugSwipeHint imports",
      "import { supabase } from '../../lib/supabase'",
      """import { supabase } from '../../lib/supabase'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'"""),
 
-    ("Add price + feedback + hint state",
-     "const [submitting, setSubmitting] = useState(false)",
-     """const [submitting, setSubmitting] = useState(false)
+    ("2. Add drinkName + price + feedback state",
+     "  const [submitting, setSubmitting] = useState(false)",
+     """  const [drinkName, setDrinkName] = useState('')
   const [drinkPrice, setDrinkPrice] = useState('')
   const [pricePerception, setPricePerception] = useState('')
   const [showPriceOnPost, setShowPriceOnPost] = useState(true)
@@ -267,72 +262,10 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
   const [submittedShop, setSubmittedShop] = useState<any>(null)
   const [showHint, setShowHint] = useState(() => {
     try { return localStorage.getItem('sb_mug_hint_seen') !== '1' } catch { return true }
-  })"""),
-
-    ("Replace insert + success block with price, error surfacing, notifications, feedback",
-     """      await supabase.from('ratings').insert({
-        user_id: profile.id,
-        shop_id: shopId,
-        fill_level: fill,
-        is_quick_sip: true,
-      })
-
-      setDone(true)
-      setTimeout(() => { onComplete(); onClose() }, 1200)""",
-     """      const priceValue = drinkPrice ? parseFloat(drinkPrice) : null
-
-      const { error: insertError } = await supabase.from('ratings').insert({
-        user_id: profile.id,
-        shop_id: shopId,
-        fill_level: fill,
-        is_quick_sip: true,
-        drink_name: drinkName.trim() || null,
-        visit_time: getVisitTime(),
-        drink_price: priceValue,
-        price_perception: pricePerception || null,
-        show_price: showPriceOnPost,
-      })
-
-      if (insertError) {
-        console.error('QuickSip insert error:', insertError)
-        alert(`Could not post: ${insertError.message}`)
-        setSubmitting(false)
-        return
-      }
-
-      // Notify followers (fire and forget)
-      supabase.from('ratings').select('id').eq('user_id', profile.id)
-        .order('created_at', { ascending: false }).limit(1).maybeSingle()
-        .then(async ({ data: newRating }) => {
-          if (!newRating) return
-          const { data: followers } = await supabase.from('follows')
-            .select('follower_id').eq('following_id', profile.id)
-          if (followers?.length) {
-            await supabase.from('notifications').insert(
-              followers.map((f: any) => ({
-                user_id: f.follower_id, actor_id: profile.id,
-                type: 'new_post', rating_id: newRating.id,
-              }))
-            )
-          }
-        })
-
-      Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
-
-      setDone(true)
-      setTimeout(() => {
-        onComplete()
-        if (fill <= 50) { setSubmittedShop(shop); setShowFeedback(true) }
-        else onClose()
-      }, 1200)"""),
-
-    ("Add drinkName state",
-     "const [shop, setShop] = useState<any>(null)\n  const [submitting, setSubmitting] = useState(false)",
-     """const [shop, setShop] = useState<any>(null)
-  const [drinkName, setDrinkName] = useState('')
+  })
   const [submitting, setSubmitting] = useState(false)"""),
 
-    ("Add getVisitTime helper before handleSubmit",
+    ("3. Add getVisitTime helper before handleSubmit",
      "  async function handleSubmit() {",
      """  function getVisitTime(): string {
     const h = new Date().getHours()
@@ -347,7 +280,65 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
 
   async function handleSubmit() {"""),
 
-    ("Add drink name input above mug in UI",
+    ("4. Replace insert block with drink_name, price, error surfacing, notifications, feedback",
+     """    await supabase.from('ratings').insert({
+      user_id: profile.id,
+      shop_id: shop?.id || null,
+      fill_level: fill,
+      is_quick_sip: true,
+      vibe_tags: [],
+    })
+    trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
+    setDone(true)
+    setTimeout(() => { onComplete(); onClose() }, 1400)""",
+     """    const priceValue = drinkPrice ? parseFloat(drinkPrice) : null
+    const { error: insertError } = await supabase.from('ratings').insert({
+      user_id: profile.id,
+      shop_id: shop?.id || null,
+      fill_level: fill,
+      is_quick_sip: true,
+      drink_name: drinkName.trim() || null,
+      visit_time: getVisitTime(),
+      drink_price: priceValue,
+      price_perception: pricePerception || null,
+      show_price: showPriceOnPost,
+    })
+    trackEvent('quick_sip_posted', { fill_level: fill, shop: shop?.name })
+
+    if (insertError) {
+      console.error('QuickSip insert error:', insertError)
+      alert(`Could not post: ${insertError.message}`)
+      setSubmitting(false)
+      return
+    }
+
+    // Notify followers (fire and forget)
+    supabase.from('ratings').select('id').eq('user_id', profile.id)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(async ({ data: newRating }) => {
+        if (!newRating) return
+        const { data: followers } = await supabase.from('follows')
+          .select('follower_id').eq('following_id', profile.id)
+        if (followers?.length) {
+          await supabase.from('notifications').insert(
+            followers.map((f: any) => ({
+              user_id: f.follower_id, actor_id: profile.id,
+              type: 'new_post', rating_id: newRating.id,
+            }))
+          )
+        }
+      })
+
+    Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shop?.id })).catch(() => {})
+
+    setDone(true)
+    setTimeout(() => {
+      onComplete(shop?.name)
+      if (fill <= 50) { setSubmittedShop(shop); setShowFeedback(true) }
+      else onClose()
+    }, 1400)"""),
+
+    ("5. Add drink name input above mug in UI",
      "{/* Mug */}",
      """{/* Optional drink name */}
             <input
@@ -359,9 +350,31 @@ import MugSwipeHint from '../shared/MugSwipeHint'"""),
 
             {/* Mug */}"""),
 
+    ("6. Add MugSwipeHint after SVG in QuickSip",
+     "</svg>\n          </div>",
+     """</svg>
+            <MugSwipeHint visible={showHint && fill === 0} />
+          </div>"""),
+
+    ("7. Add anonymous feedback modal at end of QuickSip return",
+     "      </div>\n    </div>\n  )\n}",
+     """      </div>
+    </div>
+    {done && showFeedback && submittedShop && (
+      <AnonymousFeedbackModal
+        shopId={String(submittedShop?.id || '')}
+        shopName={submittedShop?.name || 'this shop'}
+        fillLevel={fill}
+        onSkip={onClose}
+        onSent={onClose}
+      />
+    )}
+  )
+}"""),
+
 ])
 
 print("=" * 60)
-print("Done. Now run: npm run build")
-print("If any ⚠️ warnings appeared, apply those changes manually.")
+print("Done. Run: npm run build")
+print("Any ⚠️  warnings need manual application.")
 print("=" * 60)
