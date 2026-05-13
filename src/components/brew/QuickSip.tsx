@@ -258,7 +258,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(13,9,4,0.95)' }}>
       <div
         className="w-full max-w-sm rounded-t-3xl animate-slide-up"
-        style={{ background: 'linear-gradient(160deg,#fdfaf5,#f0e0c0)', maxHeight: '88vh', overflowY: 'auto' }}
+        style={{ background: 'linear-gradient(160deg,#fdfaf5,#f0e0c0)', maxHeight: '92vh', overflowY: 'auto' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -308,7 +308,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
             </div>
 
             {/* Mug */}
-            <div className="px-5 pb-2">
+            <div className="px-5 pb-3">
               <div
                 ref={mugRef}
                 className="relative mx-auto cursor-grab active:cursor-grabbing select-none"
@@ -370,14 +370,6 @@ export default function QuickSip({ onClose, onComplete }: Props) {
                   ))}
                 </svg>
 
-                {/* Drink name input */}
-              <input
-                value={drinkName}
-                onChange={e => setDrinkName(e.target.value)}
-                placeholder="What did you drink? (optional)"
-                className="w-full bg-stone-100 text-stone-800 rounded-xl px-4 py-2.5 text-sm border border-stone-200 focus:border-amber-400 focus:outline-none placeholder-stone-400 mb-4"
-              />
-
               {/* Swipe hint — first use only */}
                 <MugSwipeHint visible={showHint && fill === 0} />
 
@@ -397,8 +389,16 @@ export default function QuickSip({ onClose, onComplete }: Props) {
                 )}
               </div>
 
+              {/* Drink name */}
+              <input
+                value={drinkName}
+                onChange={e => setDrinkName(e.target.value)}
+                placeholder="What did you drink? (optional)"
+                className="w-full bg-stone-100 text-stone-800 rounded-xl px-4 py-2.5 text-sm border border-stone-200 focus:border-amber-400 focus:outline-none placeholder-stone-400 mt-3"
+              />
+
               {/* Rating label */}
-              <div className="text-center mt-1 mb-5" style={{ minHeight: 48 }}>
+              <div className="text-center mt-2 mb-3" style={{ minHeight: 44 }}>
                 <p className="font-display text-xl font-bold transition-all duration-300" style={{ color: s.color }}>
                   {s.label}
                 </p>
