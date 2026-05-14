@@ -1,0 +1,316 @@
+name: Weekly Social Brew Report
+
+on:
+  schedule:
+    # Runs every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    # Allows manual trigger from GitHub Actions tab
+    inputs:
+      start_date:
+        description: 'Override period start date (YYYY-MM-DD). Defaults to last Monday.'
+        required: false
+        default: ''
+
+jobs:
+  generate-report:
+    name: Generate Weekly JSON Report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js
+
+      - name: Generate report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          OVERRIDE_START_DATE: ${{ github.event.inputs.start_date }}
+        run: |
+          node << 'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+          const fs = require('fs');
+          const path = require('path');
+
+          // ── Supabase client ────────────────────────────────────────────────
+          const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_ANON_KEY
+          );
+
+          // ── Date range logic ───────────────────────────────────────────────
+          // Baseline start: April 9, 2026
+          const BASELINE_START = '2026-04-09T00:00:00.000Z';
+
+          function getPeriodDates() {
+            const today = new Date();
+            const todayISO = today.toISOString();
+
+            // If a manual override date was passed via workflow_dispatch, use it
+            if (process.env.OVERRIDE_START_DATE) {
+              return {
+                periodStart: new Date(process.env.OVERRIDE_START_DATE).toISOString(),
+                periodEnd: todayISO,
+                isBaseline: false
+              };
+            }
+
+            // First ever run window: April 9 → today
+            // After that: rolling 7-day window (last Monday → this Monday)
+            const lastMonday = new Date(today);
+            lastMonday.setDate(today.getDate() - 7);
+            lastMonday.setHours(0, 0, 0, 0);
+
+            // If last Monday is before or equal to the baseline start,
+            // treat this as the baseline run and pull everything since April 9
+            const baselineDate = new Date(BASELINE_START);
+            if (lastMonday <= baselineDate) {
+              return {
+                periodStart: BASELINE_START,
+                periodEnd: todayISO,
+                isBaseline: true
+              };
+            }
+
+            return {
+              periodStart: lastMonday.toISOString(),
+              periodEnd: todayISO,
+              isBaseline: false
+            };
+          }
+
+          // ── Query helpers ──────────────────────────────────────────────────
+          async function safeQuery(label, queryFn) {
+            try {
+              const result = await queryFn();
+              if (result.error) {
+                console.warn(`Warning [${label}]:`, result.error.message);
+                return null;
+              }
+              return result;
+            } catch (err) {
+              console.warn(`Error [${label}]:`, err.message);
+              return null;
+            }
+          }
+
+          // ── Main report builder ────────────────────────────────────────────
+          async function buildReport() {
+            const { periodStart, periodEnd, isBaseline } = getPeriodDates();
+            const generatedAt = new Date().toISOString();
+
+            console.log(`Generating report for period: ${periodStart} → ${periodEnd}`);
+            console.log(`Baseline run: ${isBaseline}`);
+
+            // ── profiles ────────────────────────────────────────────────────
+            const allProfiles = await safeQuery('profiles:all', () =>
+              supabase.from('profiles').select('id, created_at, city, state, country')
+            );
+
+            const newProfiles = await safeQuery('profiles:period', () =>
+              supabase
+                .from('profiles')
+                .select('id, created_at, city, state, country')
+                .gte('created_at', periodStart)
+                .lte('created_at', periodEnd)
+            );
+
+            // ── coffee_shops ────────────────────────────────────────────────
+            const allShops = await safeQuery('coffee_shops:all', () =>
+              supabase.from('coffee_shops').select('id, name, city, state, country, created_at')
+            );
+
+            const newShops = await safeQuery('coffee_shops:period', () =>
+              supabase
+                .from('coffee_shops')
+                .select('id, name, city, state, country, created_at')
+                .gte('created_at', periodStart)
+                .lte('created_at', periodEnd)
+            );
+
+            // ── ratings ─────────────────────────────────────────────────────
+            const allRatings = await safeQuery('ratings:all', () =>
+              supabase.from('ratings').select('id, shop_id, rating, created_at')
+            );
+
+            const newRatings = await safeQuery('ratings:period', () =>
+              supabase
+                .from('ratings')
+                .select('id, shop_id, rating, created_at')
+                .gte('created_at', periodStart)
+                .lte('created_at', periodEnd)
+            );
+
+            // ── wishlists (drink wishlists) ──────────────────────────────────
+            const allDrinkWishlists = await safeQuery('wishlists:all', () =>
+              supabase.from('wishlists').select('id, user_id, created_at')
+            );
+
+            const newDrinkWishlists = await safeQuery('wishlists:period', () =>
+              supabase
+                .from('wishlists')
+                .select('id, user_id, created_at')
+                .gte('created_at', periodStart)
+                .lte('created_at', periodEnd)
+            );
+
+            // ── visit_wishlist (shop visit wishlists) ────────────────────────
+            const allVisitWishlists = await safeQuery('visit_wishlist:all', () =>
+              supabase.from('visit_wishlist').select('id, user_id, shop_id, created_at')
+            );
+
+            const newVisitWishlists = await safeQuery('visit_wishlist:period', () =>
+              supabase
+                .from('visit_wishlist')
+                .select('id, user_id, shop_id, created_at')
+                .gte('created_at', periodStart)
+                .lte('created_at', periodEnd)
+            );
+
+            // ── Geographic breakdown ─────────────────────────────────────────
+            function groupByState(rows) {
+              if (!rows) return {};
+              return rows.reduce((acc, row) => {
+                const key = row.state || 'Unknown';
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {});
+            }
+
+            function groupByCity(rows) {
+              if (!rows) return {};
+              return rows.reduce((acc, row) => {
+                const key = row.city && row.state
+                  ? `${row.city}, ${row.state}`
+                  : row.city || row.state || 'Unknown';
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {});
+            }
+
+            function findInternational(rows) {
+              if (!rows) return [];
+              return rows
+                .filter(r => r.country && r.country.toUpperCase() !== 'US' && r.country.toUpperCase() !== 'USA' && r.country !== 'United States')
+                .map(r => ({ country: r.country, city: r.city || null, state: r.state || null }));
+            }
+
+            // ── Average rating per shop ──────────────────────────────────────
+            function avgRatingPerShop(ratings) {
+              if (!ratings || ratings.length === 0) return {};
+              const grouped = ratings.reduce((acc, r) => {
+                if (!acc[r.shop_id]) acc[r.shop_id] = [];
+                acc[r.shop_id].push(r.rating);
+                return acc;
+              }, {});
+              const avgs = {};
+              for (const [shopId, values] of Object.entries(grouped)) {
+                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                avgs[shopId] = parseFloat(avg.toFixed(2));
+              }
+              return avgs;
+            }
+
+            function overallAvgRating(ratings) {
+              if (!ratings || ratings.length === 0) return null;
+              const total = ratings.reduce((sum, r) => sum + (r.rating || 0), 0);
+              return parseFloat((total / ratings.length).toFixed(2));
+            }
+
+            // ── Assemble report ──────────────────────────────────────────────
+            const report = {
+              metadata: {
+                report_version: '1.0',
+                generated_at: generatedAt,
+                period_start: periodStart,
+                period_end: periodEnd,
+                is_baseline_run: isBaseline,
+                description: isBaseline
+                  ? 'Baseline report covering Social Brew launch through today.'
+                  : 'Weekly report covering the last 7 days of activity.'
+              },
+
+              summary_stats: {
+                total_users: allProfiles?.data?.length ?? null,
+                new_users_this_period: newProfiles?.data?.length ?? null,
+                total_coffee_shops: allShops?.data?.length ?? null,
+                shops_added_this_period: newShops?.data?.length ?? null,
+                total_ratings: allRatings?.data?.length ?? null,
+                ratings_this_period: newRatings?.data?.length ?? null,
+                overall_average_rating: overallAvgRating(allRatings?.data),
+                average_rating_this_period: overallAvgRating(newRatings?.data)
+              },
+
+              engagement_metrics: {
+                drink_wishlists: {
+                  total: allDrinkWishlists?.data?.length ?? null,
+                  added_this_period: newDrinkWishlists?.data?.length ?? null
+                },
+                shop_visit_wishlists: {
+                  total: allVisitWishlists?.data?.length ?? null,
+                  added_this_period: newVisitWishlists?.data?.length ?? null
+                },
+                ratings_per_user: allProfiles?.data?.length && allRatings?.data?.length
+                  ? parseFloat((allRatings.data.length / allProfiles.data.length).toFixed(2))
+                  : null
+              },
+
+              geographic_breakdown: {
+                users_by_state: groupByState(allProfiles?.data),
+                shops_by_city: groupByCity(allShops?.data),
+                shops_by_state: groupByState(allShops?.data),
+                new_shops_by_city_this_period: groupByCity(newShops?.data),
+                international_locations: {
+                  users: findInternational(allProfiles?.data),
+                  shops: findInternational(allShops?.data)
+                }
+              },
+
+              shop_ratings: {
+                average_rating_by_shop_id: avgRatingPerShop(allRatings?.data),
+                note: 'Keys are shop IDs from the coffee_shops table. Cross-reference with shop name as needed.'
+              },
+
+              notes: {
+                narrative: '',
+                highlights: [],
+                issues_or_anomalies: [],
+                next_steps: []
+              }
+            };
+
+            // ── Write to file ─────────────────────────────────────────────────
+            const outputDir = path.join(process.cwd(), 'data');
+            if (!fs.existsSync(outputDir)) {
+              fs.mkdirSync(outputDir, { recursive: true });
+            }
+
+            const outputPath = path.join(outputDir, 'weekly-report.json');
+            fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf8');
+            console.log(`Report written to ${outputPath}`);
+          }
+
+          buildReport().catch(err => {
+            console.error('Fatal error generating report:', err);
+            process.exit(1);
+          });
+          EOF
+
+      - name: Commit report to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/weekly-report.json
+          # Only commit if there are actual changes
+          git diff --staged --quiet || git commit -m "chore: weekly Social Brew report $(date +'%Y-%m-%d')"
+          git push
