@@ -223,7 +223,7 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
                 <div className="relative flex-shrink-0" style={{ minWidth: 36 }}>
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200">
                     {n.actor?.avatar_url
-                      ? <img src={n.actor.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ? <img src={n.actor.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center bg-caramel">
                           <span className="text-white text-sm font-bold">{n.actor?.username?.[0]?.toUpperCase()}</span>
                         </div>}

@@ -107,7 +107,7 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
         <div className="flex items-center gap-2.5 mb-2">
           <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
             {user?.avatar_url
-              ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span></div>}
           </div>
           <div className="flex-1 min-w-0">
@@ -141,7 +141,7 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
         {/* Header image */}
         <div className="relative flex-shrink-0" style={{ height: 160 }}>
           {shop.photo_url && !imgError ? (
-            <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover rounded-t-3xl" onError={() => setImgError(true)} />
+            <img src={shop.photo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover rounded-t-3xl" onError={() => setImgError(true)} />
           ) : (
             <div className="w-full h-full rounded-t-3xl bg-gradient-to-br from-coffee-600 to-coffee-900 flex items-center justify-center">
               <span className="text-6xl opacity-30">☕</span>

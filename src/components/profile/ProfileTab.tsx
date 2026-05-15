@@ -69,7 +69,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
             <div key={u.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white">
               <button onClick={() => setViewingProfile(u)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                  {u.avatar_url ? <img src={u.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -116,7 +116,7 @@ function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; on
             return (
               <button key={v.shop_id} onClick={() => { onClose(); onShopClick(shop) }} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors text-left">
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
+                  {shop?.photo_url && <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name}</p>
@@ -390,7 +390,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
             className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white hover:bg-cream-50 transition-colors text-left">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
               {user.avatar_url
-                ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                 : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold">{user.username[0].toUpperCase()}</span></div>}
             </div>
             <div className="flex-1 min-w-0">

@@ -108,7 +108,7 @@ export default function ShopPhotoGallery({ shopId, shopName }: Props) {
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-300 flex-shrink-0">
                 {fullscreen.profiles?.avatar_url
-                  ? <img src={fullscreen.profiles.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                  ? <img src={fullscreen.profiles.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel">
                       <span className="text-white text-xs font-bold">{fullscreen.profiles?.username?.[0]?.toUpperCase()}</span>
                     </div>}

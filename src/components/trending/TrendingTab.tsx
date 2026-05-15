@@ -64,7 +64,7 @@ export default function TrendingTab() {
               className="w-full relative rounded-2xl overflow-hidden shadow-lg text-left"
               style={{ height: 220 }}>
               {spotlight.photo_url ? (
-                <img src={spotlight.photo_url} alt={spotlight.name} className="w-full h-full object-cover" />
+                <img src={spotlight.photo_url} alt={spotlight.name} loading="lazy" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-coffee-600 to-coffee-800" />
               )}
@@ -110,7 +110,7 @@ export default function TrendingTab() {
                   className="flex-shrink-0 w-36 bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200 text-left">
                   <div className="relative h-24 bg-coffee-200">
                     {shop.photo_url ? (
-                      <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />
+                      <img src={shop.photo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">☕</div>
                     )}
@@ -145,7 +145,7 @@ export default function TrendingTab() {
                     <span className="text-coffee-600 font-bold text-sm">{i + 5}</span>
                   </div>
                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {shop.photo_url && <img src={shop.photo_url} alt={shop.name} className="w-full h-full object-cover" />}
+                    {shop.photo_url && <img src={shop.photo_url} alt={shop.name} loading="lazy" className="w-full h-full object-cover" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-coffee-800 font-semibold text-sm truncate">{shop.name}</p>

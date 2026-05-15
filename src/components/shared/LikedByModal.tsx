@@ -77,7 +77,7 @@ export default function LikedByModal({ ratingId, onClose, onViewProfile }: Props
             >
               <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                 {user.avatar_url
-                  ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                  ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel">
                       <span className="text-white font-bold text-sm">{user.username?.[0]?.toUpperCase()}</span>
                     </div>}

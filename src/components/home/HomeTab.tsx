@@ -273,7 +273,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200">
                 {activeConvo.avatar_url
-                  ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                  ? <img src={activeConvo.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
               </div>
               <h3 className="font-display font-bold text-coffee-800 text-base">{activeConvo.username}</h3>
@@ -300,7 +300,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
               <button key={u.id} onClick={() => { setActiveConvo(u); setSearchUser(''); setSearchResults([]); openConvo(u) }}
                 className="w-full flex items-center gap-3 py-2.5 hover:bg-cream-50 rounded-xl px-2 mt-1 transition-colors">
                 <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                  {u.avatar_url ? <img src={u.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username[0].toUpperCase()}</span></div>}
                 </div>
                 <p className="text-coffee-700 font-medium text-sm">{u.username}</p>
@@ -326,7 +326,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200">
-                      {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                      {c.avatar_url ? <img src={c.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                         : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold">{c.username?.[0]?.toUpperCase()}</span></div>}
                     </div>
                     {hasUnread && (
@@ -365,7 +365,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
               <div className="flex flex-col items-center justify-center h-full py-10">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-coffee-200 mb-3">
                   {activeConvo.avatar_url
-                    ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                    ? <img src={activeConvo.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-xl">{activeConvo.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <p className="text-coffee-700 font-semibold text-sm">{activeConvo.username}</p>
@@ -391,7 +391,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
                       <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 mb-0.5">
                         {showAvatar
                           ? activeConvo.avatar_url
-                            ? <img src={activeConvo.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                            ? <img src={activeConvo.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                             : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold" style={{ fontSize: 11 }}>{activeConvo.username?.[0]?.toUpperCase()}</span></div>
                           : <div className="w-full h-full" />}
                       </div>
@@ -562,7 +562,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
           {comments.map(comment => (
             <div key={comment.id} className="flex gap-2.5">
               <div className="w-7 h-7 rounded-full bg-coffee-200 flex-shrink-0 overflow-hidden">
-                {comment.profiles?.avatar_url ? <img src={comment.profiles.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                {comment.profiles?.avatar_url ? <img src={comment.profiles.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{comment.profiles?.username?.[0]?.toUpperCase()}</span></div>}
               </div>
               <div className="flex-1">
@@ -695,7 +695,7 @@ function ShareSheet({ rating, onClose, onExternal, onDM }: {
         <div className="flex items-center gap-3 bg-cream-50 rounded-2xl p-3 mb-4 border border-cream-200">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
             {user?.avatar_url
-              ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+              ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
               : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span></div>}
           </div>
           <div className="flex-1 min-w-0">
@@ -765,7 +765,7 @@ function SavedPostsPanel({ posts, onClose, onPostClick }: { posts: any[]; onClos
               <button key={r.id} onClick={() => onPostClick(r)} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200 text-left hover:bg-cream-50 transition-colors">
                 <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {user?.avatar_url
-                    ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                    ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1348,7 +1348,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 {/* Header */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </button>
                   <div className="flex-1 min-w-0">
@@ -1428,7 +1428,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
                 <div className="flex items-center gap-3 px-4 py-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </button>
                   <div className="flex-1 min-w-0">
@@ -1508,7 +1508,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <div className="flex items-center gap-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                    {user?.avatar_url ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </button>
                   <div>

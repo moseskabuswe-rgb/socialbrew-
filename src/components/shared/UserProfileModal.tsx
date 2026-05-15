@@ -95,7 +95,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
                     {user.avatar_url
-                      ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                      ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
                           <span className="text-white font-bold text-3xl">{user.username?.[0]?.toUpperCase()}</span>
                         </div>}
@@ -168,7 +168,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
                         <div key={r.id} className="bg-white rounded-xl p-3 flex items-center gap-3 shadow-sm border border-cream-200">
                           <div className="w-10 h-10 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
                             {shop?.photo_url
-                              ? <img src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                              ? <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                               : <div className="w-full h-full flex items-center justify-center text-coffee-300 text-lg">☕</div>}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -215,7 +215,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
                           return (
                             <div key={v.shop_id} className="bg-white rounded-xl p-3 flex items-center gap-3 shadow-sm border border-cream-200">
                               <div className="w-10 h-10 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
-                                {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
+                                {shop?.photo_url && <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-coffee-700 font-semibold text-sm truncate">{shop?.name}</p>

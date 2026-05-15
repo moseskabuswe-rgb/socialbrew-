@@ -149,7 +149,7 @@ export default function StoriesBar() {
             <div className={`w-14 h-14 rounded-full p-0.5 ${myStories.length > 0 ? 'bg-gradient-to-tr from-caramel to-amber-300' : 'border-2 border-dashed border-cream-300'}`}>
               <div className="w-full h-full rounded-full overflow-hidden bg-cream-100">
                 {profile?.avatar_url
-                  ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ? <img src={profile.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-lg">{profile?.username?.[0]?.toUpperCase()}</span></div>}
               </div>
             </div>
@@ -168,7 +168,7 @@ export default function StoriesBar() {
             <div className={`w-14 h-14 rounded-full p-0.5 ${group.hasUnviewed ? 'bg-gradient-to-tr from-caramel to-amber-300' : 'bg-cream-200'}`}>
               <div className="w-full h-full rounded-full overflow-hidden bg-cream-100">
                 {group.avatar_url
-                  ? <img src={group.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ? <img src={group.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center bg-coffee-300"><span className="text-white font-bold text-lg">{group.username?.[0]?.toUpperCase()}</span></div>}
               </div>
             </div>

@@ -83,7 +83,7 @@ export default function ShopCheckin({ shopId }: Props) {
               {checkins.slice(0, 4).map(c => (
                 <div key={c.id} className="w-6 h-6 rounded-full overflow-hidden bg-coffee-200 border-2 border-white flex-shrink-0">
                   {c.profiles?.avatar_url
-                    ? <img src={c.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={c.profiles.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{c.profiles?.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
               ))}

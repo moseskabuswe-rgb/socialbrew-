@@ -91,7 +91,7 @@ function RatingCard({ r }: { r: any }) {
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
           {user?.avatar_url
-            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+            ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center bg-caramel">
                 <span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span>
               </div>}

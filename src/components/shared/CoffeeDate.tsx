@@ -199,7 +199,7 @@ export default function CoffeeDate({ onClose, preselectedShop }: Props) {
                       className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors text-left ${selected ? 'bg-caramel/10' : 'hover:bg-cream-50'}`}>
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                         {friend.avatar_url
-                          ? <img src={friend.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                          ? <img src={friend.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                           : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{friend.username?.[0]?.toUpperCase()}</span></div>}
                       </div>
                       <div className="flex-1">
@@ -258,7 +258,7 @@ export default function CoffeeDate({ onClose, preselectedShop }: Props) {
                   <button key={shop.id} onClick={() => { setSelectedShop(shop); setStep('details') }}
                     className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-cream-50 transition-colors text-left">
                     <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-100 flex-shrink-0">
-                      {shop.photo_url ? <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />
+                      {shop.photo_url ? <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -289,7 +289,7 @@ export default function CoffeeDate({ onClose, preselectedShop }: Props) {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg overflow-hidden bg-coffee-100 flex-shrink-0">
-                    {selectedShop.photo_url ? <img src={selectedShop.photo_url} alt="" className="w-full h-full object-cover" />
+                    {selectedShop.photo_url ? <img src={selectedShop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center text-sm">☕</div>}
                   </div>
                   <div>

@@ -209,7 +209,7 @@ export default function CoffeeDateInbox({ onClose }: Props) {
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-coffee-100 flex-shrink-0">
                   {date.coffee_shops?.photo_url
-                    ? <img src={date.coffee_shops.photo_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={date.coffee_shops.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -228,7 +228,7 @@ export default function CoffeeDateInbox({ onClose }: Props) {
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {(date.sender as any)?.avatar_url
-                    ? <img src={(date.sender as any).avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={(date.sender as any).avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white" style={{ fontSize: 8 }}>{(date.sender as any)?.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <p className="text-coffee-600 text-xs">
@@ -278,7 +278,7 @@ export default function CoffeeDateInbox({ onClose }: Props) {
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-coffee-100 flex-shrink-0">
                   {date.coffee_shops?.photo_url
-                    ? <img src={date.coffee_shops.photo_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={date.coffee_shops.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -296,7 +296,7 @@ export default function CoffeeDateInbox({ onClose }: Props) {
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {(date.recipient as any)?.avatar_url
-                    ? <img src={(date.recipient as any).avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={(date.recipient as any).avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white" style={{ fontSize: 8 }}>{(date.recipient as any)?.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <p className="text-coffee-600 text-xs">
