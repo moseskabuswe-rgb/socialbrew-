@@ -12,6 +12,7 @@ import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
 import { compressAvatar } from '../../lib/compressImage'
+import { cachedUrl } from '../../lib/storageUrl'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 // getBadgeInfo replaced by getBadge from badges.ts
 // ── FOLLOWERS MODAL ─────────────────────────────────────
@@ -69,7 +70,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
             <div key={u.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white">
               <button onClick={() => setViewingProfile(u)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {u.avatar_url ? <img src={u.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                  {u.avatar_url ? <img src={cachedUrl(u.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -116,7 +117,7 @@ function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; on
             return (
               <button key={v.shop_id} onClick={() => { onClose(); onShopClick(shop) }} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 hover:bg-cream-50 transition-colors text-left">
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {shop?.photo_url && <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
+                  {shop?.photo_url && <img src={cachedUrl(shop.photo_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name}</p>
@@ -244,7 +245,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
                   {profile?.avatar_url
-                    ? <img key={avatarKey} src={profile.avatar_url ? `${profile.avatar_url.split("?")[0]}?cb=${avatarKey}` : ""} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                    ? <img key={avatarKey} src={cachedUrl(profile.avatar_url ? `${profile.avatar_url.split("?")[0]}?cb=${avatarKey}` : "")} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-3xl">{profile?.username?.[0]?.toUpperCase()}</span></div>}
                   {uploadingAvatar && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
@@ -390,7 +391,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
             className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white hover:bg-cream-50 transition-colors text-left">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
               {user.avatar_url
-                ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                ? <img src={cachedUrl(user.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                 : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold">{user.username[0].toUpperCase()}</span></div>}
             </div>
             <div className="flex-1 min-w-0">
@@ -539,7 +540,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             <div className="relative">
               <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
                 {profile.avatar_url
-                  ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                  ? <img src={cachedUrl(profile.avatar_url)} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-display text-3xl font-bold">{profile.username[0].toUpperCase()}</span></div>}
               </div>
               <button onClick={() => setShowSettings(true)} className="absolute bottom-0 right-0 w-7 h-7 bg-caramel rounded-full flex items-center justify-center shadow border-2 border-white">
@@ -675,7 +676,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                   <div key={rating.id} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
                     <button onClick={() => shop && setSelectedShop(shop)} className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
                       {shop?.photo_url
-                        ? <img src={shop.photo_url} alt={shop?.name} className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                        ? <img src={cachedUrl(shop.photo_url)} alt={shop?.name} className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                         : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                     </button>
                     <button onClick={() => setActivePost(rating)} className="flex-1 min-w-0 text-left">

@@ -7,6 +7,7 @@ import { getBadge } from '../../lib/badges'
 import { notifyFollow } from '../../lib/push'
 import BadgeExplainerModal from './BadgeExplainerModal'
 import { useAuth } from '../../contexts/AuthContext'
+import { cachedUrl } from '../../lib/storageUrl'
 
 const CoffeeMap = lazy(() => import('../profile/CoffeeMap'))
 
@@ -190,7 +191,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
               <button onClick={() => setProfileStack(prev => [...prev, u.id])} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {u.avatar_url
-                    ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                    ? <img src={cachedUrl(u.avatar_url)} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -241,7 +242,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
               {user?.avatar_url
-                ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                ? <img src={cachedUrl(user.avatar_url)} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                 : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
                     <span className="text-white font-bold text-3xl">{user?.username?.[0]?.toUpperCase()}</span>
                   </div>}
@@ -339,7 +340,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
                 <div key={r.id} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
                   <button onClick={() => shop && setSelectedShop(shop)} className="w-10 h-10 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
                     {shop?.photo_url
-                      ? <img src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
+                      ? <img src={cachedUrl(shop.photo_url)} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                       : <div className="w-full h-full flex items-center justify-center text-xl">☕</div>}
                   </button>
                   <button onClick={() => setActivePost(r)} className="flex-1 min-w-0 text-left">
@@ -390,7 +391,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
               return (
                 <div key={v.shop_id} className="bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
                   <div className="w-12 h-12 rounded-xl overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {shop?.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
+                    {shop?.photo_url && <img src={cachedUrl(shop.photo_url)} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name}</p>

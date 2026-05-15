@@ -8,6 +8,7 @@ import PricePills from './PricePills'
 import ShareCard from './ShareCard'
 import LikedByModal from './LikedByModal'
 import { useAuth } from '../../contexts/AuthContext'
+import { cachedUrl } from '../../lib/storageUrl'
 
 function formatLocation(city?: string | null, state?: string | null, country?: string | null): string {
   const c = city?.trim()
@@ -398,7 +399,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
         <div className="flex items-center gap-2 flex-1">
           <button onClick={() => onUserClick?.(user?.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
             {user?.avatar_url
-              ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              ? <img src={cachedUrl(user.avatar_url)} alt="" className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span></div>}
           </button>
           <div>
@@ -433,7 +434,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             <div className="relative">
               <button onClick={() => setZoomedPhoto(true)} className="w-full">
                 <div className="h-64 overflow-hidden">
-                  <img src={rating.photo_url} alt="moment" className="w-full h-full object-cover" />
+                  <img src={cachedUrl(rating.photo_url)} alt="moment" className="w-full h-full object-cover" />
                 </div>
               </button>
               {(rating.tagged_users as any)?.length > 0 && (
@@ -448,7 +449,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
 
           {/* Full screen pinch-to-zoom photo viewer */}
           {zoomedPhoto && rating.photo_url && (
-            <PinchZoomPhoto src={rating.photo_url} onClose={() => setZoomedPhoto(false)} />
+            <PinchZoomPhoto src={cachedUrl(rating.photo_url)} onClose={() => setZoomedPhoto(false)} />
           )}
 
           <div className="p-4">
@@ -505,7 +506,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             {shop && (
               <button onClick={() => onShopClick?.(shop)} className="w-full flex items-center gap-3 bg-cream-50 rounded-xl p-3 border border-cream-200 text-left hover:bg-cream-100 transition-colors mb-3">
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-coffee-200 flex-shrink-0">
-                  {shop.photo_url && <img src={shop.photo_url} alt="" className="w-full h-full object-cover" />}
+                  {shop.photo_url && <img src={cachedUrl(shop.photo_url)} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-coffee-700 font-semibold text-sm truncate">{shop.name}</p>
@@ -546,7 +547,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
               <div key={comment.id} className="flex gap-2.5">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {comment.profiles?.avatar_url
-                    ? <img src={comment.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={cachedUrl(comment.profiles.avatar_url)} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{comment.profiles?.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <div className="flex-1">
@@ -596,7 +597,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
                 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-cream-50 transition-colors text-left">
                 <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                   {u.avatar_url
-                    ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ? <img src={cachedUrl(u.avatar_url)} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username?.[0]?.toUpperCase()}</span></div>}
                 </div>
                 <span className="text-coffee-800 text-sm font-medium">@{u.username}</span>
@@ -627,7 +628,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             <div className="flex items-center gap-3 bg-cream-50 rounded-2xl p-3 mb-4 border border-cream-200">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                 {(rating.profiles as any)?.avatar_url
-                  ? <img src={(rating.profiles as any).avatar_url} alt="" className="w-full h-full object-cover" />
+                  ? <img src={cachedUrl((rating.profiles as any).avatar_url)} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{(rating.profiles as any)?.username?.[0]?.toUpperCase()}</span></div>}
               </div>
               <div className="flex-1 min-w-0">
