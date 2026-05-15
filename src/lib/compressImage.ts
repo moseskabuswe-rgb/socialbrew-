@@ -65,3 +65,58 @@ export async function compressImage(
 export async function compressAvatar(source: File | Blob): Promise<Blob> {
   return compressImage(source, 400, 0.82)
 }
+
+/**
+ * compressPhoto
+ * Named alias for feed/post photos — same as compressImage defaults.
+ */
+export async function compressPhoto(source: File | Blob): Promise<Blob> {
+  return compressImage(source, 1200, 0.75)
+}
+
+/**
+ * compressStory
+ * Portrait-optimised preset — max 1080 wide, max 1920 tall, quality 0.78.
+ */
+export async function compressStory(source: File | Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(source)
+    const img = new Image()
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+
+      let { width, height } = img
+      const MAX_W = 1080
+      const MAX_H = 1920
+      if (width > MAX_W || height > MAX_H) {
+        const ratio = Math.min(MAX_W / width, MAX_H / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('Canvas not available')); return }
+
+      ctx.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(
+        blob => {
+          if (blob) resolve(blob)
+          else reject(new Error('Compression failed'))
+        },
+        'image/jpeg',
+        0.78
+      )
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Image load failed'))
+    }
+
+    img.src = url
+  })
+}
