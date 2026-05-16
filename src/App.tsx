@@ -30,6 +30,7 @@ function AppContent() {
   const { profile, loading } = useAuth()
   useWishlistProximity(profile?.id || null) // Proximity check for visit wishlist on app open
   const [activeTab, setActiveTab] = useState<Tab>('home')
+  const [deepLink, setDeepLink] = useState<{ open: string; id?: string } | null>(null)
   const [feedRefresh, setFeedRefresh] = useState(0)
   const [shopToast, setShopToast] = useState<string | null>(null)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
@@ -54,6 +55,47 @@ function AppContent() {
     setShowPushPrompt(false)
     localStorage.setItem(PUSH_PROMPT_KEY, '1')
   }
+
+  // Deep link handler — reads URL params (app was closed) or SW messages (app was open)
+  useEffect(() => {
+    if (!profile) return
+
+    function handleUrlParams() {
+      const params = new URLSearchParams(window.location.search)
+      const open = params.get('open')
+      const id = params.get('id') || undefined
+      if (!open) return
+      if (open === 'follow_requests') {
+        setActiveTab('profile')
+      } else {
+        setDeepLink({ open, id })
+        setActiveTab('home')
+      }
+      window.history.replaceState({}, '', '/')
+    }
+
+    function handleSWMessage(event: MessageEvent) {
+      if (event.data?.type !== 'NOTIFICATION_CLICK') return
+      const data = event.data.data
+      if (!data) return
+      if ((data.type === 'like' || data.type === 'comment' || data.type === 'mention' || data.type === 'new_post') && data.rating_id) {
+        setDeepLink({ open: 'post', id: data.rating_id })
+        setActiveTab('home')
+      } else if (data.type === 'follow' && data.actor_id) {
+        setDeepLink({ open: 'profile', id: data.actor_id })
+        setActiveTab('home')
+      } else if (data.type === 'follow_request') {
+        setActiveTab('profile')
+      } else if (data.type === 'dm' && data.actor_id) {
+        setDeepLink({ open: 'messages', id: data.actor_id })
+        setActiveTab('home')
+      }
+    }
+
+    handleUrlParams()
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage)
+    return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage)
+  }, [profile])
 
   // Secret logo tap handler — 5 taps within ~3s opens admin panel
   function handleLogoTap() {
@@ -121,7 +163,7 @@ function AppContent() {
                 onSuccess={dismissPushPrompt}
               />
             )}
-            <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} />
+            <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} deepLink={deepLink} onDeepLinkHandled={() => setDeepLink(null)} />
           </>
         )}
         {activeTab === 'discover' && <DiscoverTab />}

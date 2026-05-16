@@ -35,12 +35,32 @@ messaging.onBackgroundMessage((payload) => {
 // Handle notification click — open/focus the app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
+  const data = event.notification.data || {}
+
+  // Build deep link URL from notification data
+  let url = 'https://socialbrew-ani.pages.dev'
+  if (data.type === 'like' || data.type === 'comment' || data.type === 'mention' || data.type === 'new_post') {
+    if (data.rating_id) url = `https://socialbrew-ani.pages.dev/?open=post&id=${data.rating_id}`
+  } else if (data.type === 'follow' || data.type === 'follow_request') {
+    if (data.actor_id) url = `https://socialbrew-ani.pages.dev/?open=profile&id=${data.actor_id}`
+  } else if (data.type === 'dm') {
+    if (data.actor_id) url = `https://socialbrew-ani.pages.dev/?open=messages&id=${data.actor_id}`
+  } else if (data.type === 'follow_request') {
+    url = `https://socialbrew-ani.pages.dev/?open=follow_requests`
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If app is already open, focus it and send a message to navigate
       for (const client of clientList) {
-        if ('focus' in client) return client.focus()
+        if (client.url.includes('socialbrew-ani.pages.dev') && 'focus' in client) {
+          client.focus()
+          client.postMessage({ type: 'NOTIFICATION_CLICK', url, data })
+          return
+        }
       }
-      return clients.openWindow('https://socialbrewapp.com')
+      // App is closed — open with deep link URL
+      return clients.openWindow(url)
     })
   )
 })

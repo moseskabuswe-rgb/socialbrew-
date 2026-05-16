@@ -989,12 +989,14 @@ function SkeletonCard() {
   )
 }
 
-export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead, onNavigateToBrew }: {
+export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead, onNavigateToBrew, deepLink, onDeepLinkHandled }: {
   refresh: number
   onLogoTap?: () => void
   unreadPerSender?: Record<string, number>
   onMarkRead?: (senderId: string) => void
   onNavigateToBrew?: (shop?: any) => void
+  deepLink?: { open: string; id?: string } | null
+  onDeepLinkHandled?: () => void
 }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
@@ -1080,6 +1082,22 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     if (reset) setLoading(false)
     else setLoadingMore(false)
   }, [page, PAGE_SIZE])
+
+  // Deep link handler — triggered by notification taps
+  useEffect(() => {
+    if (!deepLink) return
+    if (deepLink.open === 'post' && deepLink.id) {
+      supabase.from('ratings')
+        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
+        .eq('id', deepLink.id).single()
+        .then(({ data }) => { if (data) setActivePost(data) })
+    } else if (deepLink.open === 'profile' && deepLink.id) {
+      setActiveUserProfile(deepLink.id)
+    } else if (deepLink.open === 'messages') {
+      setShowMessages(true)
+    }
+    onDeepLinkHandled?.()
+  }, [deepLink])
 
   // Infinite scroll — placed after loadFeed declaration
   useEffect(() => {
