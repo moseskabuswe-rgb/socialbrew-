@@ -149,6 +149,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [avatarKey, setAvatarKey] = useState(0) // increments to bust img cache
   const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [passwordMsg, setPasswordMsg] = useState('')
+  const [showChangeEmail, setShowChangeEmail] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [changingEmail, setChangingEmail] = useState(false)
+  const [emailMsg, setEmailMsg] = useState('')
   async function saveSettings() {
     if (!profile || saving) return
     setSaving(true)
@@ -216,6 +224,31 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   async function handleCroppedAvatar(blob: Blob) {
     setCropFile(null)
     await uploadBlob(blob)
+  }
+  async function handleChangePassword() {
+    if (!newPassword || newPassword.length < 6) { setPasswordMsg('Password must be at least 6 characters'); return }
+    setChangingPassword(true)
+    setPasswordMsg('')
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) setPasswordMsg(error.message)
+    else {
+      setPasswordMsg('Password updated!')
+      setNewPassword('')
+      setTimeout(() => { setShowChangePassword(false); setPasswordMsg('') }, 1500)
+    }
+    setChangingPassword(false)
+  }
+  async function handleChangeEmail() {
+    if (!newEmail.trim() || !newEmail.includes('@')) { setEmailMsg('Please enter a valid email'); return }
+    setChangingEmail(true)
+    setEmailMsg('')
+    const { error } = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() })
+    if (error) setEmailMsg(error.message)
+    else {
+      setEmailMsg('Confirmation sent to your new email!')
+      setTimeout(() => { setShowChangeEmail(false); setEmailMsg(''); setNewEmail('') }, 2000)
+    }
+    setChangingEmail(false)
   }
   return (
     <>
@@ -305,6 +338,73 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             <div className="px-5 py-3 border-b border-cream-100">
               <p className="text-coffee-500 text-xs">Email</p>
               <p className="text-coffee-700 text-sm mt-0.5">{profile?.email_verified ? '✓ Verified' : 'Not verified'}</p>
+            </div>
+            <div className="px-5 py-3 border-b border-cream-100">
+              <button
+                onClick={() => setShowChangePassword(!showChangePassword)}
+                className="w-full flex items-center justify-between"
+              >
+                <p className="text-coffee-700 text-sm font-medium">Change Password</p>
+                <ChevronRight size={16} className={`text-coffee-400 transition-transform ${showChangePassword ? 'rotate-90' : ''}`} />
+              </button>
+              {showChangePassword && (
+                <div className="mt-3 space-y-2">
+                  <input
+                    type="password"
+                    placeholder="New password (min 6 chars)"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
+                  />
+                  {passwordMsg && (
+                    <p className={`text-xs ${passwordMsg.includes('updated') ? 'text-green-600' : 'text-red-500'}`}>
+                      {passwordMsg}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={changingPassword}
+                    className="w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+                  >
+                    {changingPassword ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-b border-cream-100">
+              <button
+                onClick={() => setShowChangeEmail(!showChangeEmail)}
+                className="w-full flex items-center justify-between"
+              >
+                <p className="text-coffee-700 text-sm font-medium">Change Email</p>
+                <ChevronRight size={16} className={`text-coffee-400 transition-transform ${showChangeEmail ? 'rotate-90' : ''}`} />
+              </button>
+              {showChangeEmail && (
+                <div className="mt-3 space-y-2">
+                  <input
+                    type="email"
+                    placeholder="New email address"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-2.5 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
+                  />
+                  {emailMsg && (
+                    <p className={`text-xs ${emailMsg.includes('sent') ? 'text-green-600' : 'text-red-500'}`}>
+                      {emailMsg}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleChangeEmail}
+                    disabled={changingEmail}
+                    className="w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+                  >
+                    {changingEmail ? 'Sending...' : 'Update Email'}
+                  </button>
+                  <p className="text-coffee-400 text-xs">A confirmation link will be sent to your new email</p>
+                </div>
+              )}
             </div>
             <div className="px-5 py-3 border-b border-cream-100">
               <p className="text-coffee-500 text-xs">Role</p>

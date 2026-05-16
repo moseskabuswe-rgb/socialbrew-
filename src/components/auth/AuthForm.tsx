@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Coffee, Eye, EyeOff } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 function friendlyError(msg: string): string {
   if (!msg) return 'Something went wrong. Please try again.'
@@ -18,7 +19,7 @@ function friendlyError(msg: string): string {
 }
 
 export default function AuthForm() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
@@ -63,6 +64,20 @@ export default function AuthForm() {
     setLoading(false)
   }
 
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    if (!email.trim()) { setError('Please enter your email address'); return }
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: 'https://socialbrew-ani.pages.dev',
+    })
+    setLoading(false)
+    if (error) setError(friendlyError(error.message))
+    else setSuccess('Password reset email sent! Check your inbox.')
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6"
       style={{ background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%)' }}>
@@ -102,7 +117,7 @@ export default function AuthForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className={`space-y-4${mode === 'reset' ? ' hidden' : ''}`}>
           {mode === 'signup' && (
             <>
               <div>
@@ -159,13 +174,54 @@ export default function AuthForm() {
           </button>
         </form>
 
-        <p className="text-center text-coffee-400 text-xs mt-5">
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccess('') }}
-            className="text-caramel font-semibold hover:underline">
-            {mode === 'login' ? 'Join now' : 'Sign in'}
-          </button>
-        </p>
+        {mode === 'login' && (
+          <div className="text-right mt-1">
+            <button
+              type="button"
+              onClick={() => { setMode('reset'); setError(''); setSuccess('') }}
+              className="text-caramel text-xs hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
+
+        {mode === 'reset' && (
+          <form onSubmit={handleReset} className="space-y-4">
+            <div>
+              <label className="text-coffee-500 text-xs uppercase tracking-wider mb-1.5 block">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                placeholder="you@example.com" autoComplete="email"
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300 transition-colors" />
+            </div>
+            <button type="submit" disabled={loading}
+              className="w-full py-3.5 rounded-xl font-semibold text-white transition-all duration-200 mt-2 disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #c8853a, #a06428)', boxShadow: loading ? 'none' : '0 4px 16px rgba(200,133,58,0.35)' }}>
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Sending...
+                </span>
+              ) : 'Send Reset Email ☕'}
+            </button>
+            <p className="text-center text-coffee-400 text-xs mt-3">
+              <button type="button" onClick={() => { setMode('login'); setError(''); setSuccess('') }}
+                className="text-caramel font-semibold hover:underline">
+                Back to Sign In
+              </button>
+            </p>
+          </form>
+        )}
+
+        {mode !== 'reset' && (
+          <p className="text-center text-coffee-400 text-xs mt-5">
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+            <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccess('') }}
+              className="text-caramel font-semibold hover:underline">
+              {mode === 'login' ? 'Join now' : 'Sign in'}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )
