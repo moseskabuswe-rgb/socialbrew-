@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getBadge, TIER_LABELS } from '../../lib/badges'
 import BadgeExplainerModal from '../shared/BadgeExplainerModal'
-import { notifyFollow } from '../../lib/push'
+import { notifyFollow, unregisterPushNotifications } from '../../lib/push'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
 import AvatarCropper from '../shared/AvatarCropper'
@@ -157,6 +157,15 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [newEmail, setNewEmail] = useState('')
   const [changingEmail, setChangingEmail] = useState(false)
   const [emailMsg, setEmailMsg] = useState('')
+  const [showBlockedUsers, setShowBlockedUsers] = useState(false)
+  const [blockedProfiles, setBlockedProfiles] = useState<any[]>([])
+  const [loadingBlocked, setLoadingBlocked] = useState(false)
+  const [unblockingId, setUnblockingId] = useState<string | null>(null)
+  const [homeCity, setHomeCity] = useState(() => localStorage.getItem('sb_home_city') || '')
+  const [pushEnabled, setPushEnabled] = useState(
+    typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  )
+  const [togglingPush, setTogglingPush] = useState(false)
   async function saveSettings() {
     if (!profile || saving) return
     setSaving(true)
@@ -250,6 +259,37 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     }
     setChangingEmail(false)
   }
+  async function loadBlockedUsers() {
+    if (!profile) return
+    setLoadingBlocked(true)
+    const { data: blockRows } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id)
+    if (blockRows && blockRows.length > 0) {
+      const ids = blockRows.map((b: any) => b.blocked_id)
+      const { data: users } = await supabase.from('profiles').select('id, username, avatar_url').in('id', ids)
+      setBlockedProfiles(users || [])
+    } else {
+      setBlockedProfiles([])
+    }
+    setLoadingBlocked(false)
+  }
+  async function handleUnblock(blockedId: string) {
+    if (!profile) return
+    setUnblockingId(blockedId)
+    await supabase.from('blocks').delete().eq('blocker_id', profile.id).eq('blocked_id', blockedId)
+    setBlockedProfiles(prev => prev.filter(u => u.id !== blockedId))
+    setUnblockingId(null)
+  }
+  async function handleTogglePush() {
+    if (!profile) return
+    if (pushEnabled) {
+      setTogglingPush(true)
+      await unregisterPushNotifications(profile.id)
+      setPushEnabled(false)
+      setTogglingPush(false)
+    } else {
+      window.location.href = `/enable-notifications.html?uid=${encodeURIComponent(profile.id)}`
+    }
+  }
   return (
     <>
       {cropFile && (
@@ -316,6 +356,16 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
               <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Tell your coffee story..."
                 className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none resize-none placeholder-coffee-300" />
             </div>
+            <div>
+              <label className="text-coffee-500 text-xs font-medium block mb-1">Home City</label>
+              <input
+                value={homeCity}
+                onChange={e => { setHomeCity(e.target.value); localStorage.setItem('sb_home_city', e.target.value) }}
+                placeholder="e.g. London, New York…"
+                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300"
+              />
+              <p className="text-coffee-400 text-xs mt-1">Used to personalise your discover feed</p>
+            </div>
           </div>
           {/* Privacy */}
           <div className="bg-white mx-4 mt-3 rounded-2xl p-5 border border-cream-200 shadow-sm">
@@ -338,6 +388,25 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             <div className="px-5 py-3 border-b border-cream-100">
               <p className="text-coffee-500 text-xs">Email</p>
               <p className="text-coffee-700 text-sm mt-0.5">{profile?.email_verified ? '✓ Verified' : 'Not verified'}</p>
+            </div>
+            <div className="px-5 py-3.5 border-b border-cream-100 flex items-center justify-between">
+              <div>
+                <p className="text-coffee-700 text-sm font-medium">Push Notifications</p>
+                <p className="text-coffee-400 text-xs mt-0.5">
+                  {typeof Notification !== 'undefined' && Notification.permission === 'denied'
+                    ? 'Blocked by browser — enable in device settings'
+                    : pushEnabled ? 'Enabled' : 'Disabled'}
+                </p>
+              </div>
+              {(typeof Notification === 'undefined' || Notification.permission !== 'denied') && (
+                <button
+                  onClick={handleTogglePush}
+                  disabled={togglingPush}
+                  className={`w-11 h-6 rounded-full transition-colors relative disabled:opacity-40 ${pushEnabled ? 'bg-caramel' : 'bg-cream-300'}`}
+                >
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              )}
             </div>
             <div className="px-5 py-3 border-b border-cream-100">
               <button
@@ -414,6 +483,45 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
               <LogOut size={18} />
               <span className="font-medium text-sm">Sign Out</span>
             </button>
+          </div>
+          {/* Blocked Users */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+            <button
+              onClick={() => { setShowBlockedUsers(v => !v); if (!showBlockedUsers) loadBlockedUsers() }}
+              className="w-full flex items-center justify-between px-5 py-4"
+            >
+              <p className="text-coffee-700 font-semibold text-sm">Blocked Users</p>
+              <ChevronRight size={16} className={`text-coffee-400 transition-transform ${showBlockedUsers ? 'rotate-90' : ''}`} />
+            </button>
+            {showBlockedUsers && (
+              <div className="border-t border-cream-100">
+                {loadingBlocked && (
+                  <div className="flex justify-center py-4">
+                    <div className="w-4 h-4 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+                  </div>
+                )}
+                {!loadingBlocked && blockedProfiles.length === 0 && (
+                  <p className="text-coffee-400 text-sm text-center py-4 px-5">No blocked users</p>
+                )}
+                {blockedProfiles.map(u => (
+                  <div key={u.id} className="flex items-center gap-3 px-5 py-3 border-t border-cream-100">
+                    <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                      {u.avatar_url
+                        ? <img src={cachedUrl(u.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{u.username?.[0]?.toUpperCase()}</span></div>}
+                    </div>
+                    <p className="text-coffee-700 text-sm flex-1 font-medium">{u.username}</p>
+                    <button
+                      onClick={() => handleUnblock(u.id)}
+                      disabled={unblockingId === u.id}
+                      className="text-xs text-caramel font-semibold disabled:opacity-40 px-3 py-1.5 rounded-full border border-caramel"
+                    >
+                      {unblockingId === u.id ? '...' : 'Unblock'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
