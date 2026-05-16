@@ -970,6 +970,25 @@ function FullscreenCarousel({ photos, initialIndex, onClose }: {
   )
 }
 
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-cream-200 animate-pulse">
+      <div className="h-12 flex items-center px-4 gap-3">
+        <div className="w-9 h-9 rounded-full bg-cream-200" />
+        <div className="flex-1">
+          <div className="h-3 w-24 bg-cream-200 rounded mb-1.5" />
+          <div className="h-2.5 w-16 bg-cream-200 rounded" />
+        </div>
+      </div>
+      <div className="h-52 bg-cream-200" />
+      <div className="p-4 space-y-2">
+        <div className="h-3 w-3/4 bg-cream-200 rounded" />
+        <div className="h-3 w-1/2 bg-cream-200 rounded" />
+      </div>
+    </div>
+  )
+}
+
 export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMarkRead, onNavigateToBrew }: {
   refresh: number
   onLogoTap?: () => void
@@ -1307,7 +1326,11 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
       </div>
 
       <div className="pb-24">
-        {loading && <div className="flex justify-center py-16"><div className="w-8 h-8 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
+        {loading && (
+          <div className="p-4 space-y-4">
+            {[1,2,3].map(i => <SkeletonCard key={i} />)}
+          </div>
+        )}
         {!loading && visibleRatings.length === 0 && (
           <div className="text-center py-20 px-8">
             <div className="text-6xl mb-4">☕</div>
@@ -1669,6 +1692,31 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 <button onClick={() => setShareRating(rating)} className="active:scale-90 text-coffee-400">
                   <Share2 size={18} />
                 </button>
+              </div>
+              {/* Reaction pills — quick tap reactions */}
+              <div className="flex gap-2 px-4 pb-2">
+                {[
+                  { type: 'fire', emoji: '🔥', label: 'Fire' },
+                  { type: 'same', emoji: '☕', label: 'Same' },
+                  { type: 'need_to_try', emoji: '👀', label: 'Need to try' },
+                ].map(({ type, emoji }) => {
+                  const count = reactionCounts[rating.id]?.[type] || 0
+                  const isActive = reactions[rating.id]?.[type]
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => toggleReaction(rating.id, type)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all active:scale-95"
+                      style={{
+                        background: isActive ? '#c8853a' : 'rgba(200,133,58,0.08)',
+                        color: isActive ? '#fff' : '#9b7a45',
+                        border: `1px solid ${isActive ? '#c8853a' : 'rgba(200,133,58,0.2)'}`,
+                      }}
+                    >
+                      {emoji} {count > 0 && <span>{count}</span>}
+                    </button>
+                  )
+                })}
               </div>
               {/* Comment count tap-to-view */}
               {rating.comments_count > 0 && (
