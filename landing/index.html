@@ -649,11 +649,12 @@
   });
 
   mugContainer.addEventListener('touchstart', (e) => {
+    e.preventDefault();
     isDragging = true;
     startY = getClientY(e);
     startFill = fillPct;
     mugWrap.classList.add('dragging');
-  }, { passive: true });
+  }, { passive: false });
 
   document.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
@@ -665,11 +666,12 @@
 
   document.addEventListener('touchmove', (e) => {
     if (!isDragging) return;
+    e.preventDefault();
     const dy = startY - getClientY(e);
     const delta = dy / H;
     fillPct = Math.max(0, Math.min(1, startFill + delta));
     drawMug(fillPct);
-  }, { passive: true });
+  }, { passive: false });
 
   document.addEventListener('mouseup', () => {
     isDragging = false;
