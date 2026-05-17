@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Social Brew — Discover, rate, and share independent coffee shops. No chains. Ever."/>
+  <meta name="theme-color" content="#fffcf7"/>
+  <title>Social Brew — Independent Coffee, Finally Has a Community</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --cream:     #fffcf7;
+      --cream2:    #f7f0e6;
+      --tan:       #f0e4d0;
+      --tan2:      #e2d0b4;
+      --brown:     #8b6a4a;
+      --gold:      #c8a87a;
+      --gold-l:    #dfc49a;
+      --mid:       #7a6050;
+      --faded:     #a89078;
+      --sage:      #a8c5a0;
+      --sage-l:    #f0f7f0;
+      --sage-mid:  #7aaa80;
+      --sage-dark: #5a8a60;
+      --text:      #2e2018;
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);overflow-x:hidden}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes steamRise{0%{transform:translateY(0);opacity:.6}100%{transform:translateY(-30px);opacity:0}}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+    @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+    @keyframes fillPulse{0%,100%{opacity:.8}50%{opacity:1}}
+
+    .fade-up{opacity:0;animation:fadeUp .8s ease forwards}
+    .fade-up:nth-child(1){animation-delay:.1s}
+    .fade-up:nth-child(2){animation-delay:.25s}
+    .fade-up:nth-child(3){animation-delay:.4s}
+    .fade-up:nth-child(4){animation-delay:.55s}
+    .fade-up:nth-child(5){animation-delay:.7s}
+    .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+
+    /* NAV */
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:18px 48px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,252,247,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(168,197,160,.2);transition:box-shadow .3s}
+    .nav-brand{font-family:'Playfair Display',serif;font-size:21px;font-weight:700;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:10px}
+    .nav-cta{background:var(--sage-dark);color:#fff;font-size:13px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;padding:11px 24px;border-radius:24px;border:none;cursor:pointer;transition:background .2s,transform .15s,box-shadow .2s;box-shadow:0 2px 12px rgba(90,138,96,.2)}
+    .nav-cta:hover{background:var(--sage-mid);transform:translateY(-1px);box-shadow:0 4px 18px rgba(90,138,96,.3)}
+
+    /* HERO */
+    .hero{min-height:100vh;display:flex;align-items:center;padding:120px 48px 80px;position:relative;overflow:hidden;background:var(--cream)}
+    .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 80% 10%,rgba(168,197,160,.15) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 5% 85%,rgba(200,168,122,.12) 0%,transparent 60%)}
+    .hero-circle{position:absolute;width:640px;height:640px;border-radius:50%;border:1px solid rgba(168,197,160,.12);top:-140px;right:-180px;pointer-events:none}
+    .hero-circle-2{position:absolute;width:440px;height:440px;border-radius:50%;border:1px solid rgba(200,168,122,.08);top:-40px;right:-80px;pointer-events:none}
+    .hero-inner{position:relative;z-index:1;max-width:1200px;margin:0 auto;width:100%;display:grid;grid-template-columns:1.1fr .9fr;gap:80px;align-items:center}
+    .hero-eyebrow{font-size:12px;font-weight:500;letter-spacing:4px;text-transform:uppercase;color:var(--sage-dark);margin-bottom:22px;display:flex;align-items:center;gap:12px}
+    .hero-eyebrow::before{content:'';width:28px;height:1px;background:var(--sage-mid);display:block}
+    .hero-headline{font-family:'Playfair Display',serif;font-size:clamp(50px,5.5vw,78px);font-weight:900;line-height:1.04;color:var(--text);margin-bottom:24px}
+    .hero-headline em{font-style:italic;color:var(--sage-mid)}
+    .hero-sub{font-size:18px;font-weight:300;line-height:1.75;color:var(--mid);max-width:460px;margin-bottom:40px}
+    .hero-actions{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+    .btn-primary{background:var(--sage-dark);color:#fff;font-size:14px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;padding:16px 32px;border-radius:32px;border:none;cursor:pointer;transition:background .2s,transform .15s,box-shadow .2s;display:inline-flex;align-items:center;gap:8px;box-shadow:0 3px 14px rgba(90,138,96,.25)}
+    .btn-primary:hover{background:var(--sage-mid);transform:translateY(-2px);box-shadow:0 6px 22px rgba(90,138,96,.3)}
+    .btn-outline{background:transparent;color:var(--text);font-size:14px;font-weight:400;padding:16px 28px;border-radius:32px;border:1.5px solid rgba(90,138,96,.3);cursor:pointer;transition:border-color .2s,transform .15s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+    .btn-outline:hover{border-color:var(--sage-mid);transform:translateY(-2px)}
+    .hero-stats{display:flex;gap:36px;margin-top:48px;padding-top:28px;border-top:1px solid rgba(200,168,122,.22);flex-wrap:wrap}
+    .stat-num{font-family:'Playfair Display',serif;font-size:38px;font-weight:900;color:var(--text);line-height:1}
+    .stat-label{font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--sage-dark);margin-top:4px}
+
+    /* MUG INTERACTIVE */
+    .hero-right{display:flex;justify-content:center;align-items:center}
+    .mug-wrap{position:relative;animation:float 4s ease-in-out infinite;user-select:none}
+    .mug-wrap.dragging{animation:none}
+    .steam{position:absolute;top:-44px;left:50%;transform:translateX(-50%);display:flex;gap:18px}
+    .steam-line{width:3px;height:36px;background:linear-gradient(to top,var(--gold-l),transparent);border-radius:3px;animation:steamRise 2.2s ease-in-out infinite}
+    .steam-line:nth-child(2){animation-delay:.5s;height:28px}
+    .steam-line:nth-child(3){animation-delay:1s;height:32px}
+
+    .mug-container{position:relative;width:260px;height:300px;cursor:ns-resize}
+
+    .mug-body{position:absolute;inset:0}
+
+    /* SVG mug outline */
+    .mug-svg-static{width:260px;height:300px;position:absolute;top:0;left:0;pointer-events:none;z-index:3}
+
+    /* Canvas for fill */
+    .mug-canvas{position:absolute;top:0;left:0;width:260px;height:300px;z-index:2;border-radius:14px}
+
+    .mug-badge{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:var(--sage-l);border:1px solid rgba(168,197,160,.4);border-radius:20px;padding:6px 18px;font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--sage-dark);white-space:nowrap;z-index:4}
+
+    .mug-hint{position:absolute;top:-28px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:400;letter-spacing:1px;color:var(--sage-dark);white-space:nowrap;opacity:.7;text-align:center}
+
+    .fill-pct-display{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;text-align:center;pointer-events:none}
+    .fill-pct-num{font-family:'Playfair Display',serif;font-size:44px;font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.2);line-height:1;transition:opacity .2s}
+    .fill-pct-label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:4px}
+
+    /* BANNER */
+    .banner{background:var(--sage-dark);padding:22px 48px;text-align:center;position:relative;overflow:hidden}
+    .banner::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);background-size:200% 100%;animation:shimmer 3s linear infinite}
+    .banner-text{font-family:'Playfair Display',serif;font-size:17px;font-style:italic;color:rgba(255,255,255,.85);position:relative;z-index:1}
+    .banner-sub{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.28);margin-top:4px;position:relative;z-index:1}
+
+    /* HOW */
+    .how{padding:120px 48px;background:var(--cream2);position:relative;overflow:hidden}
+    .how::after{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(168,197,160,.12) 0%,transparent 70%);right:-150px;bottom:-150px;pointer-events:none}
+    .section-inner{max-width:1200px;margin:0 auto;position:relative;z-index:1}
+    .section-eyebrow{font-size:12px;font-weight:500;letter-spacing:4px;text-transform:uppercase;color:var(--sage-dark);margin-bottom:14px;display:flex;align-items:center;gap:12px}
+    .section-eyebrow::before{content:'';width:28px;height:1px;background:var(--sage-mid);display:block}
+    .section-headline{font-family:'Playfair Display',serif;font-size:clamp(36px,4vw,56px);font-weight:900;line-height:1.1;color:var(--text);margin-bottom:60px}
+    .section-headline em{font-style:italic;color:var(--sage-mid)}
+    .how-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+    .how-card{border-radius:12px;padding:52px 44px;position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s}
+    .how-card:hover{transform:translateY(-4px);box-shadow:0 20px 50px rgba(90,138,96,.1)}
+    .how-card-green{background:var(--sage-dark)}
+    .how-card-cream{background:var(--cream);border:1px solid rgba(168,197,160,.25)}
+    .how-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:12px 12px 0 0}
+    .how-card-green::before{background:linear-gradient(90deg,var(--sage),rgba(255,255,255,.3))}
+    .how-card-cream::before{background:linear-gradient(90deg,var(--gold),var(--tan2))}
+    .how-card-tag{font-size:11px;font-weight:500;letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}
+    .how-card-green .how-card-tag{color:rgba(255,255,255,.38)}
+    .how-card-cream .how-card-tag{color:var(--sage-dark)}
+    .how-card-title{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;line-height:1.2;margin-bottom:32px}
+    .how-card-green .how-card-title{color:#fff}
+    .how-card-green .how-card-title em{font-style:italic;color:rgba(255,255,255,.5)}
+    .how-card-cream .how-card-title{color:var(--text)}
+    .how-card-cream .how-card-title em{font-style:italic;color:var(--sage-mid)}
+    .how-steps{display:flex;flex-direction:column;gap:18px}
+    .how-step{display:flex;align-items:flex-start;gap:16px}
+    .how-step-num{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;flex-shrink:0;margin-top:3px}
+    .how-card-green .how-step-num{color:rgba(255,255,255,.2)}
+    .how-card-cream .how-step-num{color:var(--sage-mid)}
+    .how-step-text{font-size:16px;font-weight:300;line-height:1.65}
+    .how-card-green .how-step-text{color:rgba(255,255,255,.72)}
+    .how-card-cream .how-step-text{color:var(--mid)}
+
+    /* DISCOVER */
+    .discover{padding:110px 48px;background:var(--tan);position:relative;overflow:hidden}
+    .discover::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(255,252,247,.6) 0%,transparent 70%);left:-150px;top:-100px}
+    .discover-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1}
+    .discover-headline{font-family:'Playfair Display',serif;font-size:clamp(36px,4vw,54px);font-weight:900;line-height:1.1;color:var(--text);margin-bottom:20px}
+    .discover-headline em{font-style:italic;color:var(--sage-mid)}
+    .discover-sub{font-size:17px;font-weight:300;line-height:1.75;color:var(--mid);margin-bottom:36px}
+    .discover-points{display:flex;flex-direction:column;gap:14px;margin-bottom:40px}
+    .discover-point{display:flex;align-items:flex-start;gap:14px;padding:16px 20px;background:var(--cream);border-radius:10px;border:1px solid rgba(200,168,122,.2)}
+    .discover-point-icon{width:34px;height:34px;border-radius:50%;background:var(--sage-l);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+    .discover-point-text{font-size:15px;font-weight:400;color:var(--mid);line-height:1.5}
+    .discover-point-text strong{color:var(--text);font-weight:600}
+    .discover-visual{display:flex;flex-direction:column;gap:12px}
+    .discover-card{background:var(--cream);border-radius:10px;padding:18px 20px;border:1px solid rgba(200,168,122,.2);display:flex;align-items:center;gap:14px;transition:transform .2s,box-shadow .2s}
+    .discover-card:hover{transform:translateX(4px);box-shadow:0 8px 24px rgba(90,138,96,.08)}
+    .discover-card-pin{width:34px;height:34px;border-radius:50%;background:var(--sage-l);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+    .discover-card-info{flex:1}
+    .discover-card-name{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--text)}
+    .discover-card-city{font-size:12px;color:var(--faded);margin-top:2px}
+    .discover-card-fill{text-align:right}
+    .discover-card-pct{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--sage-dark)}
+    .discover-card-bar-track{width:72px;height:4px;background:rgba(122,158,126,.15);border-radius:2px;overflow:hidden;margin-top:4px}
+    .discover-card-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#6b9fd4,var(--gold),var(--sage-mid))}
+    .discover-add-card{background:var(--sage-l);border-radius:10px;padding:16px 20px;border:1.5px dashed rgba(168,197,160,.5);display:flex;align-items:center;gap:14px;cursor:pointer;transition:background .2s}
+    .discover-add-card:hover{background:rgba(168,197,160,.15)}
+    .discover-add-icon{width:34px;height:34px;border-radius:50%;background:rgba(168,197,160,.25);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--sage-dark);font-weight:600}
+    .discover-add-text{font-size:14px;font-weight:500;color:var(--sage-dark)}
+    .discover-add-sub{font-size:12px;color:rgba(90,138,96,.55);margin-top:2px}
+
+    /* STATS */
+    .stats{padding:100px 48px;background:var(--cream)}
+    .stats-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid rgba(168,197,160,.2);border-radius:12px;overflow:hidden}
+    .stat-block{padding:52px 36px;border-right:1px solid rgba(168,197,160,.2);transition:background .3s}
+    .stat-block:last-child{border-right:none}
+    .stat-block:hover{background:var(--sage-l)}
+    .stat-block-num{font-family:'Playfair Display',serif;font-size:62px;font-weight:900;color:var(--text);line-height:1;margin-bottom:8px}
+    .stat-block-label{font-size:11px;font-weight:500;letter-spacing:3px;text-transform:uppercase;color:var(--sage-dark)}
+    .stat-block-sub{font-size:13px;font-weight:300;color:var(--faded);margin-top:8px;line-height:1.5}
+
+    /* MISSION */
+    .mission{padding:110px 48px;background:var(--sage-l);text-align:center}
+    .mission-inner{max-width:760px;margin:0 auto}
+    .mission-eyebrow{font-size:11px;font-weight:500;letter-spacing:5px;text-transform:uppercase;color:var(--sage-dark);margin-bottom:24px;opacity:.6}
+    .mission-headline{font-family:'Playfair Display',serif;font-size:clamp(30px,4vw,48px);font-weight:700;line-height:1.25;color:var(--text);font-style:italic}
+    .mission-headline strong{font-style:normal;font-weight:900}
+
+    /* PROMISE */
+    .promise{padding:120px 48px;background:var(--sage-dark);text-align:center;position:relative;overflow:hidden}
+    .promise::before{content:'';position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.05) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%)}
+    .promise-inner{position:relative;z-index:1;max-width:680px;margin:0 auto}
+    .promise-eyebrow{font-size:11px;font-weight:500;letter-spacing:5px;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:24px}
+    .promise-headline{font-family:'Playfair Display',serif;font-size:clamp(44px,5vw,72px);font-weight:900;line-height:1.08;color:#fff;margin-bottom:24px}
+    .promise-headline em{font-style:italic;color:rgba(255,255,255,.45)}
+    .promise-text{font-size:17px;font-weight:300;line-height:1.8;color:rgba(255,255,255,.5);max-width:540px;margin:0 auto}
+
+    /* INSTALL */
+    .install{padding:120px 48px;background:var(--cream2);position:relative;overflow:hidden}
+    .install::before{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(200,168,122,.1) 0%,transparent 70%);right:-100px;bottom:-100px}
+    .install-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1}
+    .install-headline{font-family:'Playfair Display',serif;font-size:clamp(36px,4vw,54px);font-weight:900;line-height:1.1;color:var(--text);margin-bottom:18px}
+    .install-headline em{font-style:italic;color:var(--sage-mid)}
+    .install-sub{font-size:17px;font-weight:300;line-height:1.75;color:var(--mid);margin-bottom:40px}
+
+    #install-btn{display:none;background:var(--sage-dark);color:#fff;font-size:14px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;padding:18px 40px;border-radius:32px;border:none;cursor:pointer;transition:background .2s,transform .15s,box-shadow .2s;align-items:center;gap:10px;margin-bottom:20px;box-shadow:0 4px 18px rgba(90,138,96,.25)}
+    #install-btn:hover{background:var(--sage-mid);transform:translateY(-2px);box-shadow:0 8px 24px rgba(90,138,96,.3)}
+    #install-btn.visible{display:inline-flex}
+    #ios-instructions{display:none}
+    #ios-instructions.visible{display:block}
+    .ios-steps{display:flex;flex-direction:column;gap:12px;margin-bottom:24px}
+    .ios-step{display:flex;align-items:center;gap:14px;background:var(--cream);border:1px solid rgba(168,197,160,.22);border-radius:10px;padding:16px 18px}
+    .ios-step-icon{width:36px;height:36px;border-radius:50%;background:var(--sage-l);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+    .ios-step-text{font-size:14px;font-weight:400;color:var(--mid);line-height:1.4}
+    .ios-step-text strong{color:var(--text);font-weight:600}
+    .install-link{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--sage-dark);text-decoration:none;border-bottom:1px solid rgba(90,138,96,.3);padding-bottom:2px;transition:border-color .2s;margin-top:8px}
+    .install-link:hover{border-color:var(--sage-dark)}
+    .install-visual{display:flex;justify-content:center}
+    .phone-frame{width:240px;height:490px;background:var(--sage-dark);border-radius:38px;padding:14px;box-shadow:0 40px 80px rgba(90,138,96,.18),inset 0 0 0 1px rgba(255,255,255,.06);animation:float 4s ease-in-out infinite}
+    .phone-screen{background:var(--cream);border-radius:26px;height:100%;overflow:hidden;display:flex;flex-direction:column}
+    .phone-header{background:var(--sage-dark);padding:18px 18px 14px}
+    .phone-header-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:rgba(255,255,255,.9)}
+    .phone-header-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px}
+    .phone-body{padding:14px;display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden}
+    .phone-card{background:var(--tan);border-radius:10px;padding:12px 14px;border:1px solid rgba(200,168,122,.2)}
+    .phone-card-shop{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--text)}
+    .phone-card-city{font-size:10px;color:var(--faded);margin-top:1px}
+    .phone-bar-row{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .phone-bar-track{flex:1;height:5px;background:rgba(122,158,126,.15);border-radius:3px;overflow:hidden}
+    .phone-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#6b9fd4,var(--gold),var(--sage-mid))}
+    .phone-pct{font-size:12px;font-weight:600;color:var(--sage-dark);flex-shrink:0}
+
+    /* FOOTER */
+    footer{background:var(--sage-dark);padding:64px 48px 40px}
+    .footer-inner{max-width:1200px;margin:0 auto;text-align:center}
+    .footer-brand{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:rgba(255,255,255,.85);margin-bottom:6px}
+    .footer-tagline{font-size:14px;font-weight:300;color:rgba(255,255,255,.3);margin-bottom:36px}
+    .footer-links{display:flex;justify-content:center;gap:36px;margin-bottom:48px}
+    .footer-link{font-size:14px;color:rgba(255,255,255,.35);text-decoration:none;transition:color .2s}
+    .footer-link:hover{color:rgba(255,255,255,.75)}
+    .footer-divider{width:100%;height:1px;background:rgba(255,255,255,.08);margin-bottom:28px}
+    .footer-bottom{display:flex;justify-content:center;gap:40px;align-items:center;flex-wrap:wrap}
+    .footer-copy{font-size:13px;color:rgba(255,255,255,.2)}
+    .footer-no-chains{font-family:'Playfair Display',serif;font-size:13px;font-style:italic;color:rgba(255,255,255,.2)}
+
+    /* RESPONSIVE */
+    @media(max-width:768px){
+      nav{padding:16px 20px}
+      .hero{padding:100px 20px 60px}
+      .hero-inner{grid-template-columns:1fr;gap:40px;text-align:center}
+      .hero-eyebrow,.hero-actions{justify-content:center}
+      .hero-sub{margin:0 auto 40px}
+      .hero-stats{justify-content:center;gap:20px}
+      .hero-right{order:-1}
+      .mug-container{width:200px;height:240px}
+      .mug-svg-static,.mug-canvas{width:200px;height:240px}
+      .how{padding:80px 20px}
+      .how-grid{grid-template-columns:1fr}
+      .how-card{padding:36px 26px}
+      .discover{padding:80px 20px}
+      .discover-inner{grid-template-columns:1fr;gap:40px}
+      .stats{padding:60px 20px}
+      .stats-grid{grid-template-columns:1fr 1fr}
+      .stat-block{padding:36px 20px;border-bottom:1px solid rgba(168,197,160,.15)}
+      .stat-block-num{font-size:48px}
+      .mission{padding:80px 20px}
+      .promise{padding:80px 20px}
+      .install{padding:80px 20px}
+      .install-inner{grid-template-columns:1fr;gap:48px}
+      .install-visual{order:-1}
+      .phone-frame{width:200px;height:408px}
+      footer{padding:48px 20px 32px}
+      .footer-links{gap:20px;flex-wrap:wrap}
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-brand">☕ Social Brew</a>
+  <a href="https://socialbrewapp.com" class="nav-cta">Open the App →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-circle"></div>
+  <div class="hero-circle-2"></div>
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="hero-eyebrow fade-up">Introducing Social Brew</div>
+      <h1 class="hero-headline fade-up">Independent coffee<br><em>finally has</em><br>a community.</h1>
+      <p class="hero-sub fade-up">Discover and rate independent coffee shops near you. Every shop on Social Brew is independently owned. No chains. No algorithms. Just real coffee, real people.</p>
+      <div class="hero-actions fade-up">
+        <a href="https://socialbrewapp.com" class="btn-primary">☕ &nbsp;Open the App</a>
+        <a href="#how" class="btn-outline">How it works →</a>
+      </div>
+      <div class="hero-stats fade-up">
+        <div><div class="stat-num">75</div><div class="stat-label">Brewers</div></div>
+        <div><div class="stat-num">296</div><div class="stat-label">Shops</div></div>
+        <div><div class="stat-num">133</div><div class="stat-label">Brews</div></div>
+        <div><div class="stat-num">11</div><div class="stat-label">States</div></div>
+      </div>
+    </div>
+    <div class="hero-right fade-up">
+      <div class="mug-wrap" id="mugWrap">
+        <div class="steam" id="steam">
+          <div class="steam-line"></div>
+          <div class="steam-line"></div>
+          <div class="steam-line"></div>
+        </div>
+        <div class="mug-hint">Drag to fill your mug ↕</div>
+        <div class="mug-container" id="mugContainer">
+          <!-- Canvas for interactive fill -->
+          <canvas class="mug-canvas" id="mugCanvas" width="260" height="300"></canvas>
+          <!-- SVG overlay for mug outline / handle -->
+          <svg class="mug-svg-static" viewBox="0 0 260 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Handle outline -->
+            <path d="M208 105 C255 105 255 210 208 210" stroke="rgba(168,197,160,.35)" stroke-width="20" stroke-linecap="round" fill="none"/>
+            <path d="M208 105 C255 105 255 210 208 210" stroke="rgba(255,255,255,.06)" stroke-width="11" stroke-linecap="round" fill="none"/>
+            <!-- Mug outline -->
+            <rect x="18" y="52" width="190" height="216" rx="14" stroke="rgba(168,197,160,.4)" stroke-width="1.5" fill="none"/>
+            <!-- Rim highlight -->
+            <rect x="18" y="52" width="190" height="9" rx="7" fill="rgba(168,197,160,.18)"/>
+            <!-- Base -->
+            <rect x="10" y="266" width="206" height="11" rx="5.5" fill="rgba(90,138,96,.25)" stroke="rgba(168,197,160,.2)" stroke-width="1"/>
+          </svg>
+          <!-- Percentage display -->
+          <div class="fill-pct-display" id="fillDisplay">
+            <div class="fill-pct-num" id="fillNum">78%</div>
+            <div class="fill-pct-label">Mug Fill</div>
+          </div>
+        </div>
+        <div class="mug-badge">Try it ↕ Drag to rate</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BANNER -->
+<div class="banner">
+  <div class="banner-text">"No chains. No algorithms. Just independent coffee shops rated by people who actually care."</div>
+  <div class="banner-sub">Social Brew · Est. 2026</div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-inner">
+    <div class="section-eyebrow reveal">How it works</div>
+    <h2 class="section-headline reveal">Built for two kinds of<br><em>coffee people.</em></h2>
+    <div class="how-grid">
+      <div class="how-card how-card-green reveal">
+        <div class="how-card-tag">Coffee Lovers</div>
+        <h3 class="how-card-title">Discover indie shops <em>near you.</em></h3>
+        <div class="how-steps">
+          <div class="how-step"><span class="how-step-num">01</span><span class="how-step-text">Find independent coffee shops near you, sorted by proximity. Zero chains ever included.</span></div>
+          <div class="how-step"><span class="how-step-num">02</span><span class="how-step-text">Rate your visit using our signature Mug Fill Score — drag to fill the mug based on how good it really was.</span></div>
+          <div class="how-step"><span class="how-step-num">03</span><span class="how-step-text">Share brews, follow other coffee lovers, and build a personal map of every shop you've visited.</span></div>
+        </div>
+      </div>
+      <div class="how-card how-card-cream reveal">
+        <div class="how-card-tag">Shop Owners</div>
+        <h3 class="how-card-title">Get discovered by people who <em>actually care.</em></h3>
+        <div class="how-steps">
+          <div class="how-step"><span class="how-step-num">01</span><span class="how-step-text">Your shop appears in our discovery feed when customers are nearby — no paid placement, ever.</span></div>
+          <div class="how-step"><span class="how-step-num">02</span><span class="how-step-text">Every brew your customers post builds your reputation organically — real ratings from real visits.</span></div>
+          <div class="how-step"><span class="how-step-num">03</span><span class="how-step-text">Appear in City Pulse — our weekly trending shops list that puts the best indie spots front and center.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DISCOVER -->
+<section class="discover" id="discover">
+  <div class="discover-inner">
+    <div class="discover-left reveal">
+      <div class="section-eyebrow">Every shop. Everywhere.</div>
+      <h2 class="discover-headline">All independent shops are<br><em>discoverable</em> on Social Brew.</h2>
+      <p class="discover-sub">We're building the most comprehensive directory of independent coffee shops around. If your favorite local spot is already here, rate it. If it's not — add it in seconds.</p>
+      <div class="discover-points">
+        <div class="discover-point">
+          <div class="discover-point-icon">📍</div>
+          <div class="discover-point-text"><strong>296 shops and counting</strong> — from Normal, IL to Bali, Indonesia. Every one independently owned.</div>
+        </div>
+        <div class="discover-point">
+          <div class="discover-point-icon">✚</div>
+          <div class="discover-point-text"><strong>Don't see your shop?</strong> Suggest it directly in the app and it gets added to the community map.</div>
+        </div>
+        <div class="discover-point">
+          <div class="discover-point-icon">🌍</div>
+          <div class="discover-point-text"><strong>Already in 11 states and 5 countries</strong> — and we're just getting started.</div>
+        </div>
+      </div>
+    </div>
+    <div class="discover-visual reveal">
+      <div class="discover-card">
+        <div class="discover-card-pin">☕</div>
+        <div class="discover-card-info"><div class="discover-card-name">Valor Coffee</div><div class="discover-card-city">Illinois</div></div>
+        <div class="discover-card-fill"><div class="discover-card-pct">96.7%</div><div class="discover-card-bar-track"><div class="discover-card-bar-fill" style="width:96.7%"></div></div></div>
+      </div>
+      <div class="discover-card">
+        <div class="discover-card-pin">☕</div>
+        <div class="discover-card-info"><div class="discover-card-name">Lvl Up Coffee Bar</div><div class="discover-card-city">Normal, IL</div></div>
+        <div class="discover-card-fill"><div class="discover-card-pct">78.6%</div><div class="discover-card-bar-track"><div class="discover-card-bar-fill" style="width:78.6%"></div></div></div>
+      </div>
+      <div class="discover-card">
+        <div class="discover-card-pin">☕</div>
+        <div class="discover-card-info"><div class="discover-card-name">Rösterei am Platzl</div><div class="discover-card-city">Munich, Germany</div></div>
+        <div class="discover-card-fill"><div class="discover-card-pct">—</div><div class="discover-card-bar-track"><div class="discover-card-bar-fill" style="width:0%"></div></div></div>
+      </div>
+      <div class="discover-add-card" onclick="document.getElementById('install').scrollIntoView({behavior:'smooth'})">
+        <div class="discover-add-icon">+</div>
+        <div><div class="discover-add-text">Don't see your shop?</div><div class="discover-add-sub">Suggest it in the app →</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="section-inner">
+    <div class="stats-grid reveal">
+      <div class="stat-block"><div class="stat-block-num">75</div><div class="stat-block-label">Brewers</div><div class="stat-block-sub">Growing every day</div></div>
+      <div class="stat-block"><div class="stat-block-num">296</div><div class="stat-block-label">Shops</div><div class="stat-block-sub">Zero chains included</div></div>
+      <div class="stat-block"><div class="stat-block-num">133</div><div class="stat-block-label">Brews posted</div><div class="stat-block-sub">Real visits, real ratings</div></div>
+      <div class="stat-block"><div class="stat-block-num">11</div><div class="stat-block-label">States</div><div class="stat-block-sub">IL · IN · MI · TN · TX + more</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- MISSION -->
+<section class="mission">
+  <div class="mission-inner reveal">
+    <div class="mission-eyebrow">Our Mission</div>
+    <p class="mission-headline">
+      <strong>Connecting coffee lovers and independent coffee shops</strong> through meaningful experiences and lasting loyalty.
+    </p>
+  </div>
+</section>
+
+<!-- PROMISE -->
+<section class="promise">
+  <div class="promise-inner reveal">
+    <div class="promise-eyebrow">Our Promise</div>
+    <h2 class="promise-headline">No chains.<br><em>Ever.</em></h2>
+    <p class="promise-text">Starbucks, Dunkin, and every other chain will never appear on Social Brew. This community exists exclusively for the independent shops that make your city worth exploring.</p>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section class="install" id="install">
+  <div class="install-inner">
+    <div>
+      <div class="section-eyebrow reveal">Free to use</div>
+      <h2 class="install-headline reveal">Add Social Brew<br>to your <em>home screen.</em></h2>
+      <p class="install-sub reveal">Social Brew is a free progressive web app. Open it on your phone and add it to your home screen in seconds — no app store, no download, no cost.</p>
+      <a href="https://socialbrewapp.com" class="btn-primary" style="display:inline-flex;text-decoration:none;margin-bottom:20px;">☕ &nbsp;Open Social Brew</a>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+        <div class="ios-step">
+          <div class="ios-step-icon">📱</div>
+          <div class="ios-step-text">Open the app on your phone, then tap <strong>Share → Add to Home Screen</strong> on iOS, or tap <strong>Install</strong> on Android.</div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-icon">☕</div>
+          <div class="ios-step-text">Social Brew will appear on your home screen <strong>just like a native app</strong> — no app store needed.</div>
+        </div>
+      </div>
+      <a href="https://socialbrewapp.com" class="install-link">Or open in your browser →</a>
+    </div>
+    <div class="install-visual reveal">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="phone-header">
+            <div class="phone-header-title">☕ Social Brew</div>
+            <div class="phone-header-sub">Discover · Rate · Share</div>
+          </div>
+          <div class="phone-body">
+            <div class="phone-card">
+              <div class="phone-card-shop">Valor Coffee</div>
+              <div class="phone-card-city">Illinois</div>
+              <div class="phone-bar-row"><div class="phone-bar-track"><div class="phone-bar-fill" style="width:96.7%"></div></div><div class="phone-pct">96.7%</div></div>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-shop">Landmark Coffee</div>
+              <div class="phone-card-city">Illinois</div>
+              <div class="phone-bar-row"><div class="phone-bar-track"><div class="phone-bar-fill" style="width:94%"></div></div><div class="phone-pct">94.0%</div></div>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-shop">Lvl Up Coffee Bar</div>
+              <div class="phone-card-city">Normal, IL</div>
+              <div class="phone-bar-row"><div class="phone-bar-track"><div class="phone-bar-fill" style="width:78.6%"></div></div><div class="phone-pct">78.6%</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">☕ Social Brew</div>
+    <div class="footer-tagline">Independent coffee finally has a community.</div>
+    <div class="footer-links">
+      <a href="https://instagram.com/socialbrew_app" class="footer-link" target="_blank">Instagram</a>
+      <a href="mailto:moses.kabuswe@gmail.com" class="footer-link">Contact</a>
+      <a href="https://socialbrewapp.com" class="footer-link">Open the App</a>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 Social Brew. All rights reserved.</div>
+      <div class="footer-no-chains">No chains. Ever.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ── Interactive Mug Fill ──────────────────────────────────────── */
+  const canvas = document.getElementById('mugCanvas');
+  const ctx = canvas.getContext('2d');
+  const fillNum = document.getElementById('fillNum');
+  const steam = document.getElementById('steam');
+  const mugWrap = document.getElementById('mugWrap');
+  const mugContainer = document.getElementById('mugContainer');
+
+  const W = 260, H = 300;
+  const MUG_X = 18, MUG_Y = 52, MUG_W = 190, MUG_H = 216, MUG_R = 14;
+
+  let fillPct = 0.78;
+  let isDragging = false;
+  let startY = 0, startFill = 0;
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function getColor(pct) {
+    // Low: cool blue → mid: warm amber → high: deep espresso/sage
+    if (pct < 0.4) {
+      const t = pct / 0.4;
+      return {
+        r: lerp(107, 200, t),
+        g: lerp(159, 168, t),
+        b: lerp(212, 122, t)
+      };
+    } else if (pct < 0.75) {
+      const t = (pct - 0.4) / 0.35;
+      return {
+        r: lerp(200, 139, t),
+        g: lerp(168, 94, t),
+        b: lerp(122, 60, t)
+      };
+    } else {
+      const t = (pct - 0.75) / 0.25;
+      return {
+        r: lerp(139, 90, t),
+        g: lerp(94, 138, t),
+        b: lerp(60, 96, t)
+      };
+    }
+  }
+
+  function drawMug(pct) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Mug background
+    ctx.save();
+    roundedRect(ctx, MUG_X, MUG_Y, MUG_W, MUG_H, MUG_R);
+    ctx.fillStyle = '#2d4a30';
+    ctx.fill();
+    ctx.restore();
+
+    // Liquid fill
+    const fillH = MUG_H * pct;
+    const fillY = MUG_Y + MUG_H - fillH;
+
+    const c = getColor(pct);
+    const grad = ctx.createLinearGradient(MUG_X, fillY, MUG_X + MUG_W, fillY);
+    grad.addColorStop(0, `rgba(${Math.round(c.r * 0.7)},${Math.round(c.g * 0.9)},${Math.round(c.b * 1.2)},0.95)`);
+    grad.addColorStop(0.5, `rgba(${Math.round(c.r)},${Math.round(c.g)},${Math.round(c.b)},0.9)`);
+    grad.addColorStop(1, `rgba(${Math.round(c.r * 0.8)},${Math.round(c.g * 0.7)},${Math.round(c.b * 0.7)},0.95)`);
+
+    ctx.save();
+    roundedRect(ctx, MUG_X, MUG_Y, MUG_W, MUG_H, MUG_R);
+    ctx.clip();
+    ctx.fillStyle = grad;
+    ctx.fillRect(MUG_X, fillY, MUG_W, fillH);
+
+    // Liquid surface shimmer
+    if (pct > 0.02) {
+      const shimmerGrad = ctx.createLinearGradient(MUG_X, fillY, MUG_X + MUG_W, fillY);
+      shimmerGrad.addColorStop(0, 'rgba(255,255,255,0.0)');
+      shimmerGrad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+      shimmerGrad.addColorStop(1, 'rgba(255,255,255,0.0)');
+      ctx.fillStyle = shimmerGrad;
+      ctx.fillRect(MUG_X, fillY, MUG_W, 5);
+    }
+
+    // Wave on top of liquid
+    if (pct > 0.05) {
+      ctx.beginPath();
+      const waveY = fillY + 3;
+      ctx.moveTo(MUG_X, waveY);
+      for (let x = 0; x <= MUG_W; x += 4) {
+        ctx.lineTo(MUG_X + x, waveY + Math.sin((x / MUG_W) * Math.PI * 3) * 2);
+      }
+      ctx.lineTo(MUG_X + MUG_W, waveY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // Steam visibility
+    steam.style.opacity = pct > 0.6 ? Math.min(1, (pct - 0.6) / 0.2) : 0;
+    steam.style.transition = 'opacity 0.4s';
+
+    // Update percentage
+    const displayPct = Math.round(pct * 100);
+    fillNum.textContent = displayPct + '%';
+
+    // Color flash on display at extremes
+    if (displayPct >= 95) fillNum.style.color = '#a8c5a0';
+    else if (displayPct <= 15) fillNum.style.color = '#6b9fd4';
+    else fillNum.style.color = '#fff';
+  }
+
+  function roundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function getClientY(e) {
+    return e.touches ? e.touches[0].clientY : e.clientY;
+  }
+
+  mugContainer.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startY = getClientY(e);
+    startFill = fillPct;
+    mugWrap.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  });
+
+  mugContainer.addEventListener('touchstart', (e) => {
+    isDragging = true;
+    startY = getClientY(e);
+    startFill = fillPct;
+    mugWrap.classList.add('dragging');
+  }, { passive: true });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dy = startY - getClientY(e);
+    const delta = dy / H;
+    fillPct = Math.max(0, Math.min(1, startFill + delta));
+    drawMug(fillPct);
+  });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const dy = startY - getClientY(e);
+    const delta = dy / H;
+    fillPct = Math.max(0, Math.min(1, startFill + delta));
+    drawMug(fillPct);
+  }, { passive: true });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    mugWrap.classList.remove('dragging');
+    document.body.style.userSelect = '';
+  });
+
+  document.addEventListener('touchend', () => {
+    isDragging = false;
+    mugWrap.classList.remove('dragging');
+  });
+
+  // Initial draw
+  drawMug(fillPct);
+
+  /* ── Scroll reveal ───────────────────────────────────────────── */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  /* ── Nav shadow on scroll ────────────────────────────────────── */
+  window.addEventListener('scroll', () => {
+    document.querySelector('nav').style.boxShadow =
+      window.scrollY > 40 ? '0 2px 20px rgba(90,138,96,.1)' : 'none';
+  });
+</script>
+</body>
+</html>
