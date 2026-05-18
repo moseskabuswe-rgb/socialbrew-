@@ -45,6 +45,8 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
   const [showReply, setShowReply] = useState(false)
   const [sending, setSending] = useState(false)
   const [myReaction, setMyReaction] = useState<string | null>(null)
+  const [showViewers, setShowViewers] = useState(false)
+  const [viewers, setViewers] = useState<Array<{id: string, username: string, avatar_url: string | null}>>([])
   const timerRef = useRef<any>(null)
   const progressRef = useRef<any>(null)
   const startTimeRef = useRef<number>(0)
@@ -148,7 +150,8 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
         await notifyDM(
           group.user_id,
           profile.username || 'Someone',
-          `${emoji} reacted to your story`
+          `${emoji} reacted to your story`,
+          profile.id
         )
       } catch {}
     }
@@ -171,13 +174,23 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
       await notifyDM(
         group.user_id,
         profile.username || 'Someone',
-        replyText.trim()
+        replyText.trim(),
+        profile.id
       )
     } catch {}
 
     setReplyText('')
     setShowReply(false)
     setSending(false)
+  }
+
+  async function loadViewers(storyId: string) {
+    const { data } = await supabase
+      .from('story_views')
+      .select('profiles!story_views_viewer_id_fkey(id, username, avatar_url)')
+      .eq('story_id', storyId)
+      .order('viewed_at', { ascending: false })
+    setViewers((data || []).map((v: any) => v.profiles).filter(Boolean))
   }
 
   if (!story) return null
@@ -238,20 +251,59 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
 
         {/* Caption overlay for photo stories */}
         {story.photo_url && story.caption && (
-          <div className="absolute bottom-0 left-0 right-0 px-5 py-6"
-            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}>
+          <div className="absolute bottom-32 left-0 right-0 px-5 py-4"
+            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
             <p className="text-white text-base font-medium">{story.caption}</p>
           </div>
         )}
 
         {/* View count for own stories — uses view_count from DB (updated by trigger) */}
         {isOwn && (
-          <div className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/40 rounded-full px-3 py-1.5">
-            <Eye size={13} className="text-white/70" />
-            <span className="text-white/70 text-xs">
-              {(story.view_count || 0)} {(story.view_count || 0) === 1 ? 'view' : 'views'}
-            </span>
-          </div>
+          <>
+            <button
+              onClick={() => { loadViewers(story.id); setShowViewers(true) }}
+              className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/40 rounded-full px-3 py-1.5 active:scale-95 transition-all"
+            >
+              <Eye size={13} className="text-white/70" />
+              <span className="text-white/70 text-xs font-medium">
+                {story.view_count || 0} {(story.view_count || 0) === 1 ? 'view' : 'views'}
+              </span>
+            </button>
+
+            {showViewers && (
+              <div
+                className="absolute bottom-0 left-0 right-0 rounded-t-2xl flex flex-col z-10"
+                style={{ background: 'rgba(18,10,4,0.97)', maxHeight: '60%' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+                  <p className="text-white font-semibold text-sm">
+                    {viewers.length} {viewers.length === 1 ? 'viewer' : 'viewers'}
+                  </p>
+                  <button onClick={() => setShowViewers(false)}>
+                    <X size={18} className="text-white/60" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto flex-1 py-2">
+                  {viewers.length === 0 && (
+                    <p className="text-white/40 text-sm text-center py-6">No views yet</p>
+                  )}
+                  {viewers.map(v => (
+                    <div key={v.id} className="flex items-center gap-3 px-5 py-2.5">
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-700 flex-shrink-0">
+                        {v.avatar_url
+                          ? <img src={v.avatar_url} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-white text-sm font-bold">{v.username?.[0]?.toUpperCase()}</span>
+                            </div>}
+                      </div>
+                      <p className="text-white text-sm font-medium">@{v.username}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Tap zones — only active when reply is closed */}

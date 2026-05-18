@@ -2,11 +2,12 @@ import { useState, useRef, useCallback } from 'react'
 import { X, Clock, Camera, Image as ImageIcon, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import exifr from 'exifr'
-import { notifyMention } from '../../lib/push'
+import { notifyMention, notifyNewPost } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import { compressImage } from '../../lib/compressImage'
+import CreateStory from '../shared/CreateStory'
 
 type Props = { shop: any; onClose: () => void; onComplete: () => void }
 
@@ -52,6 +53,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [drinkPrice, setDrinkPrice] = useState('')
   const [pricePerception, setPricePerception] = useState('')
   const [showPriceOnPost, setShowPriceOnPost] = useState(true)
+  const [addToStory, setAddToStory] = useState(false)
+  const [createdRatingId, setCreatedRatingId] = useState<string | null>(null)
+  const [showStoryCreate, setShowStoryCreate] = useState(false)
   // Steps: rate → (feedback if low) → details → price → submitting → done
   const [step, setStep] = useState<'rate' | 'details' | 'price' | 'submitting' | 'done'>('rate')
   const [showFeedback, setShowFeedback] = useState(false)
@@ -222,6 +226,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               rating_id: newRating.id,
             }))
           )
+          notifyNewPost(followers.map((f: any) => f.follower_id), profile.username || 'Someone', shop.name, false, selectedVibes.length > 0, newRating.id)
         }
         // Process @mentions in caption
         if (caption.trim()) {
@@ -240,15 +245,22 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     // Best-effort — don't block on RPC failure
     Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
 
+    const { data: newRating } = await supabase
+      .from('ratings')
+      .select('id')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (newRating) setCreatedRatingId(newRating.id)
+
     setStep('done')
     // Show anonymous feedback modal AFTER posting if fill was low
     setTimeout(() => {
       onComplete()
-      if (fill <= 50) {
-        setShowFeedback(true)
-      } else {
-        onClose()
-      }
+      if (fill <= 50) setShowFeedback(true)
+      else if (addToStory && createdRatingId) setShowStoryCreate(true)
+      else onClose()
     }, 1600)
   }
 
@@ -646,9 +658,34 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               className="w-full py-2 mt-2 text-stone-400 text-sm">
               Skip & post now
             </button>
+            {/* Add to story toggle */}
+            <div className="flex items-center justify-between px-1 py-3 mt-2 border-t border-coffee-700">
+              <div>
+                <p className="text-white text-sm font-semibold">Add to my story</p>
+                <p className="text-coffee-400 text-xs">Share this brew as a 24hr story</p>
+              </div>
+              <button
+                onClick={() => setAddToStory(v => !v)}
+                className="w-12 h-6 rounded-full relative transition-all flex-shrink-0"
+                style={{ background: addToStory ? '#c8853a' : 'rgba(255,255,255,0.15)' }}
+              >
+                <div
+                  className="w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all"
+                  style={{ left: addToStory ? '26px' : '2px' }}
+                />
+              </button>
+            </div>
           </div>
         )}
       </div>
+      {showStoryCreate && createdRatingId && (
+        <CreateStory
+          prefillRatingId={createdRatingId}
+          prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
+          onClose={() => { setShowStoryCreate(false); onClose() }}
+          onCreated={() => { setShowStoryCreate(false); onClose() }}
+        />
+      )}
     </div>
   )
 }
