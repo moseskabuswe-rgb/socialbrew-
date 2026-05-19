@@ -49,39 +49,51 @@ export async function sendBroadcastNotification(title: string, body: string, dat
   try { await callEdgeFunction({ broadcast: true, title, body, data }) } catch (err) { console.error('sendBroadcastNotification failed:', err) }
 }
 
-export async function notifyLike(postOwnerId: string, likerUsername: string) {
+export async function notifyLike(postOwnerId: string, likerUsername: string, ratingId?: string) {
   if (!postOwnerId) return
-  await sendPushToUser(postOwnerId, 'Someone liked your brew ☕', `${likerUsername} liked your post`, { type: 'like', tag: 'like' })
+  const data: Record<string, string> = { type: 'like', tag: 'like' }
+  if (ratingId) data.rating_id = ratingId
+  await sendPushToUser(postOwnerId, 'Someone liked your brew ☕', `${likerUsername} liked your post`, data)
 }
 
-export async function notifyComment(postOwnerId: string, commenterUsername: string, commentPreview: string) {
+export async function notifyComment(postOwnerId: string, commenterUsername: string, commentPreview: string, ratingId?: string) {
   if (!postOwnerId) return
-  await sendPushToUser(postOwnerId, `${commenterUsername} commented`, commentPreview.slice(0, 100), { type: 'comment', tag: 'comment' })
+  const data: Record<string, string> = { type: 'comment', tag: 'comment' }
+  if (ratingId) data.rating_id = ratingId
+  await sendPushToUser(postOwnerId, `${commenterUsername} commented`, commentPreview.slice(0, 100), data)
 }
 
-export async function notifyFollow(followedUserId: string, followerUsername: string) {
+export async function notifyFollow(followedUserId: string, followerUsername: string, actorId?: string) {
   if (!followedUserId) return
-  await sendPushToUser(followedUserId, 'New follower!', `${followerUsername} started following you`, { type: 'follow', tag: 'follow' })
+  const data: Record<string, string> = { type: 'follow', tag: 'follow' }
+  if (actorId) data.actor_id = actorId
+  await sendPushToUser(followedUserId, 'New follower!', `${followerUsername} started following you`, data)
 }
 
-export async function notifyMention(mentionedUserId: string, mentionerUsername: string, context: string) {
+export async function notifyMention(mentionedUserId: string, mentionerUsername: string, context: string, ratingId?: string) {
   if (!mentionedUserId) return
-  await sendPushToUser(mentionedUserId, `${mentionerUsername} mentioned you`, context.slice(0, 100), { type: 'mention', tag: 'mention' })
+  const data: Record<string, string> = { type: 'mention', tag: 'mention' }
+  if (ratingId) data.rating_id = ratingId
+  await sendPushToUser(mentionedUserId, `${mentionerUsername} mentioned you`, context.slice(0, 100), data)
 }
 
-export async function notifyNewPost(followerIds: string[], posterUsername: string, shopName: string, isQuickSip = false, isVibe = false) {
+export async function notifyNewPost(followerIds: string[], posterUsername: string, shopName: string, isQuickSip = false, isVibe = false, ratingId?: string) {
   const title = isVibe
     ? `${posterUsername} posted a vibe ✨`
     : isQuickSip
     ? `${posterUsername} had a quick sip ⚡`
     : `${posterUsername} rated a visit ☕`
   const body = shopName || 'Check it out on Social Brew'
+  const data: Record<string, string> = { type: 'new_post', tag: 'new_post' }
+  if (ratingId) data.rating_id = ratingId
   await Promise.all(followerIds.map(id =>
-    sendPushToUser(id, title, body, { type: 'new_post', tag: 'new_post' })
+    sendPushToUser(id, title, body, data)
   ))
 }
 
-export async function notifyDM(toUserId: string, fromUsername: string, messagePreview: string) {
+export async function notifyDM(toUserId: string, fromUsername: string, messagePreview: string, actorId?: string) {
   if (!toUserId) return
-  await sendPushToUser(toUserId, `${fromUsername} sent you a message ☕`, messagePreview.slice(0, 100), { type: 'dm', tag: 'dm' })
+  const data: Record<string, string> = { type: 'dm', tag: 'dm' }
+  if (actorId) data.actor_id = actorId
+  await sendPushToUser(toUserId, `${fromUsername} sent you a message ☕`, messagePreview.slice(0, 100), data)
 }
