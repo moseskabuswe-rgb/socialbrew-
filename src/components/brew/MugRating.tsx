@@ -531,6 +531,24 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               />
             </div>
 
+            {/* Add to story toggle */}
+            <div className="flex items-center justify-between px-1 py-3 mb-4 border-t border-stone-200">
+              <div>
+                <p className="text-stone-700 text-sm font-semibold">Add to my story</p>
+                <p className="text-stone-400 text-xs">Share this brew as a 24hr story</p>
+              </div>
+              <button
+                onClick={() => setAddToStory(v => !v)}
+                className="w-12 h-6 rounded-full relative transition-all flex-shrink-0"
+                style={{ background: addToStory ? '#c8853a' : '#d4c4b0' }}
+              >
+                <div
+                  className="w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm"
+                  style={{ left: addToStory ? '26px' : '2px' }}
+                />
+              </button>
+            </div>
+
             {/* Visit Date */}
             <div className="mb-4">
               <label className="text-stone-500 text-xs uppercase tracking-wider mb-2 block">When did you visit?</label>
@@ -658,23 +676,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
               className="w-full py-2 mt-2 text-stone-400 text-sm">
               Skip & post now
             </button>
-            {/* Add to story toggle */}
-            <div className="flex items-center justify-between px-1 py-3 mt-2 border-t border-stone-200">
-              <div>
-                <p className="text-stone-700 text-sm font-semibold">Add to my story</p>
-                <p className="text-stone-400 text-xs">Share this brew as a 24hr story</p>
-              </div>
-              <button
-                onClick={() => setAddToStory(v => !v)}
-                className="w-12 h-6 rounded-full relative transition-all flex-shrink-0"
-                style={{ background: addToStory ? '#c8853a' : '#d4c4b0' }}
-              >
-                <div
-                  className="w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm"
-                  style={{ left: addToStory ? '26px' : '2px' }}
-                />
-              </button>
-            </div>
           </div>
         )}
       </div>
