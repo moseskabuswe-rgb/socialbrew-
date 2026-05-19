@@ -201,7 +201,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
       .select('*, profiles!direct_messages_from_id_fkey(username,avatar_url)').single()
     if (data) {
       setMessages(prev => [...prev, data as any])
-      notifyDM(activeConvo.id, profile.username || 'Someone', trimmed.slice(0, 100))
+      notifyDM(activeConvo.id, profile.username || 'Someone', trimmed.slice(0, 100), profile.id)
       setTimeout(() => {
         const el = document.getElementById('msg-list')
         if (el) el.scrollTop = el.scrollHeight
@@ -521,7 +521,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
       // Notify post owner of comment
       const { data: rating } = await supabase.from('ratings').select('user_id').eq('id', ratingId).single()
       if (rating?.user_id && rating.user_id !== profile.id) {
-        notifyComment(rating.user_id, profile.username || 'Someone', content)
+        notifyComment(rating.user_id, profile.username || 'Someone', content, ratingId)
       }
       // Notify @mentions in comment
       const mentioned = content.match(/@(\w+)/g)
@@ -530,7 +530,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
           const username = handle.slice(1)
           const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
           if (mentionedUser?.id && mentionedUser.id !== profile.id) {
-            notifyMention(mentionedUser.id, profile.username || 'Someone', content)
+            notifyMention(mentionedUser.id, profile.username || 'Someone', content, ratingId)
           }
         }
       }
@@ -1194,7 +1194,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
       // Notify post owner
       const rating = ratings.find(r => r.id === ratingId)
       if (rating?.profiles?.id && rating.profiles.id !== profile.id) {
-        notifyLike(rating.profiles.id, profile.username || 'Someone')
+        notifyLike(rating.profiles.id, profile.username || 'Someone', ratingId)
       }
     }
   }
@@ -1553,7 +1553,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                     {user?.avatar_url ? <img src={cachedUrl(user.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</span></div>}
                   </button>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-800 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
                       {rating.is_first_rating && (
