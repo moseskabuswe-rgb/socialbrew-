@@ -1468,7 +1468,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           if (isQuickSip) {
             return (
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
-                <div className="flex items-center gap-3 px-4 py-3">
+                <div className="flex items-start gap-3 px-4 py-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                     {user?.avatar_url ? <img src={cachedUrl(user.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-xs">{user?.username?.[0]?.toUpperCase()}</span></div>}
@@ -1548,7 +1548,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           return (
             <div key={rating.id} className="bg-white mx-4 mb-3 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
                     {user?.avatar_url ? <img src={cachedUrl(user.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                       : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</span></div>}
