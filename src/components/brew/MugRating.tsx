@@ -323,6 +323,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         {/* ── RATE STEP ── */}
         {step === 'rate' && (
           <div className="px-5 pb-6">
+            <p className="text-center text-stone-400 text-xs uppercase tracking-wider mb-3">How was the drink?</p>
             {/* Mug — original SVG + original touch handlers preserved */}
             <div
               ref={mugRef}

@@ -309,6 +309,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
 
             {/* Mug */}
             <div className="px-5 pb-3">
+              <p className="text-center text-stone-400 text-xs uppercase tracking-wider mb-2">How was the drink?</p>
               <div
                 ref={mugRef}
                 className="relative mx-auto cursor-grab active:cursor-grabbing select-none"

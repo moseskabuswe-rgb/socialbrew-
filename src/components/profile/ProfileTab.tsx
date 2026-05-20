@@ -52,7 +52,7 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
     } else {
       await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId })
       await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow' })
-      notifyFollow(targetId, me.username || 'Someone')
+      notifyFollow(targetId, me.username || 'Someone', me.id)
       setFollowing(prev => new Set([...prev, targetId]))
     }
   }
@@ -561,7 +561,7 @@ function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onV
     } else {
       await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId })
       await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow' })
-      notifyFollow(userId, profile.username || 'Someone')
+      notifyFollow(userId, profile.username || 'Someone', profile.id)
       setFollowing(prev => new Set([...prev, userId]))
     }
   }
@@ -648,7 +648,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     if (!profile) return
     async function load() {
       const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
-        supabase.from('ratings').select('id, fill_level, drink_name, photo_url, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(500),
+        supabase.from('ratings').select('id, user_id, fill_level, drink_name, photo_url, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(500),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),
