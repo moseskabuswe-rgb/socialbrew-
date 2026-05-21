@@ -14,6 +14,7 @@ import ShopToast from './components/shared/ShopToast'
 import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
+import AdminApp from './admin/AdminApp'
 import { supabase } from './lib/supabase'
 import { getBadge } from './lib/badges'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
@@ -217,6 +218,9 @@ function AppContent() {
 }
 
 export default function App() {
+  if (window.location.pathname.startsWith('/admin')) {
+    return <AuthProvider><AdminApp /></AuthProvider>
+  }
   return (
     <AuthProvider>
       <AppContent />
