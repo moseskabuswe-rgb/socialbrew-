@@ -2,15 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { X, UserPlus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-
-function getBadgeInfo(count: number) {
-  if (count >= 100) return { label: 'Brew Master', emoji: '👑', color: '#c0392b' }
-  if (count >= 50) return { label: 'Connoisseur', emoji: '🏆', color: '#9b59b6' }
-  if (count >= 25) return { label: 'Enthusiast', emoji: '🔥', color: '#e06030' }
-  if (count >= 10) return { label: 'Regular', emoji: '⭐', color: '#d4a017' }
-  if (count >= 3) return { label: 'Coffee Lover', emoji: '☕', color: '#c8853a' }
-  return { label: 'Coffee Curious', emoji: '🌱', color: '#7aaa6a' }
-}
+import { getBadge } from '../../lib/badges'
 
 const CoffeeMap = lazy(() => import('../profile/CoffeeMap'))
 
@@ -33,7 +25,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
   useEffect(() => {
     async function load() {
       const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single()
-      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(name,photo_url,city,state)').eq('user_id', userId).order('created_at', { ascending: false }).limit(8)
+      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(name,photo_url,city,state,country,continent)').eq('user_id', userId).order('created_at', { ascending: false }).limit(8)
       const visitsRes = await supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false })
       const { count: fCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId)
       const { count: fgCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId)
@@ -67,7 +59,21 @@ export default function UserProfileModal({ userId, onClose }: Props) {
     }
   }
 
-  const badge = getBadgeInfo(ratings.length)
+  // Build exploration stats from loaded ratings for accurate badge calculation
+  const explorationStats = (() => {
+    const shops = ratings.filter((r: any) => r.coffee_shops)
+    return {
+      uniqueShops:      new Set(shops.map((r: any) => r.shop_id)).size,
+      uniqueCities:     new Set(shops.map((r: any) => r.coffee_shops?.city).filter(Boolean)).size,
+      uniqueStates:     new Set(shops.map((r: any) => r.coffee_shops?.state).filter(Boolean)).size,
+      uniqueCountries:  new Set(shops.map((r: any) => r.coffee_shops?.country).filter(Boolean)).size,
+      uniqueContinents: new Set(shops.map((r: any) => r.coffee_shops?.continent).filter(Boolean)).size,
+      firstBrews:       0,
+      streakWeeks:      0,
+    }
+  })()
+
+  const badge = getBadge(ratings.length, explorationStats).current
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)'}}>
