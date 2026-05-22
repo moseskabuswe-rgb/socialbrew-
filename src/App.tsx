@@ -14,7 +14,7 @@ import ShopToast from './components/shared/ShopToast'
 import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
-import AdminApp from './admin/AdminApp'
+import AdminLayout from './admin/AdminLayout'
 import { supabase } from './lib/supabase'
 import { getBadge } from './lib/badges'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
@@ -127,6 +127,14 @@ function AppContent() {
 
   if (!profile) return <AuthForm />
 
+  // Admin panel — query param ?panel=ops, admin/moderator only
+  if (
+    new URLSearchParams(window.location.search).get('panel') === 'ops' &&
+    ['admin', 'moderator'].includes(profile.role as string)
+  ) {
+    return <AdminLayout profile={profile} />
+  }
+
   async function handlePostCreated(shopName?: string, wasFirst?: boolean) {
     if (wasFirst && shopName) setFirstRatingShop(shopName)
     setFeedRefresh(n => n + 1)
@@ -218,9 +226,6 @@ function AppContent() {
 }
 
 export default function App() {
-  if (new URLSearchParams(window.location.search).get('panel') === 'ops') {
-    return <AuthProvider><AdminApp /></AuthProvider>
-  }
   return (
     <AuthProvider>
       <AppContent />
