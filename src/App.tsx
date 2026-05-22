@@ -214,8 +214,15 @@ function AppContent() {
         <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />
       )}
 
-      {/* Admin broadcast panel — triggered by 5 taps on logo, only for Moses */}
-      {showAdminPanel && (
+      {/* Admin dashboard — triggered by 5 taps on logo, admin/moderator only */}
+      {showAdminPanel && ['admin', 'moderator'].includes(profile.role as string) && (
+        <div className="fixed inset-0 z-50">
+          <AdminLayout profile={profile} onClose={() => setShowAdminPanel(false)} />
+        </div>
+      )}
+
+      {/* Fallback broadcast panel for non-admin roles with the UUID */}
+      {showAdminPanel && !['admin', 'moderator'].includes(profile.role as string) && (
         <AdminBroadcast
           currentUserId={profile.id}
           onClose={() => setShowAdminPanel(false)}

@@ -11,6 +11,7 @@ export type AdminTab = 'overview' | 'users' | 'shops' | 'approvals' | 'reports' 
 
 interface Props {
   profile: { id: string; username: string; role: string }
+  onClose?: () => void
 }
 
 interface PendingCounts {
@@ -38,7 +39,7 @@ const NAV_ITEMS: { id: AdminTab; label: string; adminOnly?: boolean }[] = [
   { id: 'broadcast', label: 'Broadcast', adminOnly: true },
 ]
 
-export default function AdminLayout({ profile }: Props) {
+export default function AdminLayout({ profile, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')
   const [pending, setPending] = useState<PendingCounts>({ claims: 0, edits: 0, shopPosts: 0, reports: 0 })
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -135,6 +136,14 @@ export default function AdminLayout({ profile }: Props) {
             <p className="text-xs font-medium text-gray-700 truncate">{profile.username}</p>
             <p className="text-[10px] text-gray-400 capitalize">{profile.role}</p>
           </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 text-left transition-colors"
+            >
+              Back to app
+            </button>
+          )}
           <button
             onClick={handleSignOut}
             className="w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 text-left transition-colors"
