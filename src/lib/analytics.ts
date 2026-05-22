@@ -4,23 +4,25 @@ const POSTHOG_KEY = 'phc_rLczdbAiAbMoFRd83rwsdkxshZy7EEGnhCWEYLCNmycf'
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 export function initAnalytics() {
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
-    capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: true,
-    persistence: 'localStorage',
-  })
+  try {
+    posthog.init(POSTHOG_KEY, {
+      api_host: POSTHOG_HOST,
+      capture_pageview: true,
+      capture_pageleave: true,
+      autocapture: false,
+      persistence: 'localStorage',
+    })
+  } catch { /* silently skip if CSP blocks eval */ }
 }
 
 export function identifyUser(userId: string, properties?: Record<string, any>) {
-  posthog.identify(userId, properties)
+  try { posthog.identify(userId, properties) } catch { /* noop */ }
 }
 
 export function trackEvent(event: string, properties?: Record<string, any>) {
-  posthog.capture(event, properties)
+  try { posthog.capture(event, properties) } catch { /* noop */ }
 }
 
 export function resetUser() {
-  posthog.reset()
+  try { posthog.reset() } catch { /* noop */ }
 }
