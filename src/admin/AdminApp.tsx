@@ -11,13 +11,24 @@ function Spinner() {
 
 export default function AdminApp() {
   const { profile, loading } = useAuth()
+
   if (loading) return <Spinner />
-  if (!profile || !['admin', 'moderator'].includes(profile.role as string)) {
+
+  // Not signed in — send to the PWA to log in
+  if (!profile) {
+    window.location.href = '/?next=admin'
+    return <Spinner />
+  }
+
+  if (!['admin', 'moderator'].includes(profile.role as string)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream-50">
-        <p className="text-coffee-400 text-sm">Access denied.</p>
+      <div className="min-h-screen flex items-center justify-center bg-cream-50 flex-col gap-2">
+        <p className="text-coffee-900 text-sm font-medium">Access denied</p>
+        <p className="text-coffee-400 text-xs">Signed in as @{profile.username} ({profile.role})</p>
+        <button onClick={() => { window.location.href = '/' }} className="mt-2 text-xs text-caramel underline">Back to app</button>
       </div>
     )
   }
+
   return <AdminLayout profile={profile} />
 }
