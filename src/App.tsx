@@ -218,7 +218,7 @@ function AppContent() {
 }
 
 export default function App() {
-  if (window.location.pathname.startsWith('/ops')) {
+  if (new URLSearchParams(window.location.search).get('panel') === 'ops') {
     return <AuthProvider><AdminApp /></AuthProvider>
   }
   return (

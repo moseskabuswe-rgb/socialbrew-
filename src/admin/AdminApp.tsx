@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import AdminLayout from './AdminLayout'
 
@@ -12,13 +13,13 @@ function Spinner() {
 export default function AdminApp() {
   const { profile, loading } = useAuth()
 
-  if (loading) return <Spinner />
+  useEffect(() => {
+    if (!loading && !profile) {
+      window.location.href = '/'
+    }
+  }, [loading, profile])
 
-  // Not signed in — send to the PWA to log in
-  if (!profile) {
-    window.location.href = '/?next=ops'
-    return <Spinner />
-  }
+  if (loading || !profile) return <Spinner />
 
   if (!['admin', 'moderator'].includes(profile.role as string)) {
     return (
