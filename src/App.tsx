@@ -218,7 +218,7 @@ function AppContent() {
 }
 
 export default function App() {
-  if (window.location.pathname.startsWith('/admin')) {
+  if (window.location.pathname.startsWith('/ops')) {
     return <AuthProvider><AdminApp /></AuthProvider>
   }
   return (

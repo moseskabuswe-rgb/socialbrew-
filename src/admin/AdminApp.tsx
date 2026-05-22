@@ -16,7 +16,7 @@ export default function AdminApp() {
 
   // Not signed in — send to the PWA to log in
   if (!profile) {
-    window.location.href = '/?next=admin'
+    window.location.href = '/?next=ops'
     return <Spinner />
   }
 
