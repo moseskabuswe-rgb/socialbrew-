@@ -44,6 +44,7 @@ export default function AdminLayout({ profile, onClose }: Props) {
   const [pending, setPending] = useState<PendingCounts>({ claims: 0, edits: 0, shopPosts: 0, reports: 0 })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isAdmin = profile.role === 'admin'
+  const isViewer = profile.role === 'viewer'
 
   async function fetchPending() {
     const [claims, edits, shopPosts, userReports, shopReports] = await Promise.all([
@@ -92,7 +93,11 @@ export default function AdminLayout({ profile, onClose }: Props) {
     window.location.href = '/'
   }
 
-  const visibleNav = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin)
+  const visibleNav = NAV_ITEMS.filter(item => {
+    if (isViewer) return item.id === 'overview'
+    if (item.adminOnly) return isAdmin
+    return true
+  })
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -174,7 +179,7 @@ export default function AdminLayout({ profile, onClose }: Props) {
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
           {activeTab === 'overview' && (
-            <OverviewTab pending={pending} onNavigate={handleTabChange} isAdmin={isAdmin} />
+            <OverviewTab pending={pending} onNavigate={handleTabChange} isAdmin={isAdmin} isViewer={isViewer} />
           )}
           {activeTab === 'users' && <UsersTab isAdmin={isAdmin} currentUserId={profile.id} />}
           {activeTab === 'shops' && <ShopsTab isAdmin={isAdmin} />}

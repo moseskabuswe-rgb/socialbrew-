@@ -25,7 +25,6 @@ export { notifyLike, notifyComment, notifyFollow, notifyMention }
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
 const PUSH_PROMPT_KEY = 'sb_push_prompted'
-const ADMIN_USER_ID = '47e5480e-e592-44bc-9b34-1111af76ea0e'
 
 function AppContent() {
   const { profile, loading } = useAuth()
@@ -100,7 +99,7 @@ function AppContent() {
 
   // Secret logo tap handler — 5 taps within ~3s opens admin panel
   function handleLogoTap() {
-    if (profile?.id !== ADMIN_USER_ID) return
+    if (!profile || !['admin', 'moderator', 'viewer'].includes(profile.role as string)) return
     setLogoTaps(n => {
       const next = n + 1
       if (next >= 5) {
@@ -215,7 +214,7 @@ function AppContent() {
       )}
 
       {/* Admin dashboard — triggered by 5 taps on logo, admin/moderator only */}
-      {showAdminPanel && ['admin', 'moderator'].includes(profile.role as string) && (
+      {showAdminPanel && ['admin', 'moderator', 'viewer'].includes(profile.role as string) && (
         <div className="fixed inset-0 z-50">
           <AdminLayout profile={profile} onClose={() => setShowAdminPanel(false)} />
         </div>

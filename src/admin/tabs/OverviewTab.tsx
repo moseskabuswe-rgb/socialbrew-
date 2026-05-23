@@ -6,6 +6,7 @@ interface Props {
   pending: { claims: number; edits: number; shopPosts: number; reports: number }
   onNavigate: (tab: AdminTab) => void
   isAdmin?: boolean
+  isViewer?: boolean
 }
 
 interface Stats {
@@ -21,7 +22,7 @@ interface TopShop {
   count: number
 }
 
-export default function OverviewTab({ pending, onNavigate }: Props) {
+export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [topShops, setTopShops] = useState<TopShop[]>([])
   const [loadingStats, setLoadingStats] = useState(true)
@@ -93,8 +94,8 @@ export default function OverviewTab({ pending, onNavigate }: Props) {
         ))}
       </div>
 
-      {/* Pending actions */}
-      {totalPending > 0 && (
+      {/* Pending actions — hidden for viewers */}
+      {totalPending > 0 && !isViewer && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
