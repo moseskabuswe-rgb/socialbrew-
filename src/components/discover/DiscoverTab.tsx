@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AddShopForm from '../shared/AddShopForm'
 import DrinkSearchTab from './DrinkSearchTab'
-import { Search, MapPin, CheckCircle, X, RefreshCw, Coffee, Zap, Heart } from 'lucide-react'
+import { Search, MapPin, CheckCircle, X, RefreshCw, Coffee, Zap, Heart, Users, UserPlus, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
+import { notifyFollow } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import ShopDetailPage from '../shared/ShopDetailPage'
 
@@ -149,7 +150,7 @@ function formatLocation(city?: string | null, state?: string | null, country?: s
   return c
 }
 
-type SearchMode = 'shop' | 'drink'
+type SearchMode = 'shop' | 'drink' | 'friends'
 
 export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop: any) => void }) {
   const { profile } = useAuth()
@@ -173,6 +174,11 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   const [suggestSent, setSuggestSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [searchMode, setSearchMode] = useState<SearchMode>('shop')
+  const [friendQuery, setFriendQuery] = useState('')
+  const [friendResults, setFriendResults] = useState<any[]>([])
+  const [friendFollowing, setFriendFollowing] = useState<Set<string>>(new Set())
+  const [friendSearching, setFriendSearching] = useState(false)
+  const friendDebounce = useRef<any>(null)
   const searchDebounce = useRef<any>(null)
   const [followedShopIds, setFollowedShopIds] = useState<Set<string>>(new Set())
   const [followLoading, setFollowLoading] = useState<string | null>(null)
@@ -217,6 +223,45 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   useEffect(() => {
     if (userLat && userLng) loadNearby(userLat, userLng)
   }, [userLat, userLng, loadNearby])
+
+  useEffect(() => {
+    if (friendDebounce.current) clearTimeout(friendDebounce.current)
+    if (friendQuery.trim().length < 2) { setFriendResults([]); return }
+    friendDebounce.current = setTimeout(async () => {
+      setFriendSearching(true)
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, badge')
+        .or(`username.ilike.%${friendQuery.trim()}%,full_name.ilike.%${friendQuery.trim()}%`)
+        .neq('id', profile?.id || '')
+        .limit(20)
+      setFriendResults(data || [])
+      setFriendSearching(false)
+    }, 350)
+  }, [friendQuery, profile?.id])
+
+  useEffect(() => {
+    if (!profile || searchMode !== 'friends') return
+    supabase.from('follows')
+      .select('following_id')
+      .eq('follower_id', profile.id)
+      .then(({ data }) => {
+        if (data) setFriendFollowing(new Set(data.map((f: any) => f.following_id)))
+      })
+  }, [profile, searchMode])
+
+  async function toggleFriendFollow(userId: string) {
+    if (!profile) return
+    if (friendFollowing.has(userId)) {
+      await supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', userId)
+      setFriendFollowing(prev => { const n = new Set(prev); n.delete(userId); return n })
+    } else {
+      await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId })
+      await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow' })
+      notifyFollow(userId, profile.username || 'Someone')
+      setFriendFollowing(prev => new Set([...prev, userId]))
+    }
+  }
 
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current)
@@ -341,6 +386,17 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
             <Zap size={13} />
             By Drink
           </button>
+          <button
+            onClick={() => setSearchMode('friends')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+            style={searchMode === 'friends'
+              ? { background: '#fff', color: '#92400e', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
+              : { color: '#a87850' }
+            }
+          >
+            <Users size={13} />
+            Friends
+          </button>
         </div>
 
         {/* Shop search input — only in shop mode */}
@@ -373,6 +429,83 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
           </>
         )}
       </div>
+
+      {/* ── FRIENDS MODE ── */}
+      {searchMode === 'friends' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="px-4 py-3 bg-white border-b border-cream-100 flex-shrink-0">
+            <div className="flex items-center bg-cream-50 rounded-xl px-3 py-2.5 border border-cream-200 gap-2">
+              <Search size={15} className="text-coffee-400 flex-shrink-0" />
+              <input
+                value={friendQuery}
+                onChange={e => setFriendQuery(e.target.value)}
+                placeholder="Search by username or name..."
+                className="flex-1 bg-transparent text-coffee-800 text-sm placeholder-coffee-300 focus:outline-none"
+                autoFocus
+              />
+              {friendSearching && (
+                <div className="w-4 h-4 rounded-full border-2 border-caramel border-t-transparent animate-spin flex-shrink-0" />
+              )}
+              {friendQuery && !friendSearching && (
+                <button onClick={() => { setFriendQuery(''); setFriendResults([]) }}>
+                  <X size={14} className="text-coffee-400" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {!friendQuery.trim() && (
+            <div className="flex flex-col items-center py-16 px-8 text-center">
+              <div className="text-5xl mb-4">👥</div>
+              <p className="text-coffee-700 font-display font-bold text-lg">Find your people</p>
+              <p className="text-coffee-400 text-sm mt-2">Search by username or full name to find friends on Social Brew</p>
+            </div>
+          )}
+
+          {friendQuery.trim().length >= 2 && !friendSearching && friendResults.length === 0 && (
+            <div className="flex flex-col items-center py-12 px-8 text-center">
+              <div className="text-4xl mb-3">🔍</div>
+              <p className="text-coffee-700 font-semibold">No users found</p>
+              <p className="text-coffee-400 text-sm mt-1">Try a different username or name</p>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto">
+            {friendResults.map(u => {
+              const isFollowing = friendFollowing.has(u.id)
+              return (
+                <div key={u.id} className="flex items-center gap-3 px-4 py-3.5 border-b border-cream-100 bg-white">
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                    {u.avatar_url
+                      ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-caramel">
+                          <span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span>
+                        </div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-coffee-800 font-semibold text-sm">@{u.username}</p>
+                    {u.full_name && <p className="text-coffee-400 text-xs truncate">{u.full_name}</p>}
+                    {u.badge && <p className="text-caramel text-xs mt-0.5">{u.badge}</p>}
+                  </div>
+                  <button
+                    onClick={() => toggleFriendFollow(u.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 flex-shrink-0"
+                    style={isFollowing
+                      ? { background: '#f0e8df', color: '#9b7a55', border: '1px solid #e8d4b0' }
+                      : { background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', color: '#fff' }
+                    }
+                  >
+                    {isFollowing
+                      ? <><Check size={11} /> Following</>
+                      : <><UserPlus size={11} /> Follow</>
+                    }
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── DRINK MODE ── */}
       {searchMode === 'drink' && (

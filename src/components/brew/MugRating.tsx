@@ -242,9 +242,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         }
       })
 
-    // Best-effort — don't block on RPC failure
-    Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
-
     // Capture new rating ID for story creation
     const { data: newRatingForStory } = await supabase
       .from('ratings')
