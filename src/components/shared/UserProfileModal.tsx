@@ -18,6 +18,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
   const [followerCount, setFollowerCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [followPending, setFollowPending] = useState(false)
   const [visitedShops, setVisitedShops] = useState<any[]>([])
   const [activeSection, setActiveSection] = useState<'sips' | 'map'>('sips')
   const [loading, setLoading] = useState(true)
@@ -27,12 +28,14 @@ export default function UserProfileModal({ userId, onClose }: Props) {
       const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single()
       const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(name,photo_url,city,state,country,continent)').eq('user_id', userId).order('created_at', { ascending: false }).limit(8)
       const visitsRes = await supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false })
-      const { count: fCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId)
-      const { count: fgCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId)
+      const { count: fCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId).eq('status', 'accepted')
+      const { count: fgCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId).eq('status', 'accepted')
       let amFollowing = false
+      let amPending = false
       if (me) {
-        const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', me.id).eq('following_id', userId)
-        amFollowing = (count ?? 0) > 0
+        const { data: followRow } = await supabase.from('follows').select('status').eq('follower_id', me.id).eq('following_id', userId).maybeSingle()
+        amFollowing = followRow?.status === 'accepted'
+        amPending = followRow?.status === 'pending'
       }
       if (profileRes.data) setUser(profileRes.data)
       if (ratingsRes.data) setRatings(ratingsRes.data)
@@ -40,6 +43,7 @@ export default function UserProfileModal({ userId, onClose }: Props) {
       setFollowerCount(fCount ?? 0)
       setFollowingCount(fgCount ?? 0)
       setIsFollowing(amFollowing)
+      setFollowPending(amPending)
       setLoading(false)
     }
     load()
@@ -47,15 +51,15 @@ export default function UserProfileModal({ userId, onClose }: Props) {
 
   async function toggleFollow() {
     if (!me || !user) return
-    if (isFollowing) {
+    if (isFollowing || followPending) {
       await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', userId)
       setIsFollowing(false)
-      setFollowerCount(n => Math.max(0, n - 1))
+      setFollowPending(false)
+      if (isFollowing) setFollowerCount(n => Math.max(0, n - 1))
     } else {
-      await supabase.from('follows').insert({ follower_id: me.id, following_id: userId })
-      await supabase.from('notifications').insert({ user_id: userId, actor_id: me.id, type: 'follow' })
-      setIsFollowing(true)
-      setFollowerCount(n => n + 1)
+      await supabase.from('follows').insert({ follower_id: me.id, following_id: userId, status: 'pending' })
+      await supabase.from('notifications').insert({ user_id: userId, actor_id: me.id, type: 'follow_request' })
+      setFollowPending(true)
     }
   }
 
@@ -137,11 +141,11 @@ export default function UserProfileModal({ userId, onClose }: Props) {
                 {me?.id !== userId && (
                   <button onClick={toggleFollow}
                     className={`w-full mt-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-1.5 ${
-                      isFollowing
+                      (isFollowing || followPending)
                         ? 'bg-cream-100 text-coffee-700 border border-cream-300'
                         : 'bg-caramel text-white'
                     }`}>
-                    {isFollowing ? '✓ Following' : <><UserPlus size={15} /> Follow</>}
+                    {isFollowing ? '✓ Following' : followPending ? '✓ Requested' : <><UserPlus size={15} /> Follow</>}
                   </button>
                 )}
               </div>

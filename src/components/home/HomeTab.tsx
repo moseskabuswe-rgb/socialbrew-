@@ -1432,8 +1432,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                     <button
                       onClick={async () => {
                         if (!profile || isFollowing) return
-                        await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id })
-                        await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow' })
+                        await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id, status: 'pending' })
+                        await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow_request' })
                         notifyFollow(u.id, profile.username || 'Someone')
                         setFollowedSuggestions(prev => new Set([...prev, u.id]))
                       }}
@@ -1443,7 +1443,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                         : { background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', color: '#fff' }
                       }
                     >
-                      {isFollowing ? '✓ Following' : 'Follow'}
+                      {isFollowing ? '✓ Requested' : 'Follow'}
                     </button>
                   </div>
                 )

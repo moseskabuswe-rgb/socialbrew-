@@ -31,39 +31,39 @@ type Props = {
 
 // Standalone follow button with its own state
 function FollowButton({ targetId, meId }: { targetId: string; meId?: string }) {
-  const [isFollowing, setIsFollowing] = useState<boolean | null>(null)
+  const [followStatus, setFollowStatus] = useState<'none' | 'pending' | 'accepted' | null>(null)
 
   useEffect(() => {
     if (!meId) return
-    supabase.from('follows').select('*', { count: 'exact', head: true })
+    supabase.from('follows').select('status')
       .eq('follower_id', meId).eq('following_id', targetId)
-      .then(({ count }) => setIsFollowing((count ?? 0) > 0))
+      .maybeSingle()
+      .then(({ data }) => setFollowStatus(data ? (data.status as 'pending' | 'accepted') : 'none'))
   }, [targetId, meId])
 
   async function toggle(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!meId || isFollowing === null) return
-    if (isFollowing) {
+    if (!meId || followStatus === null) return
+    if (followStatus !== 'none') {
       await supabase.from('follows').delete().eq('follower_id', meId).eq('following_id', targetId)
-      setIsFollowing(false)
+      setFollowStatus('none')
     } else {
-      await supabase.from('follows').insert({ follower_id: meId, following_id: targetId })
-      await supabase.from('notifications').insert({ user_id: targetId, actor_id: meId, type: 'follow' })
-      // Send push notification to followed user
+      await supabase.from('follows').insert({ follower_id: meId, following_id: targetId, status: 'pending' })
+      await supabase.from('notifications').insert({ user_id: targetId, actor_id: meId, type: 'follow_request' })
       const { data: me } = await supabase.from('profiles').select('username').eq('id', meId).single()
       if (me?.username) notifyFollow(targetId, me.username, meId)
-      setIsFollowing(true)
+      setFollowStatus('pending')
     }
   }
 
-  if (isFollowing === null) return <div className="w-16 h-7 bg-cream-200 rounded-full animate-pulse" />
+  if (followStatus === null) return <div className="w-16 h-7 bg-cream-200 rounded-full animate-pulse" />
 
   return (
     <button onClick={toggle}
       className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-        isFollowing ? 'bg-cream-100 text-coffee-600 border border-cream-300' : 'bg-caramel text-white'
+        followStatus === 'none' ? 'bg-caramel text-white' : 'bg-cream-100 text-coffee-600 border border-cream-300'
       }`}>
-      {isFollowing ? 'Following' : 'Follow'}
+      {followStatus === 'accepted' ? 'Following' : followStatus === 'pending' ? 'Requested' : 'Follow'}
     </button>
   )
 }
@@ -87,6 +87,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   const [followers, setFollowers] = useState<any[]>([])
   const [following, setFollowing] = useState<any[]>([])
   const [isFollowing, setIsFollowing] = useState(false)
+  const [followPending, setFollowPending] = useState(false)
   const [activeSection, setActiveSection] = useState<Section>('sips')
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
@@ -101,8 +102,8 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(id,name,photo_url,city,state,country,continent,address,lat,lng)').eq('user_id', userId).order('created_at', { ascending: false })
       const visitsRes = await supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false })
       const wishlistRes = await supabase.from('wishlist').select('*').eq('user_id', userId).order('created_at', { ascending: false })
-      const followersRes = await supabase.from('follows').select('follower_id, profiles!follows_follower_id_fkey(id,username,full_name,avatar_url,badge)').eq('following_id', userId)
-      const followingRes = await supabase.from('follows').select('following_id, profiles!follows_following_id_fkey(id,username,full_name,avatar_url,badge)').eq('follower_id', userId)
+      const followersRes = await supabase.from('follows').select('follower_id, profiles!follows_follower_id_fkey(id,username,full_name,avatar_url,badge)').eq('following_id', userId).eq('status', 'accepted')
+      const followingRes = await supabase.from('follows').select('following_id, profiles!follows_following_id_fkey(id,username,full_name,avatar_url,badge)').eq('follower_id', userId).eq('status', 'accepted')
 
       if (profileRes.data) setUser(profileRes.data)
       if (ratingsRes.data) setRatings(ratingsRes.data)
@@ -132,8 +133,9 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       if (followingRes.data) setFollowing(followingRes.data.map((f: any) => f.profiles).filter(Boolean))
 
       if (me) {
-        const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', me.id).eq('following_id', userId)
-        setIsFollowing((count ?? 0) > 0)
+        const { data: followRow } = await supabase.from('follows').select('status').eq('follower_id', me.id).eq('following_id', userId).maybeSingle()
+        setIsFollowing(followRow?.status === 'accepted')
+        setFollowPending(followRow?.status === 'pending')
       }
       setLoading(false)
     }
@@ -142,15 +144,15 @@ export default function UserProfilePage({ userId, onBack }: Props) {
 
   async function toggleFollow() {
     if (!me || !user) return
-    if (isFollowing) {
+    if (isFollowing || followPending) {
       await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', userId)
       setIsFollowing(false)
+      setFollowPending(false)
       setFollowers(prev => prev.filter(f => f.id !== me.id))
     } else {
-      await supabase.from('follows').insert({ follower_id: me.id, following_id: userId })
-      await supabase.from('notifications').insert({ user_id: userId, actor_id: me.id, type: 'follow' })
-      setIsFollowing(true)
-      setFollowers(prev => [...prev, { id: me.id, username: me.username, avatar_url: me.avatar_url, badge: me.badge }])
+      await supabase.from('follows').insert({ follower_id: me.id, following_id: userId, status: 'pending' })
+      await supabase.from('notifications').insert({ user_id: userId, actor_id: me.id, type: 'follow_request' })
+      setFollowPending(true)
     }
   }
 
@@ -303,9 +305,9 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           {!isOwnProfile && (
             <button onClick={toggleFollow}
               className={`w-full mt-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-1.5 ${
-                isFollowing ? 'bg-cream-100 text-coffee-700 border border-cream-300' : 'bg-caramel text-white'
+                (isFollowing || followPending) ? 'bg-cream-100 text-coffee-700 border border-cream-300' : 'bg-caramel text-white'
               }`}>
-              {isFollowing ? <><Check size={15} /> Following</> : <><UserPlus size={15} /> Follow</>}
+              {isFollowing ? <><Check size={15} /> Following</> : followPending ? <><Check size={15} /> Requested</> : <><UserPlus size={15} /> Follow</>}
             </button>
           )}
         </div>

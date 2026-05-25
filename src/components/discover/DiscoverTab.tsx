@@ -245,10 +245,10 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   useEffect(() => {
     if (!profile || searchMode !== 'friends') return
     supabase.from('follows')
-      .select('following_id')
+      .select('following_id, status')
       .eq('follower_id', profile.id)
       .then(({ data }) => {
-        if (data) setFriendFollowing(new Set(data.map((f: any) => f.following_id)))
+        if (data) setFriendFollowing(new Set(data.filter((f: any) => f.status === 'accepted').map((f: any) => f.following_id)))
       })
   }, [profile, searchMode])
 
@@ -258,8 +258,8 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
       await supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', userId)
       setFriendFollowing(prev => { const n = new Set(prev); n.delete(userId); return n })
     } else {
-      await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId })
-      await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow' })
+      await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId, status: 'pending' })
+      await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow_request' })
       notifyFollow(userId, profile.username || 'Someone')
       setFriendFollowing(prev => new Set([...prev, userId]))
     }

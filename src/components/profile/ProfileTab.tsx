@@ -50,8 +50,8 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
       await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', targetId)
       setFollowing(prev => { const n = new Set(prev); n.delete(targetId); return n })
     } else {
-      await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId })
-      await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow' })
+      await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId, status: 'pending' })
+      await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow_request' })
       notifyFollow(targetId, me.username || 'Someone', me.id)
       setFollowing(prev => new Set([...prev, targetId]))
     }

@@ -7,7 +7,7 @@ import { registerPushNotifications } from '../../lib/push'
 
 type Notification = {
   id: string
-  type: 'like' | 'comment' | 'follow' | 'new_post' | 'mention' | 'coffee_date' | 'story'
+  type: 'like' | 'comment' | 'follow' | 'follow_request' | 'new_post' | 'mention' | 'coffee_date' | 'story'
   content?: string
   read: boolean
   created_at: string
@@ -29,6 +29,7 @@ function NotifIcon({ type }: { type: string }) {
   if (type === 'like') return <span className="text-base">❤️</span>
   if (type === 'comment') return <span className="text-base">💬</span>
   if (type === 'follow') return <span className="text-base">👥</span>
+  if (type === 'follow_request') return <span className="text-base">🤝</span>
   if (type === 'mention') return <span className="text-base">@</span>
   if (type === 'new_post') return <span className="text-base">☕</span>
   if (type === 'coffee_date') return <span className="text-base">📅</span>
@@ -40,6 +41,7 @@ function notifText(n: Notification) {
   if (n.type === 'like') return 'liked your post'
   if (n.type === 'comment') return 'commented on your post'
   if (n.type === 'follow') return 'started following you'
+  if (n.type === 'follow_request') return 'sent you a follow request'
   if (n.type === 'mention') return 'mentioned you in a comment'
   if (n.type === 'coffee_date') return n.content || 'invited you for a coffee date'
   if (n.type === 'story') return 'posted a new story'
@@ -107,6 +109,22 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
   }, [open])
+
+  async function acceptRequest(n: Notification) {
+    if (!profile) return
+    await supabase.from('follows').update({ status: 'accepted' }).eq('follower_id', n.actor_id).eq('following_id', profile.id)
+    await supabase.from('notifications').delete().eq('id', n.id)
+    setNotifications(prev => prev.filter(x => x.id !== n.id))
+    setUnread(prev => Math.max(0, prev - 1))
+  }
+
+  async function declineRequest(n: Notification) {
+    if (!profile) return
+    await supabase.from('follows').delete().eq('follower_id', n.actor_id).eq('following_id', profile.id)
+    await supabase.from('notifications').delete().eq('id', n.id)
+    setNotifications(prev => prev.filter(x => x.id !== n.id))
+    setUnread(prev => Math.max(0, prev - 1))
+  }
 
   async function openPanel() {
     setOpen(true)
@@ -209,17 +227,8 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
                 )}
               </div>
             )}
-            {notifications.map(n => (
-              <button key={n.id}
-                onClick={() => {
-                  setOpen(false)
-                  if (!onNavigate) return
-                  if (n.type === 'follow') onNavigate('profile', n.actor_id)
-                  if (n.type === 'coffee_date') onNavigate?.('profile', n.actor_id)
-                  if (n.type === 'story') onNavigate?.('profile', n.actor_id)
-                  else if (n.rating_id) onNavigate('post', n.rating_id)
-                }}
-                className={`w-full flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors text-left ${!n.read ? 'bg-amber-50' : 'bg-white'} hover:bg-cream-50`}>
+            {notifications.map(n => {
+              const avatar = (
                 <div className="relative flex-shrink-0" style={{ minWidth: 36 }}>
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200">
                     {n.actor?.avatar_url
@@ -232,16 +241,61 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
                     <NotifIcon type={n.type} />
                   </div>
                 </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-coffee-700 text-sm leading-snug">
-                    <span className="font-semibold">{n.actor?.username}</span>{' '}
-                    <span className="text-coffee-500">{notifText(n)}</span>
-                  </p>
-                  <p className="text-coffee-400 text-xs mt-0.5">{timeAgo(n.created_at)}</p>
-                </div>
-                {!n.read && <div className="w-2 h-2 rounded-full bg-caramel mt-1.5 flex-shrink-0" />}
-              </button>
-            ))}
+              )
+
+              if (n.type === 'follow_request') {
+                return (
+                  <div key={n.id} className="flex items-start gap-3 px-4 py-3 border-b border-cream-100 bg-amber-50">
+                    {avatar}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-coffee-700 text-sm leading-snug">
+                        <span className="font-semibold">{n.actor?.username}</span>{' '}
+                        <span className="text-coffee-500">sent you a follow request</span>
+                      </p>
+                      <p className="text-coffee-400 text-xs mt-0.5 mb-2">{timeAgo(n.created_at)}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => acceptRequest(n)}
+                          className="px-4 py-1.5 rounded-full text-white text-xs font-semibold"
+                          style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => declineRequest(n)}
+                          className="px-4 py-1.5 rounded-full text-xs font-semibold bg-cream-100 text-coffee-600 border border-cream-300"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <button key={n.id}
+                  onClick={() => {
+                    setOpen(false)
+                    if (!onNavigate) return
+                    if (n.type === 'follow') onNavigate('profile', n.actor_id)
+                    if (n.type === 'coffee_date') onNavigate?.('profile', n.actor_id)
+                    if (n.type === 'story') onNavigate?.('profile', n.actor_id)
+                    else if (n.rating_id) onNavigate('post', n.rating_id)
+                  }}
+                  className={`w-full flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors text-left ${!n.read ? 'bg-amber-50' : 'bg-white'} hover:bg-cream-50`}>
+                  {avatar}
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <p className="text-coffee-700 text-sm leading-snug">
+                      <span className="font-semibold">{n.actor?.username}</span>{' '}
+                      <span className="text-coffee-500">{notifText(n)}</span>
+                    </p>
+                    <p className="text-coffee-400 text-xs mt-0.5">{timeAgo(n.created_at)}</p>
+                  </div>
+                  {!n.read && <div className="w-2 h-2 rounded-full bg-caramel mt-1.5 flex-shrink-0" />}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
