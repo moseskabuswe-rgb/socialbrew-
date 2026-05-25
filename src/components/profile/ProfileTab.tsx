@@ -992,6 +992,8 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           type="badge"
           badge={badgeInfo.current}
           onClose={() => setShowBadgeExplainer(false)}
+          explorationStats={explorationStats}
+          visitCount={ratings.length}
         />
       )}
       {showStreakExplainer && (

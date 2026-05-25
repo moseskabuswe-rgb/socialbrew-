@@ -51,7 +51,7 @@ function FollowButton({ targetId, meId }: { targetId: string; meId?: string }) {
       await supabase.from('notifications').insert({ user_id: targetId, actor_id: meId, type: 'follow' })
       // Send push notification to followed user
       const { data: me } = await supabase.from('profiles').select('username').eq('id', meId).single()
-      if (me?.username) notifyFollow(targetId, me.username)
+      if (me?.username) notifyFollow(targetId, me.username, meId)
       setIsFollowing(true)
     }
   }

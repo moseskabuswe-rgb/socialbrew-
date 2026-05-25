@@ -47,8 +47,8 @@ create table coffee_shops (
 
 alter table coffee_shops enable row level security;
 create policy "Coffee shops viewable by everyone" on coffee_shops for select using (true);
-create policy "Only admins can insert shops" on coffee_shops for insert with check (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+create policy "Authenticated users can add community shops" on coffee_shops for insert with check (
+  auth.uid() is not null
 );
 create policy "Only admins can update shops" on coffee_shops for update using (
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')

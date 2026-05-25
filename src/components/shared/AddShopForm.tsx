@@ -101,7 +101,6 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
 
       if (existing) {
         setError(`"${existing.name}" in ${existing.city} is already in Social Brew`)
-        setSubmitting(false)
         return
       }
 
@@ -131,13 +130,15 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
         .single()
 
       if (insertErr) throw insertErr
+      if (!newShop) throw new Error('No data returned from insert')
 
       onShopCreated(newShop)
     } catch (err: any) {
       setError('Something went wrong. Please try again.')
       console.error(err)
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   return (

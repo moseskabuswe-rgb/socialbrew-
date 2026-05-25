@@ -6,7 +6,7 @@
  */
 
 import { X } from 'lucide-react'
-import { BADGE_TIERS } from '../../lib/badges'
+import { BADGE_TIERS, calcExplorationScore } from '../../lib/badges'
 import type { BadgeTier } from '../../lib/badges'
 
 interface Props {
@@ -14,9 +14,24 @@ interface Props {
   badge?: { label: string; emoji: string; color: string }
   streak?: number
   onClose: () => void
+  explorationStats?: {
+    uniqueShops: number
+    uniqueCities: number
+    uniqueStates: number
+    uniqueCountries: number
+    uniqueContinents: number
+    firstBrews: number
+    streakWeeks: number
+  }
+  visitCount?: number
 }
 
-export default function BadgeExplainerModal({ type, badge, streak, onClose }: Props) {
+export default function BadgeExplainerModal({ type, badge, streak, onClose, explorationStats, visitCount: _visitCount }: Props) {
+  const currentTier = BADGE_TIERS.find(t => t.label === badge?.label)
+  const showExplorationCard = !!explorationStats
+  const explorationScore = explorationStats ? calcExplorationScore(explorationStats) : 0
+  const explorationProgress = Math.min(100, Math.round((explorationScore / 500) * 100))
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center"
       style={{ background: 'rgba(8,4,1,0.85)' }}
@@ -45,6 +60,47 @@ export default function BadgeExplainerModal({ type, badge, streak, onClose }: Pr
             <p className="text-coffee-300 text-xs mb-4 leading-relaxed">
               Levels 1–6 are based on rated visits. Levels 7–16 use an exploration score combining unique shops, cities, countries and continents.
             </p>
+
+            {/* Exploration score card — Brew Master and above only */}
+            {showExplorationCard && explorationStats && (
+              <div className="mb-5 p-4 rounded-2xl border border-cream-200 bg-cream-50">
+                <p className="font-bold text-coffee-700 text-sm mb-3">
+                  {badge?.label === 'Brew Master' || currentTier?.minScore !== undefined
+                    ? "You've mastered visits. Now it's about exploration."
+                    : 'Your exploration score — start building it now.'}
+                </p>
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-coffee-600 text-xs font-semibold">Your exploration score</p>
+                    <p className="text-coffee-800 font-bold text-sm">{explorationScore.toLocaleString()} / 500</p>
+                  </div>
+                  <div className="h-2 bg-cream-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${explorationProgress}%`, background: 'linear-gradient(90deg, #c8853a, #2980b9)' }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5 mb-3">
+                  {[
+                    { label: 'shops',        count: explorationStats.uniqueShops,      pts: 1   },
+                    { label: 'cities',       count: explorationStats.uniqueCities,     pts: 5   },
+                    { label: 'states',       count: explorationStats.uniqueStates,     pts: 15  },
+                    { label: 'countries',    count: explorationStats.uniqueCountries,  pts: 50  },
+                    { label: 'continents',   count: explorationStats.uniqueContinents, pts: 200 },
+                    { label: 'streak weeks', count: explorationStats.streakWeeks,      pts: 2   },
+                  ].map(({ label, count, pts }) => (
+                    <div key={label} className="flex items-center justify-between text-xs">
+                      <span className="text-coffee-500">{count} {label} × {pts} pt{pts > 1 ? 's' : ''}</span>
+                      <span className="text-coffee-700 font-semibold">{count * pts} pts</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-coffee-400 text-xs leading-relaxed">
+                  Visit new shops in new cities, states, and countries to grow your score fastest.
+                </p>
+              </div>
+            )}
 
             {/* Group: Foundation levels */}
             <p className="text-coffee-300 text-xs font-semibold uppercase tracking-widest mb-2">Foundation</p>

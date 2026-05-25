@@ -280,7 +280,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       // Notify post owner
       const ownerId = rating.profiles?.id || rating.user_id
       if (ownerId && ownerId !== profile.id) {
-        notifyLike(ownerId, profile.username || 'Someone')
+        notifyLike(ownerId, profile.username || 'Someone', rating.id)
       }
     }
   }
@@ -361,7 +361,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       setComments(prev => [...prev, data])
       // Notify post owner
       const ownerId = rating.profiles?.id || rating.user_id
-      if (ownerId && ownerId !== profile.id) notifyComment(ownerId, profile.username || 'Someone', content)
+      if (ownerId && ownerId !== profile.id) notifyComment(ownerId, profile.username || 'Someone', content, rating.id)
       // Notify @mentions
       const mentioned = content.match(/@(\w+)/g)
       if (mentioned) {
@@ -369,7 +369,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           const username = handle.slice(1)
           const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
           if (mentionedUser?.id && mentionedUser.id !== profile.id) {
-            notifyMention(mentionedUser.id, profile.username || 'Someone', content)
+            notifyMention(mentionedUser.id, profile.username || 'Someone', content, rating.id)
           }
         }
       }
