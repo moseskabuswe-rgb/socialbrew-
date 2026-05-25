@@ -9,7 +9,7 @@ import LikedByModal from '../shared/LikedByModal'
 import EditPostModal from '../shared/EditPostModal'
 import StoriesBar from '../shared/StoriesBar'
 import { trackEvent } from '../../lib/analytics'
-import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
+import { notifyLike, notifyComment, notifyMention, notifyDM, notifyFollow } from '../../lib/push'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import ShopsFeed from '../shops/ShopsFeed'
 import PostDetailModal from '../shared/PostDetailModal'
@@ -1042,6 +1042,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({})
   const [showReactions, setShowReactions] = useState<string | null>(null)
   const [feedTab, setFeedTab] = useState<'people' | 'shops'>('people')
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([])
+  const [followedSuggestions, setFollowedSuggestions] = useState<Set<string>>(new Set())
 
   const loadFeed = useCallback(async (reset = true) => {
     if (reset) setLoading(true)
@@ -1129,6 +1131,17 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
       supabase.from('likes').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setLikedIds(new Set(data.map((l: any) => l.rating_id))) })
       supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setSavedIds(new Set(data.map((s: any) => s.rating_id))) })
       supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id).then(({ data }) => { if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id))) })
+      // Load friend suggestions: people not yet followed
+      supabase.from('follows').select('following_id').eq('follower_id', profile.id)
+        .then(async ({ data: followed }) => {
+          const followedIds = new Set(followed?.map((f: any) => f.following_id) || [])
+          const { data: profiles } = await supabase.from('profiles')
+            .select('id, username, full_name, avatar_url, badge')
+            .neq('id', profile.id)
+            .limit(30)
+          const suggestions = (profiles || []).filter(p => !followedIds.has(p.id)).slice(0, 8)
+          setSuggestedUsers(suggestions)
+        })
     }
 
     // Realtime: new posts, likes, comments update automatically
@@ -1398,6 +1411,47 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             </div>
           </button>
         )}
+        {/* Friend suggestions strip */}
+        {!loading && suggestedUsers.length > 0 && (
+          <div className="mx-4 mt-3 mb-1 bg-white rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+            <p className="px-4 pt-3 pb-1 text-coffee-700 font-semibold text-sm">People you might know</p>
+            <div className="flex gap-4 overflow-x-auto px-4 pb-3 pt-1 scrollbar-hide">
+              {suggestedUsers.map(u => {
+                const isFollowing = followedSuggestions.has(u.id)
+                return (
+                  <div key={u.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-20">
+                    <button onClick={() => setActiveUserProfile(u.id)} className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                      {u.avatar_url
+                        ? <img src={u.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
+                            <span className="text-white font-bold">{u.username?.[0]?.toUpperCase()}</span>
+                          </div>}
+                    </button>
+                    <p className="text-coffee-700 text-xs font-medium text-center truncate w-full">@{u.username}</p>
+                    {u.badge && <p className="text-caramel text-center truncate w-full" style={{ fontSize: 10 }}>{u.badge}</p>}
+                    <button
+                      onClick={async () => {
+                        if (!profile || isFollowing) return
+                        await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id })
+                        await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow' })
+                        notifyFollow(u.id, profile.username || 'Someone')
+                        setFollowedSuggestions(prev => new Set([...prev, u.id]))
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-full font-semibold transition-all active:scale-95"
+                      style={isFollowing
+                        ? { background: '#f0e8df', color: '#9b7a55' }
+                        : { background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', color: '#fff' }
+                      }
+                    >
+                      {isFollowing ? '✓ Following' : 'Follow'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {visibleRatings.map(rating => {
           const shop = rating.coffee_shops as any
           const user = rating.profiles as any

@@ -7,6 +7,7 @@ import type { CoffeeShop } from '../../lib/supabase'
 import { notifyFollow } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
 import ShopDetailPage from '../shared/ShopDetailPage'
+import UserProfilePage from '../shared/UserProfilePage'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
 
@@ -174,6 +175,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   const [suggestSent, setSuggestSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [searchMode, setSearchMode] = useState<SearchMode>('shop')
+  const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [friendQuery, setFriendQuery] = useState('')
   const [friendResults, setFriendResults] = useState<any[]>([])
   const [friendFollowing, setFriendFollowing] = useState<Set<string>>(new Set())
@@ -475,18 +477,20 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
               const isFollowing = friendFollowing.has(u.id)
               return (
                 <div key={u.id} className="flex items-center gap-3 px-4 py-3.5 border-b border-cream-100 bg-white">
-                  <div className="w-11 h-11 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                    {u.avatar_url
-                      ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-caramel">
-                          <span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span>
-                        </div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-coffee-800 font-semibold text-sm">@{u.username}</p>
-                    {u.full_name && <p className="text-coffee-400 text-xs truncate">{u.full_name}</p>}
-                    {u.badge && <p className="text-caramel text-xs mt-0.5">{u.badge}</p>}
-                  </div>
+                  <button onClick={() => setSelectedUser(u.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <div className="w-11 h-11 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                      {u.avatar_url
+                        ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center bg-caramel">
+                            <span className="text-white font-bold text-sm">{u.username?.[0]?.toUpperCase()}</span>
+                          </div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-coffee-800 font-semibold text-sm">@{u.username}</p>
+                      {u.full_name && <p className="text-coffee-400 text-xs truncate">{u.full_name}</p>}
+                      {u.badge && <p className="text-caramel text-xs mt-0.5">{u.badge}</p>}
+                    </div>
+                  </button>
                   <button
                     onClick={() => toggleFriendFollow(u.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 flex-shrink-0"
@@ -706,6 +710,11 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
 
       {selectedShop && (
         <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} onNavigateToBrew={onNavigateToBrew} />
+      )}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
+          <UserProfilePage userId={selectedUser} onBack={() => setSelectedUser(null)} />
+        </div>
       )}
     </div>
   )

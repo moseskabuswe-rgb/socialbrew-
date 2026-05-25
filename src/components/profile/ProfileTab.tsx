@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Search, Plus, Trash2 } from 'lucide-react'
+import { Settings, MapPin, LogOut, Coffee, Camera, X, Check, ArrowLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { getBadge, TIER_LABELS } from '../../lib/badges'
@@ -528,95 +528,6 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     </>
   )
 }
-// ── FIND FRIENDS MODAL ───────────────────────────────────
-function FindFriendsModal({ onClose, onViewProfile }: { onClose: () => void; onViewProfile: (id: string) => void }) {
-  const { profile } = useAuth()
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<any[]>([])
-  const [following, setFollowing] = useState<Set<string>>(new Set())
-  const [searching, setSearching] = useState(false)
-  useEffect(() => {
-    if (!profile) return
-    supabase.from('follows').select('following_id').eq('follower_id', profile.id)
-      .then(({ data }) => { if (data) setFollowing(new Set(data.map((f: any) => f.following_id))) })
-  }, [profile])
-  async function search(q: string) {
-    setQuery(q)
-    if (q.trim().length < 2) { setResults([]); return }
-    setSearching(true)
-    const { data } = await supabase.from('profiles')
-      .select('id, username, full_name, avatar_url, badge')
-      .ilike('username', `%${q}%`)
-      .neq('id', profile?.id)
-      .limit(10)
-    setResults(data || [])
-    setSearching(false)
-  }
-  async function toggleFollow(userId: string, e: React.MouseEvent) {
-    e.stopPropagation()
-    if (!profile) return
-    if (following.has(userId)) {
-      await supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', userId)
-      setFollowing(prev => { const n = new Set(prev); n.delete(userId); return n })
-    } else {
-      await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId })
-      await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow' })
-      notifyFollow(userId, profile.username || 'Someone', profile.id)
-      setFollowing(prev => new Set([...prev, userId]))
-    }
-  }
-  return (
-    <div className="fixed inset-0 z-50 bg-cream-100 flex flex-col">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white flex-shrink-0">
-        <button onClick={onClose} className="text-coffee-500"><ArrowLeft size={22} /></button>
-        <h3 className="font-display font-bold text-coffee-800 text-lg flex-1">Find Friends</h3>
-      </div>
-      <div className="px-4 py-3 bg-white border-b border-cream-100 flex-shrink-0">
-        <div className="flex items-center bg-cream-50 rounded-xl px-3 py-2.5 border border-cream-200 gap-2">
-          <Search size={15} className="text-coffee-400 flex-shrink-0" />
-          <input value={query} onChange={e => search(e.target.value)} placeholder="Search by username..."
-            autoFocus className="flex-1 bg-transparent text-coffee-800 text-sm placeholder-coffee-300 focus:outline-none" />
-          {searching && <div className="w-4 h-4 rounded-full border-2 border-caramel border-t-transparent animate-spin flex-shrink-0" />}
-          {query.length > 0 && !searching && <button onClick={() => { setQuery(''); setResults([]) }} className="text-coffee-300"><X size={14} /></button>}
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {query.length < 2 && (
-          <div className="text-center py-16">
-            <p className="text-4xl mb-3">👥</p>
-            <p className="text-coffee-600 font-display text-lg">Find your coffee crew</p>
-            <p className="text-coffee-400 text-sm mt-1">Type a username to search</p>
-          </div>
-        )}
-        {query.length >= 2 && !searching && results.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-3xl mb-2">🔍</p>
-            <p className="text-coffee-500">No users found for "{query}"</p>
-          </div>
-        )}
-        {results.map(user => (
-          <button key={user.id} onClick={() => { onClose(); onViewProfile(user.id) }}
-            className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-cream-100 bg-white hover:bg-cream-50 transition-colors text-left">
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-              {user.avatar_url
-                ? <img src={cachedUrl(user.avatar_url)} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
-                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500"><span className="text-white font-bold">{user.username[0].toUpperCase()}</span></div>}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-coffee-800 font-semibold text-sm">{user.username}</p>
-              {user.full_name && <p className="text-coffee-500 text-xs">{user.full_name}</p>}
-              <p className="text-caramel text-xs">{user.badge || 'Coffee Curious'}</p>
-            </div>
-            <button onClick={e => toggleFollow(user.id, e)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${following.has(user.id) ? 'bg-cream-100 text-coffee-600 border border-cream-300' : 'bg-caramel text-white'}`}>
-              {following.has(user.id) ? 'Following' : 'Follow'}
-            </button>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
 export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop?: any) => void }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
@@ -634,7 +545,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [showStreakExplainer, setShowStreakExplainer] = useState(false)
   const [showFollowers, setShowFollowers] = useState<'followers' | 'following' | null>(null)
   const [showShops, setShowShops] = useState(false)
-  const [showFindFriends, setShowFindFriends] = useState(false)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -733,9 +643,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
       <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-coffee-800">Profile</h1>
         <div className="flex items-center gap-1">
-          <button onClick={() => setShowFindFriends(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
-            <Search size={20} />
-          </button>
           <button onClick={() => setShowSettings(true)} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <Settings size={22} />
           </button>
@@ -1003,7 +910,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           onClose={() => setShowStreakExplainer(false)}
         />
       )}
-      {showFindFriends && <FindFriendsModal onClose={() => setShowFindFriends(false)} onViewProfile={(id) => { setShowFindFriends(false); setViewingUserId(id) }} />}
       {viewingUserId && (
         <div className="fixed inset-0 z-50 bg-cream-100 overflow-y-auto">
           <UserProfilePage userId={viewingUserId} onBack={() => setViewingUserId(null)} />
