@@ -141,6 +141,20 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       reviewed_by: currentUserId,
       reviewed_at: new Date().toISOString(),
     }).eq('id', post.id)
+    // Notify all followers of this shop about the new post
+    const { data: followers } = await supabase
+      .from('shop_follows').select('user_id').eq('shop_id', post.shop_id)
+    if (followers && followers.length > 0) {
+      await supabase.from('notifications').insert(
+        followers.map((f: any) => ({
+          user_id: f.user_id,
+          actor_id: null,
+          type: 'shop_post',
+          rating_id: null,
+          read: false,
+        }))
+      )
+    }
     setWorking(false)
     fetchAll()
     onPendingChange()
@@ -289,14 +303,14 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       {/* Approved token toast */}
       {approvedToken && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-xl max-w-sm w-full mx-4">
-          <p className="text-xs font-medium mb-1">Claim approved — invite token (7 days):</p>
+          <p className="text-xs font-medium mb-1">Claim approved — send this invite link (expires in 7 days):</p>
           <div className="flex items-center gap-2">
-            <code className="text-xs font-mono flex-1 truncate text-amber-300">{approvedToken}</code>
+            <code className="text-xs font-mono flex-1 truncate text-amber-300">{window.location.origin}/portal/invite?token={approvedToken}</code>
             <button
-              onClick={() => { navigator.clipboard.writeText(approvedToken); }}
+              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/portal/invite?token=${approvedToken}`) }}
               className="text-xs text-gray-400 hover:text-white flex-shrink-0"
             >
-              Copy
+              Copy URL
             </button>
           </div>
           <button onClick={() => setApprovedToken(null)} className="mt-2 text-xs text-gray-400 hover:text-white">Dismiss</button>

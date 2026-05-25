@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AddShopForm from '../shared/AddShopForm'
 import DrinkSearchTab from './DrinkSearchTab'
-import { Search, MapPin, CheckCircle, X, RefreshCw, Coffee, Zap } from 'lucide-react'
+import { Search, MapPin, CheckCircle, X, RefreshCw, Coffee, Zap, Heart } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 import ShopDetailPage from '../shared/ShopDetailPage'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
@@ -151,6 +152,7 @@ function formatLocation(city?: string | null, state?: string | null, country?: s
 type SearchMode = 'shop' | 'drink'
 
 export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop: any) => void }) {
+  const { profile } = useAuth()
   const [dbShops, setDbShops] = useState<CoffeeShop[]>([])
   const [nearbyShops, setNearbyShops] = useState<Partial<CoffeeShop>[]>([])
   const [searchResults, setSearchResults] = useState<Partial<CoffeeShop>[]>([])
@@ -172,6 +174,17 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   const [submitting, setSubmitting] = useState(false)
   const [searchMode, setSearchMode] = useState<SearchMode>('shop')
   const searchDebounce = useRef<any>(null)
+  const [followedShopIds, setFollowedShopIds] = useState<Set<string>>(new Set())
+  const [followLoading, setFollowLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (profile?.id) {
+      supabase.from('shop_follows').select('shop_id').eq('user_id', profile.id)
+        .then(({ data }) => {
+          if (data) setFollowedShopIds(new Set(data.map((r: any) => r.shop_id)))
+        })
+    }
+  }, [profile?.id])
 
   useEffect(() => {
     async function load() {
@@ -264,6 +277,23 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
     })
     setSuggestSent(true)
     setSubmitting(false)
+  }
+
+  async function toggleFollowShop(e: React.MouseEvent, shopId: string) {
+    e.stopPropagation()
+    if (!profile?.id || followLoading) return
+    setFollowLoading(shopId)
+    if (followedShopIds.has(shopId)) {
+      await supabase.from('shop_follows').delete().eq('user_id', profile.id).eq('shop_id', shopId)
+      setFollowedShopIds(prev => { const s = new Set(prev); s.delete(shopId); return s })
+    } else {
+      await supabase.from('shop_follows').upsert(
+        { user_id: profile.id, shop_id: shopId },
+        { onConflict: 'user_id,shop_id' }
+      )
+      setFollowedShopIds(prev => new Set([...prev, shopId]))
+    }
+    setFollowLoading(null)
   }
 
   const isLoading = locating || loading || (loadingNearby && !isSearching && filtered.length === 0)
@@ -483,6 +513,19 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
                         <span className="text-base">☕</span>
                         <span className="text-coffee-800 text-xs font-bold">{(shop as any).avg_fill}%</span>
                       </div>
+                    )}
+                    {isInDb && profile && (
+                      <button
+                        onClick={e => toggleFollowShop(e, shop.id as string)}
+                        disabled={followLoading === shop.id}
+                        className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow flex items-center justify-center disabled:opacity-50"
+                      >
+                        <Heart
+                          size={14}
+                          fill={followedShopIds.has(shop.id as string) ? '#c8853a' : 'none'}
+                          className={followedShopIds.has(shop.id as string) ? 'text-caramel' : 'text-coffee-500'}
+                        />
+                      </button>
                     )}
                   </div>
 

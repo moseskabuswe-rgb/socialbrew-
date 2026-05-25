@@ -11,7 +11,9 @@ import StoriesBar from '../shared/StoriesBar'
 import { trackEvent } from '../../lib/analytics'
 import { notifyLike, notifyComment, notifyMention, notifyDM } from '../../lib/push'
 import ShopDetailPage from '../shared/ShopDetailPage'
+import ShopsFeed from '../shops/ShopsFeed'
 import PostDetailModal from '../shared/PostDetailModal'
+import MessagingInbox from '../messaging/MessagingInbox'
 import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 import { cachedUrl } from '../../lib/storageUrl'
@@ -1029,6 +1031,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [editingPost, setEditingPost] = useState<any>(null)
   const [editCaption, setEditCaption] = useState('') // legacy — kept for comment editing
   const [showMessages, setShowMessages] = useState(false)
+  const [showNewInbox, setShowNewInbox] = useState(false)
   const unreadDMs = Object.values(unreadPerSender).reduce((a, b) => a + b, 0)
   const [activeUserProfile, setActiveUserProfile] = useState<string | null>(null)
   const [activePost, setActivePost] = useState<any>(null)
@@ -1038,6 +1041,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [reactions, setReactions] = useState<Record<string, Record<string, boolean>>>({})
   const [reactionCounts, setReactionCounts] = useState<Record<string, Record<string, number>>>({})
   const [showReactions, setShowReactions] = useState<string | null>(null)
+  const [feedTab, setFeedTab] = useState<'people' | 'shops'>('people')
 
   const loadFeed = useCallback(async (reset = true) => {
     if (reset) setLoading(true)
@@ -1318,7 +1322,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setShowMessages(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+          <button onClick={() => setShowNewInbox(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
             <MessageCircle size={22} />
             {unreadDMs > 0 && (
               <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
@@ -1353,7 +1357,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             {[1,2,3].map(i => <SkeletonCard key={i} />)}
           </div>
         )}
-        {!loading && visibleRatings.length === 0 && (
+        {feedTab === 'people' && !loading && visibleRatings.length === 0 && (
           <div className="text-center py-20 px-8">
             <div className="text-6xl mb-4">☕</div>
             <p className="text-coffee-700 font-display text-xl">No brews yet</p>
@@ -1363,6 +1367,23 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
         {/* Stories */}
         <StoriesBar />
+        {/* People / Shops feed switcher */}
+        <div className="flex gap-2 px-4 pt-3 pb-1">
+          <button
+            onClick={() => setFeedTab('people')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'people' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
+          >
+            👥 People
+          </button>
+          <button
+            onClick={() => setFeedTab('shops')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'shops' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
+          >
+            ☕ Shops
+          </button>
+        </div>
+        {feedTab === 'shops' && <ShopsFeed profileId={profile?.id || null} />}
+        {feedTab === 'people' && (<>
         {/* Wrapped Season Banner */}
         {isWrappedSeason && (
           <button
@@ -1754,6 +1775,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             </div>
           )
         })}
+        </>)}
       </div>
 
       {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} onNavigateToBrew={onNavigateToBrew} />}
@@ -1763,6 +1785,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         unreadPerSender={unreadPerSender}
         onMarkRead={onMarkRead}
       />}
+      {showNewInbox && profile && (
+        <MessagingInbox
+          currentUserId={profile.id}
+          onClose={() => setShowNewInbox(false)}
+        />
+      )}
       {activeMenu && (
         <PostMenu
           isOwn={activeMenu._isOwn}

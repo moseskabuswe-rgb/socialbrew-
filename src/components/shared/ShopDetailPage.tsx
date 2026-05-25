@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, MapPin, Users, Coffee } from 'lucide-react'
+import { ArrowLeft, MapPin, Users, Coffee, Heart } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ShopPhotoGallery from './ShopPhotoGallery'
 import CoffeeDate from './CoffeeDate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
+import ClaimShopModal from '../shops/ClaimShopModal'
 
 type Props = {
   shop: Partial<CoffeeShop> & { id: string; name: string }
@@ -138,6 +139,10 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [wishlisted, setWishlisted] = useState(false)
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [shopStreak, setShopStreak] = useState<number>(0)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
+  const [showClaim, setShowClaim] = useState(false)
 
   const isInDb = !String(shop.id).startsWith('osm-') &&
     !String(shop.id).startsWith('fsq-') &&
@@ -207,6 +212,15 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
         }
       }
+      // Load shop follower count + current user follow status
+      const { count: fCount } = await supabase
+        .from('shop_follows').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId)
+      setFollowerCount(fCount || 0)
+      if (profile?.id) {
+        const { data: fData } = await supabase
+          .from('shop_follows').select('user_id').eq('shop_id', shopId).eq('user_id', profile.id).maybeSingle()
+        setIsFollowing(!!fData)
+      }
       setLoading(false)
     }
     load()
@@ -245,6 +259,23 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
     setWishlistLoading(false)
   }
 
+  async function toggleFollow() {
+    if (!profile?.id || !resolvedShop?.id || followLoading) return
+    setFollowLoading(true)
+    if (isFollowing) {
+      await supabase.from('shop_follows').delete().eq('user_id', profile.id).eq('shop_id', resolvedShop.id)
+      setIsFollowing(false)
+      setFollowerCount(c => Math.max(0, c - 1))
+    } else {
+      await supabase.from('shop_follows').upsert(
+        { user_id: profile.id, shop_id: resolvedShop.id },
+        { onConflict: 'user_id,shop_id' }
+      )
+      setIsFollowing(true)
+      setFollowerCount(c => c + 1)
+    }
+    setFollowLoading(false)
+  }
 
   return (
     <div
@@ -313,6 +344,33 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           </div>
         )}
       </div>
+
+      {/* Follower row */}
+      {isInDb && (
+        <div className="bg-white border-b border-cream-200 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-1.5 text-coffee-500 text-xs">
+            <Heart size={13} className="text-caramel" />
+            <span><span className="font-semibold text-coffee-700">{followerCount}</span> follower{followerCount !== 1 ? 's' : ''}</span>
+            {resolvedShop.claimed_by && (
+              <span className="ml-2 bg-caramel/10 text-caramel px-2 py-0.5 rounded-full text-xs font-medium border border-caramel/20">✓ Verified owner</span>
+            )}
+          </div>
+          {profile && (
+            <button
+              onClick={toggleFollow}
+              disabled={followLoading}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all disabled:opacity-50"
+              style={{
+                background: isFollowing ? '#fdf0dc' : 'white',
+                borderColor: isFollowing ? '#c8853a' : '#e0c8a0',
+                color: isFollowing ? '#c8853a' : '#9b7a55',
+              }}>
+              <Heart size={12} fill={isFollowing ? '#c8853a' : 'none'} />
+              {isFollowing ? 'Following' : 'Follow'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Hours and website */}
       {((resolvedShop as any).opening_hours || (resolvedShop as any).website) && (
@@ -431,8 +489,23 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         </button>
         {!onNavigateToBrew && (resolvedShop.lat && resolvedShop.lng) && null}
       </div>
+      {isInDb && !resolvedShop.claimed_by && profile && !['business', 'admin', 'moderator'].includes(profile.role) && (
+        <div className="px-4 pb-3 bg-white flex-shrink-0">
+          <button
+            onClick={() => setShowClaim(true)}
+            className="w-full py-2.5 rounded-xl text-xs font-medium border border-cream-300 text-coffee-500 bg-cream-50">
+            Own this shop? Claim it free ☕
+          </button>
+        </div>
+      )}
       {showCoffeeDate && (
         <CoffeeDate onClose={() => setShowCoffeeDate(false)} preselectedShop={resolvedShop} />
+      )}
+      {showClaim && (
+        <ClaimShopModal
+          shop={{ id: resolvedShop.id, name: resolvedShop.name }}
+          onClose={() => setShowClaim(false)}
+        />
       )}
     </div>
   )

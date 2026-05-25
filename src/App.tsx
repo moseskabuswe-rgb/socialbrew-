@@ -15,6 +15,8 @@ import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
 import AdminLayout from './admin/AdminLayout'
+import PortalApp from './portal/PortalApp'
+import PortalInviteAccept from './portal/PortalInviteAccept'
 import { supabase } from './lib/supabase'
 import { getBadge } from './lib/badges'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
@@ -111,6 +113,11 @@ function AppContent() {
       return next
     })
   }
+
+  // Portal routing — standalone pages, not part of main app auth flow
+  const pathname = window.location.pathname
+  if (pathname === '/portal/invite') return <PortalInviteAccept />
+  if (pathname === '/portal') return <PortalApp />
 
   if (loading) {
     return (
