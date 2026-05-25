@@ -21,7 +21,7 @@ export default function AdminApp() {
 
   if (loading || !profile) return <Spinner />
 
-  if (!['admin', 'moderator', 'viewer'].includes(profile.role as string)) {
+  if (profile.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream-50 flex-col gap-2">
         <p className="text-coffee-900 text-sm font-medium">Access denied</p>

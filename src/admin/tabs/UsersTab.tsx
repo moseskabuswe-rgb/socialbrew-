@@ -11,9 +11,8 @@ interface Props {
 interface User {
   id: string
   username: string
-  display_name: string | null
+  full_name: string | null
   role: string
-  email: string | null
   badge: string | null
   suspended_at: string | null
   suspended_reason: string | null
@@ -49,10 +48,10 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
     setLoading(true)
     let query = supabase
       .from('profiles')
-      .select('id,username,display_name,role,email,badge,suspended_at,suspended_reason,created_at', { count: 'exact' })
+      .select('id,username,full_name,role,badge,suspended_at,suspended_reason,created_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(p * PAGE, p * PAGE + PAGE - 1)
-    if (q) query = query.or(`username.ilike.%${q}%,display_name.ilike.%${q}%,email.ilike.%${q}%`)
+    if (q) query = query.or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
     const { data, count } = await query
     setUsers(data || [])
     setTotal(count || 0)
@@ -170,8 +169,8 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
               <div key={user.id} className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-3 items-center hover:bg-gray-50/50">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">@{user.username}</p>
-                  {user.display_name && (
-                    <p className="text-xs text-gray-400 truncate">{user.display_name}</p>
+                  {user.full_name && (
+                    <p className="text-xs text-gray-400 truncate">{user.full_name}</p>
                   )}
                 </div>
                 <span className="text-xs text-gray-600 capitalize">{user.role}</span>
@@ -229,8 +228,7 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
 
             <div className="p-4 space-y-4 flex-1">
               <div className="space-y-1 text-sm">
-                {selected.display_name && <p className="text-gray-700">{selected.display_name}</p>}
-                {selected.email && <p className="text-gray-400 text-xs">{selected.email}</p>}
+                {selected.full_name && <p className="text-gray-700">{selected.full_name}</p>}
                 <p className="text-gray-400 text-xs capitalize">Role: {selected.role}</p>
                 {selected.badge && <p className="text-gray-400 text-xs">Badge: {selected.badge}</p>}
                 <p className="text-gray-400 text-xs">Joined: {new Date(selected.created_at).toLocaleDateString()}</p>

@@ -100,7 +100,7 @@ export default function AdminLayout({ profile, onClose }: Props) {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

@@ -606,8 +606,8 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
 function WishlistModal({ rating, onClose }: { rating: any; onClose: () => void }) {
   const { profile } = useAuth()
   const shop = rating.coffee_shops as any
-  const [drinkName, setDrinkName] = useState(rating.drink_name || '')
-  const [shopName, setShopName] = useState(shop?.name || '')
+  const [drinkName] = useState(rating.drink_name || '')
+  const [shopName] = useState(shop?.name || '')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   async function save() {
@@ -626,10 +626,14 @@ function WishlistModal({ rating, onClose }: { rating: any; onClose: () => void }
         {done ? <div className="text-center py-8"><p className="text-3xl mb-2">☕</p><p className="text-coffee-700 font-display text-lg">Added!</p></div> : (
           <>
             <div className="space-y-3 mb-5">
-              <input value={drinkName} onChange={e => setDrinkName(e.target.value)} placeholder="Drink name"
-                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
-              <input value={shopName} onChange={e => setShopName(e.target.value)} placeholder="From which shop?"
-                className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none placeholder-coffee-300" />
+              <div className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200">
+                <p className="font-semibold">{drinkName}</p>
+              </div>
+              {shopName && (
+                <div className="w-full bg-cream-50 text-coffee-500 rounded-xl px-4 py-3 text-sm border border-cream-200">
+                  <p>@ {shopName}</p>
+                </div>
+              )}
             </div>
             <button onClick={save} disabled={!drinkName.trim() || saving} className="w-full py-3 rounded-xl bg-caramel text-white font-semibold text-sm disabled:opacity-40">
               {saving ? 'Saving...' : 'Add to Wishlist ☕'}

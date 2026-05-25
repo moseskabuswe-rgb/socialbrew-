@@ -18,6 +18,10 @@ interface Shop {
   status: string | null
   claimed_by: string | null
   created_at: string
+  zip: string | null
+  lat: number | null
+  lng: number | null
+  country: string | null
 }
 
 interface EditDraft {
@@ -28,6 +32,10 @@ interface EditDraft {
   website: string
   phone: string
   status: string
+  zip: string
+  lat: string
+  lng: string
+  country: string
 }
 
 const PAGE = 25
@@ -42,15 +50,16 @@ export default function ShopsTab({ isAdmin }: Props) {
   const [draft, setDraft] = useState<EditDraft | null>(null)
   const [closeConfirm, setCloseConfirm] = useState<Shop | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [addDraft, setAddDraft] = useState<EditDraft>({ name: '', city: '', state: '', address: '', website: '', phone: '', status: 'active' })
+  const [addDraft, setAddDraft] = useState<EditDraft>({ name: '', city: '', state: '', address: '', website: '', phone: '', status: 'active', zip: '', lat: '', lng: '', country: '' })
   const [working, setWorking] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   async function fetchShops(q: string, p: number) {
     setLoading(true)
     let query = supabase
       .from('coffee_shops')
-      .select('id,name,city,state,address,website,phone,status,claimed_by,created_at', { count: 'exact' })
+      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at', { count: 'exact' })
       .order('name')
       .range(p * PAGE, p * PAGE + PAGE - 1)
     if (q) query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,address.ilike.%${q}%`)
@@ -69,6 +78,7 @@ export default function ShopsTab({ isAdmin }: Props) {
   }
 
   function openEdit(shop: Shop) {
+    setSaveError(null)
     setEditTarget(shop)
     setDraft({
       name: shop.name,
@@ -78,13 +88,17 @@ export default function ShopsTab({ isAdmin }: Props) {
       website: shop.website || '',
       phone: shop.phone || '',
       status: shop.status || 'active',
+      zip: shop.zip || '',
+      lat: shop.lat != null ? String(shop.lat) : '',
+      lng: shop.lng != null ? String(shop.lng) : '',
+      country: shop.country || '',
     })
   }
 
   async function saveEdit() {
     if (!editTarget || !draft) return
     setWorking(true)
-    await supabase.from('coffee_shops').update({
+    const { error } = await supabase.from('coffee_shops').update({
       name: draft.name,
       city: draft.city || null,
       state: draft.state || null,
@@ -92,8 +106,13 @@ export default function ShopsTab({ isAdmin }: Props) {
       website: draft.website || null,
       phone: draft.phone || null,
       status: draft.status,
+      zip: draft.zip || null,
+      lat: draft.lat ? parseFloat(draft.lat) : null,
+      lng: draft.lng ? parseFloat(draft.lng) : null,
+      country: draft.country || null,
     }).eq('id', editTarget.id)
     setWorking(false)
+    if (error) { setSaveError(error.message); return }
     setEditTarget(null)
     setDraft(null)
     fetchShops(search, page)
@@ -110,8 +129,9 @@ export default function ShopsTab({ isAdmin }: Props) {
 
   async function addShop() {
     if (!addDraft.name.trim()) return
+    setSaveError(null)
     setWorking(true)
-    await supabase.from('coffee_shops').insert({
+    const { error } = await supabase.from('coffee_shops').insert({
       name: addDraft.name,
       city: addDraft.city || null,
       state: addDraft.state || null,
@@ -119,10 +139,15 @@ export default function ShopsTab({ isAdmin }: Props) {
       website: addDraft.website || null,
       phone: addDraft.phone || null,
       status: addDraft.status || 'active',
+      zip: addDraft.zip || null,
+      lat: addDraft.lat ? parseFloat(addDraft.lat) : null,
+      lng: addDraft.lng ? parseFloat(addDraft.lng) : null,
+      country: addDraft.country || null,
     })
     setWorking(false)
+    if (error) { setSaveError(error.message); return }
     setAddOpen(false)
-    setAddDraft({ name: '', city: '', state: '', address: '', website: '', phone: '', status: 'active' })
+    setAddDraft({ name: '', city: '', state: '', address: '', website: '', phone: '', status: 'active', zip: '', lat: '', lng: '', country: '' })
     fetchShops(search, page)
   }
 
@@ -168,7 +193,7 @@ export default function ShopsTab({ isAdmin }: Props) {
             {shops.map(shop => (
               <div key={shop.id} className="grid grid-cols-[1fr_100px_80px_80px] gap-2 px-4 py-3 items-center hover:bg-gray-50/50">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{shop.name}</p>
+                  <p className="text-sm font-medium text-gray-800">{shop.name}</p>
                   {shop.address && <p className="text-xs text-gray-400 truncate">{shop.address}</p>}
                 </div>
                 <span className="text-xs text-gray-500 truncate">{[shop.city, shop.state].filter(Boolean).join(', ') || '—'}</span>
@@ -195,13 +220,15 @@ export default function ShopsTab({ isAdmin }: Props) {
       {/* Edit modal */}
       {editTarget && draft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="px-5 pt-5 pb-4">
-              <h3 className="font-semibold text-gray-900 text-base mb-4">Edit shop</h3>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
+            <div className="px-5 pt-5 pb-1 flex-shrink-0">
+              <h3 className="font-semibold text-gray-900 text-base">Edit shop</h3>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto flex-1">
               <div className="space-y-3">
-                {(['name', 'city', 'state', 'address', 'website', 'phone'] as const).map(field => (
+                {(['name', 'city', 'state', 'address', 'zip', 'website', 'phone', 'country'] as const).map(field => (
                   <div key={field}>
-                    <label className="block text-xs font-medium text-gray-500 mb-1 capitalize">{field}</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 capitalize">{field === 'zip' ? 'Zip / Postal Code' : field}</label>
                     <input
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-caramel/30"
                       value={draft[field]}
@@ -209,6 +236,24 @@ export default function ShopsTab({ isAdmin }: Props) {
                     />
                   </div>
                 ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Latitude</label>
+                    <input type="number" step="any"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-caramel/30"
+                      value={draft.lat}
+                      onChange={e => setDraft(d => d ? { ...d, lat: e.target.value } : d)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Longitude</label>
+                    <input type="number" step="any"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-caramel/30"
+                      value={draft.lng}
+                      onChange={e => setDraft(d => d ? { ...d, lng: e.target.value } : d)}
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
                   <select
@@ -221,15 +266,16 @@ export default function ShopsTab({ isAdmin }: Props) {
                     <option value="closed">Closed</option>
                   </select>
                 </div>
+                {saveError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>}
               </div>
             </div>
-            <div className="flex flex-col gap-2 px-5 pb-5">
+            <div className="flex flex-col gap-2 px-5 pb-5 flex-shrink-0">
               <div className="flex gap-2">
-                <button onClick={() => { setEditTarget(null); setDraft(null) }} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button onClick={() => { setEditTarget(null); setDraft(null); setSaveError(null) }} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
                 <button onClick={saveEdit} disabled={working} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-caramel hover:bg-caramel/90">{working ? 'Saving…' : 'Save changes'}</button>
               </div>
               {isAdmin && editTarget.status !== 'closed' && (
-                <button onClick={() => { setEditTarget(null); setCloseConfirm(editTarget) }} className="w-full py-2 rounded-xl text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50">Mark as closed</button>
+                <button onClick={() => { setEditTarget(null); setDraft(null); setSaveError(null); setCloseConfirm(editTarget) }} className="w-full py-2 rounded-xl text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50">Mark as closed</button>
               )}
             </div>
           </div>
@@ -252,13 +298,15 @@ export default function ShopsTab({ isAdmin }: Props) {
       {/* Add shop modal */}
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="px-5 pt-5 pb-4">
-              <h3 className="font-semibold text-gray-900 text-base mb-4">Add new shop</h3>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
+            <div className="px-5 pt-5 pb-1 flex-shrink-0">
+              <h3 className="font-semibold text-gray-900 text-base">Add new shop</h3>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto flex-1">
               <div className="space-y-3">
-                {(['name', 'city', 'state', 'address', 'website', 'phone'] as const).map(field => (
+                {(['name', 'city', 'state', 'address', 'zip', 'website', 'phone', 'country'] as const).map(field => (
                   <div key={field}>
-                    <label className="block text-xs font-medium text-gray-500 mb-1 capitalize">{field}{field === 'name' ? ' *' : ''}</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 capitalize">{field === 'name' ? 'Name *' : field === 'zip' ? 'Zip / Postal Code' : field}</label>
                     <input
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-caramel/30"
                       value={addDraft[field]}
@@ -266,10 +314,29 @@ export default function ShopsTab({ isAdmin }: Props) {
                     />
                   </div>
                 ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Latitude</label>
+                    <input type="number" step="any"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-caramel/30"
+                      value={addDraft.lat}
+                      onChange={e => setAddDraft(d => ({ ...d, lat: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Longitude</label>
+                    <input type="number" step="any"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-caramel/30"
+                      value={addDraft.lng}
+                      onChange={e => setAddDraft(d => ({ ...d, lng: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                {saveError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>}
               </div>
             </div>
-            <div className="flex gap-2 px-5 pb-5">
-              <button onClick={() => setAddOpen(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+            <div className="flex gap-2 px-5 pb-5 flex-shrink-0">
+              <button onClick={() => { setAddOpen(false); setSaveError(null) }} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={addShop} disabled={working || !addDraft.name.trim()} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-caramel hover:bg-caramel/90 disabled:opacity-50">{working ? 'Adding…' : 'Add shop'}</button>
             </div>
           </div>
