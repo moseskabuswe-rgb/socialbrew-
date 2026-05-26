@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { usePullToRefresh } from './lib/usePullToRefresh'
 import { useWishlistProximity } from './lib/useWishlistProximity'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthForm from './components/auth/AuthForm'
 import HomeTab from './components/home/HomeTab'
-import DiscoverTab from './components/discover/DiscoverTab'
-import BrewTab from './components/brew/BrewTab'
-import TrendingTab from './components/trending/TrendingTab'
-import ProfileTab from './components/profile/ProfileTab'
 import BottomNav from './components/shared/BottomNav'
 import EmailVerificationBanner from './components/shared/EmailVerificationBanner'
 import FeedbackWidget from './components/shared/FeedbackWidget'
@@ -14,9 +11,14 @@ import ShopToast from './components/shared/ShopToast'
 import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
 import AdminBroadcast from './components/shared/AdminBroadcast'
-import AdminLayout from './admin/AdminLayout'
-import PortalApp from './portal/PortalApp'
-import PortalInviteAccept from './portal/PortalInviteAccept'
+
+const DiscoverTab = lazy(() => import('./components/discover/DiscoverTab'))
+const BrewTab = lazy(() => import('./components/brew/BrewTab'))
+const TrendingTab = lazy(() => import('./components/trending/TrendingTab'))
+const ProfileTab = lazy(() => import('./components/profile/ProfileTab'))
+const AdminLayout = lazy(() => import('./admin/AdminLayout'))
+const PortalApp = lazy(() => import('./portal/PortalApp'))
+const PortalInviteAccept = lazy(() => import('./portal/PortalInviteAccept'))
 import { supabase } from './lib/supabase'
 import { getBadge } from './lib/badges'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
@@ -28,6 +30,15 @@ type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
 const PUSH_PROMPT_KEY = 'sb_push_prompted'
 
+function TabSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center"
+      style={{ background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%)' }}>
+      <div className="w-10 h-10 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+    </div>
+  )
+}
+
 function AppContent() {
   const { profile, loading } = useAuth()
   useWishlistProximity(profile?.id || null) // Proximity check for visit wishlist on app open
@@ -38,9 +49,16 @@ function AppContent() {
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [firstRatingShop, setFirstRatingShop] = useState<string | null>(null)
   const [showPushPrompt, setShowPushPrompt] = useState(false)
+  const [tabRefresh, setTabRefresh] = useState(0)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   // Secret tap counter on logo — 5 taps opens admin panel
   const [_logoTaps, setLogoTaps] = useState(0)
+
+  const handlePullRefresh = useCallback(() => {
+    setFeedRefresh(n => n + 1)
+    setTabRefresh(n => n + 1)
+  }, [])
+  const { pullProgress, refreshing: pullRefreshing } = usePullToRefresh(handlePullRefresh)
 
   // Show push prompt once, 3 seconds after login
   useEffect(() => {
@@ -116,8 +134,8 @@ function AppContent() {
 
   // Portal routing — standalone pages, not part of main app auth flow
   const pathname = window.location.pathname
-  if (pathname === '/portal/invite') return <PortalInviteAccept />
-  if (pathname === '/portal') return <PortalApp />
+  if (pathname === '/portal/invite') return <Suspense fallback={null}><PortalInviteAccept /></Suspense>
+  if (pathname === '/portal') return <Suspense fallback={null}><PortalApp /></Suspense>
 
   if (loading) {
     return (
@@ -138,7 +156,7 @@ function AppContent() {
     new URLSearchParams(window.location.search).get('panel') === 'ops' &&
     ['admin', 'moderator'].includes(profile.role as string)
   ) {
-    return <AdminLayout profile={profile} />
+    return <Suspense fallback={null}><AdminLayout profile={profile} /></Suspense>
   }
 
   async function handlePostCreated(shopName?: string, wasFirst?: boolean) {
@@ -167,6 +185,19 @@ function AppContent() {
     <div className="min-h-screen max-w-lg mx-auto relative bg-cream-100">
       {profile && !profile.email_verified && <EmailVerificationBanner />}
 
+      {/* Pull-to-refresh indicator */}
+      {(pullProgress > 0 || pullRefreshing) && (
+        <div
+          className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none"
+          style={{ marginTop: Math.round((pullRefreshing ? 1 : pullProgress) * 48) }}
+        >
+          <div
+            className={`w-8 h-8 rounded-full border-2 border-caramel border-t-transparent bg-white shadow-md ${pullRefreshing || pullProgress >= 1 ? 'animate-spin' : ''}`}
+            style={{ opacity: pullRefreshing ? 1 : pullProgress }}
+          />
+        </div>
+      )}
+
       <div className="pb-20">
         {activeTab === 'home' && (
           <>
@@ -181,10 +212,12 @@ function AppContent() {
             <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} deepLink={deepLink} onDeepLinkHandled={() => setDeepLink(null)} />
           </>
         )}
-        {activeTab === 'discover' && <DiscoverTab />}
-        {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
-        {activeTab === 'trending' && <TrendingTab />}
-        {activeTab === 'profile' && <ProfileTab />}
+        <Suspense fallback={<TabSpinner />}>
+          {activeTab === 'discover' && <DiscoverTab key={tabRefresh} />}
+          {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
+          {activeTab === 'trending' && <TrendingTab key={tabRefresh} />}
+          {activeTab === 'profile' && <ProfileTab key={tabRefresh} />}
+        </Suspense>
       </div>
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
@@ -223,7 +256,9 @@ function AppContent() {
       {/* Admin dashboard — triggered by 5 taps on logo, admin/moderator only */}
       {showAdminPanel && ['admin', 'moderator', 'viewer'].includes(profile.role as string) && (
         <div className="fixed inset-0 z-50">
-          <AdminLayout profile={profile} onClose={() => setShowAdminPanel(false)} />
+          <Suspense fallback={null}>
+            <AdminLayout profile={profile} onClose={() => setShowAdminPanel(false)} />
+          </Suspense>
         </div>
       )}
 

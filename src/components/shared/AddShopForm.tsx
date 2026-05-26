@@ -118,6 +118,7 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
           lng: lng || null,
           country: country || null,
           continent: continent || null,
+          status: 'active',
           is_verified: false,
           is_active: true,
           avg_rating: 0,
@@ -134,8 +135,9 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
 
       onShopCreated(newShop)
     } catch (err: any) {
-      setError('Something went wrong. Please try again.')
-      console.error(err)
+      const msg = err?.message || err?.details || JSON.stringify(err)
+      setError(`Couldn't save shop: ${msg}`)
+      console.error('AddShopForm error:', err)
     } finally {
       setSubmitting(false)
     }

@@ -156,16 +156,21 @@ export default function ShopSelector({ onSelect, onClose }: Props) {
   // Load ALL active shops — no limit so anything searchable in Discover also appears here
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('coffee_shops')
-        .select('*')
-        .eq('is_active', true)
-        .order('total_ratings', { ascending: false })
-      if (data) {
-        setShops(data)
-        setFiltered(data)
+      try {
+        const { data } = await supabase
+          .from('coffee_shops')
+          .select('*')
+          .eq('is_active', true)
+          .order('total_ratings', { ascending: false })
+        if (data) {
+          setShops(data)
+          setFiltered(data)
+        }
+      } catch {
+        // Network error — proceed to show empty state so user can still add a shop
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [])

@@ -132,7 +132,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     if (existing) return existing.id
 
     // Insert it
-    const { data: inserted } = await supabase
+    const { data: inserted, error: insertErr } = await supabase
       .from('coffee_shops')
       .insert({
         name: shopData.name,
@@ -141,6 +141,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         state: shopData.state || null,
         lat: shopData.lat || null,
         lng: shopData.lng || null,
+        status: 'active',
         is_active: true,
         is_certified: false,
         is_verified: false,
@@ -151,6 +152,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       })
       .select('id')
       .maybeSingle()
+    if (insertErr) console.error('resolveShopId insert error:', insertErr)
     return inserted?.id ?? null
   }
 

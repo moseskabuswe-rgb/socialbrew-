@@ -13,6 +13,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <title>Social Brew</title>
+    <script>
+      if (location.hostname === 'socialbrew-ani.pages.dev') {
+        location.replace('https://socialbrewapp.com' + location.pathname + location.search + location.hash)
+      }
+    </script>
     <style>
       /* Ensure full height on all mobile browsers */
       html, body, #root {
