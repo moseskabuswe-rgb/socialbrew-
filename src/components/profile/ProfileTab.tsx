@@ -558,7 +558,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     if (!profile) return
     async function load() {
       const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
-        supabase.from('ratings').select('id, user_id, fill_level, drink_name, photo_url, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(500),
+        supabase.from('ratings').select('id, user_id, fill_level, drink_name, photo_url, photo_urls, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(500),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),

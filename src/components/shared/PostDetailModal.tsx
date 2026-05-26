@@ -228,7 +228,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [showShareSheet, setShowShareSheet] = useState(false)
   const [showShareCard, setShowShareCard] = useState(false)
   const swipeBack = useSwipeBack(() => onClose(comments.length, likesCount))
-  const [zoomedPhoto, setZoomedPhoto] = useState(false)
+  const [zoomedPhoto, setZoomedPhoto] = useState<number | null>(null)
 
   const user = rating.profiles as any
   const shop = rating.coffee_shops as any
@@ -429,28 +429,67 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       <div className="flex-1 overflow-y-auto pb-20">
         {/* Post content */}
         <div className="bg-white mx-4 mt-4 rounded-2xl shadow-sm border border-cream-200 overflow-hidden">
-          {/* Photo */}
-          {rating.photo_url && (
-            <div className="relative">
-              <button onClick={() => setZoomedPhoto(true)} className="w-full">
-                <div className="h-64 overflow-hidden">
-                  <img src={cachedUrl(rating.photo_url)} alt="moment" className="w-full h-full object-cover" />
-                </div>
-              </button>
-              {(rating.tagged_users as any)?.length > 0 && (
-                <div className="absolute bottom-2 left-2 flex gap-1 flex-wrap">
-                  {(rating.tagged_users as any).map((u: any) => (
-                    <span key={u} className="bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">@{u}</span>
+          {/* Photos */}
+          {(() => {
+            const photoUrls: string[] = (rating.photo_urls?.length > 0 ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean)
+            if (!photoUrls.length) return null
+            return (
+              <div className="relative">
+                <div className={photoUrls.length > 1 ? 'grid gap-0.5' : ''} style={{
+                  gridTemplateColumns: photoUrls.length >= 2 ? '1fr 1fr' : '1fr',
+                  gridTemplateRows: photoUrls.length === 4 ? '1fr 1fr' : 'auto',
+                }}>
+                  {photoUrls.map((url: string, i: number) => (
+                    <button key={i}
+                      onClick={() => setZoomedPhoto(i)}
+                      className="w-full overflow-hidden"
+                      style={{ gridColumn: photoUrls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
+                      <img src={cachedUrl(url)} alt=""
+                        className="w-full object-cover"
+                        style={{ height: photoUrls.length === 1 ? 256 : photoUrls.length === 3 && i === 0 ? 200 : 160 }} />
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
+                {(rating.tagged_users as any)?.length > 0 && (
+                  <div className="absolute bottom-2 left-2 flex gap-1 flex-wrap">
+                    {(rating.tagged_users as any).map((u: any) => (
+                      <span key={u} className="bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">@{u}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
-          {/* Full screen pinch-to-zoom photo viewer */}
-          {zoomedPhoto && rating.photo_url && (
-            <PinchZoomPhoto src={cachedUrl(rating.photo_url)} onClose={() => setZoomedPhoto(false)} />
-          )}
+          {/* Full screen photo viewer */}
+          {zoomedPhoto !== null && (() => {
+            const photoUrls: string[] = (rating.photo_urls?.length > 0 ? rating.photo_urls : rating.photo_url ? [rating.photo_url] : []).filter(Boolean)
+            if (!photoUrls.length) return null
+            if (photoUrls.length === 1) {
+              return <PinchZoomPhoto src={cachedUrl(photoUrls[0])} onClose={() => setZoomedPhoto(null)} />
+            }
+            return (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95" onClick={() => setZoomedPhoto(null)}>
+                <img src={cachedUrl(photoUrls[zoomedPhoto])} alt="" onClick={e => e.stopPropagation()}
+                  style={{ maxWidth: '100vw', maxHeight: '90vh', objectFit: 'contain' }} draggable={false} />
+                <button onClick={(e) => { e.stopPropagation(); setZoomedPhoto(null) }}
+                  style={{ position: 'absolute', top: 'max(16px, env(safe-area-inset-top, 16px))', right: 16, width: 44, height: 44, background: 'rgba(0,0,0,0.7)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 20, border: 'none', cursor: 'pointer', zIndex: 10 }}>✕</button>
+                {zoomedPhoto > 0 && (
+                  <button onClick={(e) => { e.stopPropagation(); setZoomedPhoto(zoomedPhoto - 1) }}
+                    style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(0,0,0,0.6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 22, border: 'none', cursor: 'pointer', zIndex: 10 }}>‹</button>
+                )}
+                {zoomedPhoto < photoUrls.length - 1 && (
+                  <button onClick={(e) => { e.stopPropagation(); setZoomedPhoto(zoomedPhoto + 1) }}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(0,0,0,0.6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 22, border: 'none', cursor: 'pointer', zIndex: 10 }}>›</button>
+                )}
+                <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+                  {photoUrls.map((_: string, i: number) => (
+                    <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === zoomedPhoto ? 'white' : 'rgba(255,255,255,0.35)' }} />
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="p-4">
             {/* Drink name */}

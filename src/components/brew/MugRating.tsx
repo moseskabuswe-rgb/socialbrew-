@@ -598,7 +598,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
                 </div>
               )}
               {photos.length < 4 && (
-                <button onClick={() => fileRef.current?.click()}
+                <button onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click() } }}
                   className="w-full h-16 border-2 border-dashed border-stone-300 rounded-xl flex items-center justify-center gap-2 text-stone-400 text-sm transition-colors hover:border-amber-400 hover:text-amber-500">
                   <ImageIcon size={16} />
                   {photos.length === 0 ? 'Add photos' : 'Add more'}
