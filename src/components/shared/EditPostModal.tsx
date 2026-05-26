@@ -80,10 +80,12 @@ export default function EditPostModal({ rating, onClose, onSaved }: Props) {
 
     try {
       let photoUrl = rating.photo_url
+      let photoUrls: string[] | null = rating.photo_urls ?? null
 
       // Handle photo changes
       if (removePhoto) {
         photoUrl = null
+        photoUrls = null
       } else if (photo) {
         // Upload new photo
         const ext = photo.name.split('.').pop() || 'jpg'
@@ -94,9 +96,12 @@ export default function EditPostModal({ rating, onClose, onSaved }: Props) {
         if (upErr) throw upErr
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
         photoUrl = publicUrl
+        // Replace the old primary photo in the array; preserve any extras
+        const existing: string[] = rating.photo_urls || (rating.photo_url ? [rating.photo_url] : [])
+        photoUrls = [publicUrl, ...existing.filter((u: string) => u !== rating.photo_url)]
       }
 
-      // Update the rating row
+      // Update the rating row — DB trigger handles shop_photos sync automatically
       const { data, error: updateErr } = await supabase
         .from('ratings')
         .update({
@@ -104,29 +109,14 @@ export default function EditPostModal({ rating, onClose, onSaved }: Props) {
           fill_level: fillLevel,
           vibe_tags: vibes,
           photo_url: photoUrl,
+          photo_urls: photoUrls,
         })
         .eq('id', rating.id)
-        .eq('user_id', profile.id) // Security: only own posts
+        .eq('user_id', profile.id)
         .select()
         .single()
 
       if (updateErr) throw updateErr
-
-      // If shop_id exists and photo changed, update shop_photos too
-      if (rating.shop_id && photoUrl !== rating.photo_url) {
-        if (photoUrl) {
-          // New or replaced photo — upsert to shop_photos
-          await supabase.from('shop_photos').upsert({
-            shop_id: rating.shop_id,
-            user_id: profile.id,
-            rating_id: rating.id,
-            photo_url: photoUrl,
-          }, { onConflict: 'rating_id' })
-        } else {
-          // Photo removed — delete from shop_photos
-          await supabase.from('shop_photos').delete().eq('rating_id', rating.id)
-        }
-      }
 
       onSaved({ ...rating, ...data })
       onClose()

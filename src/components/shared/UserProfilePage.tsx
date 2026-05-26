@@ -349,7 +349,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
                     <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name ?? 'Moment'}</p>
                     {r.drink_name && <p className="text-coffee-400 text-xs">{r.drink_name}</p>}
                     {r.visit_time && <p className="text-coffee-300 text-xs">🕐 {r.visit_time}</p>}
-                    {r.photo_url && <p className="text-caramel text-xs">📷 Photo</p>}
+                    {(r.photo_urls?.length > 0 || r.photo_url) && <p className="text-caramel text-xs">📷 {r.photo_urls?.length > 1 ? `${r.photo_urls.length} photos` : 'Photo'}</p>}
                   </button>
                   <div className="text-right flex-shrink-0">
                     <p className="text-coffee-800 font-bold text-sm">{r.fill_level}%</p>

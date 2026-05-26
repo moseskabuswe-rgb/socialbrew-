@@ -797,7 +797,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                     <button onClick={() => setActivePost(rating)} className="flex-1 min-w-0 text-left">
                       <p className="text-coffee-800 font-semibold text-sm truncate">{shop?.name ?? 'Moment'}</p>
                       {rating.drink_name && <p className="text-coffee-400 text-xs">{rating.drink_name}</p>}
-                      {rating.photo_url && <p className="text-caramel text-xs">📷 Photo</p>}
+                      {(rating.photo_urls?.length > 0 || rating.photo_url) && <p className="text-caramel text-xs">📷 {rating.photo_urls?.length > 1 ? `${rating.photo_urls.length} photos` : 'Photo'}</p>}
                     </button>
                     <div className="text-right flex-shrink-0">
                       <p className="text-coffee-800 font-bold text-sm">{rating.fill_level}%</p>
