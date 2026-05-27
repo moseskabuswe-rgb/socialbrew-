@@ -265,7 +265,7 @@ function AppContent() {
         <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />
       )}
 
-      {needsPrivacyAccept && (
+      {needsPrivacyAccept && !showPrivacyPage && !showTermsPage && (
         <PrivacyAcceptanceModal
           userId={profile.id}
           onAccepted={() => window.location.reload()}
