@@ -1,12 +1,17 @@
-// Social Brew Service Worker v3
+// Social Brew Service Worker v4
 // Handles push notifications, offline caching, and auto-updates
-// Fixed for Android Firefox/Chrome strict SW scoping
 
-const CACHE_NAME = 'social-brew-v3'
+const CACHE_NAME = 'social-brew-v4'
+const APP_SHELL = ['/', '/manifest.json', '/icon-192.png']
 
-// ── Install: take over immediately ───────────────────────────
+// ── Install: pre-cache app shell, do NOT skip waiting ────────
+// skipWaiting was removed — it caused forced page reloads during
+// active sessions whenever an update deployed (blank screen on resume).
+// New SWs now wait until all tabs are closed before activating.
 self.addEventListener('install', (event) => {
-  self.skipWaiting()
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+  )
 })
 
 // ── Activate: clear old caches, claim clients ────────────────
@@ -20,20 +25,27 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// ── Fetch: network-first for all requests ────────────────────
+// ── Fetch ────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET and cross-origin requests
   if (event.request.method !== 'GET') return
   if (!event.request.url.startsWith(self.location.origin)) return
 
+  // Navigation requests (HTML) — cache-first so the app shell loads instantly
+  // even on slow connections or when resuming from background
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/').then(cached => cached || fetch(event.request))
+    )
+    return
+  }
+
+  // All other GET requests — network-first with cache fallback
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   )
 })
 
 // ── Push notification handler ────────────────────────────────
-// Works on iOS Safari PWA, Android Chrome, Android Firefox
-// Firefox note: requires strict same-origin SW scope
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
@@ -47,7 +59,6 @@ self.addEventListener('push', (event) => {
   try {
     const payload = event.data.json()
 
-    // Standard web push payload
     if (payload.notification) {
       title = payload.notification.title || title
       body = payload.notification.body || body
@@ -56,7 +67,6 @@ self.addEventListener('push', (event) => {
       tag = payload.notification.tag || tag
     }
 
-    // FCM data payload fallback
     if (payload.data) {
       title = payload.data.title || title
       body = payload.data.body || body
@@ -64,31 +74,24 @@ self.addEventListener('push', (event) => {
       data = payload.data
     }
 
-    // Direct payload (our Edge Function format)
     if (payload.title) title = payload.title
     if (payload.body) body = payload.body
     if (payload.tag) tag = payload.tag
   } catch {
-    // Plain text fallback
     body = event.data.text()
   }
 
-  const options = {
-    body,
-    icon,
-    badge,
-    tag,
-    data,
-    // Android: vibrate pattern
-    vibrate: [100, 50, 100],
-    // Prevents notification stacking for same tag
-    renotify: false,
-    // Required for Firefox Android
-    requireInteraction: false,
-  }
-
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge,
+      tag,
+      data,
+      vibrate: [100, 50, 100],
+      renotify: false,
+      requireInteraction: false,
+    })
   )
 })
 
@@ -96,35 +99,35 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const targetUrl = 'https://socialbrewapp.com'
+  const notifData = event.notification.data || {}
+  let targetUrl = 'https://socialbrewapp.com'
+
+  if (notifData.rating_id) targetUrl += `/?open=post&id=${notifData.rating_id}`
+  else if (notifData.actor_id && (notifData.type === 'follow' || notifData.type === 'dm')) {
+    targetUrl += `/?open=${notifData.type === 'dm' ? 'messages' : 'profile'}&id=${notifData.actor_id}`
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clientList => {
-        // Focus existing window if open
         for (const client of clientList) {
-          if (client.url.startsWith(targetUrl) && 'focus' in client) {
+          if (client.url.startsWith('https://socialbrewapp.com') && 'focus' in client) {
+            client.postMessage({ type: 'NOTIFICATION_CLICK', data: notifData })
             return client.focus()
           }
         }
-        // Open new window
-        if (clients.openWindow) {
-          return clients.openWindow(targetUrl)
-        }
+        if (clients.openWindow) return clients.openWindow(targetUrl)
       })
   )
 })
 
 // ── Push subscription change (Firefox Android) ───────────────
-// Firefox may rotate push subscriptions — handle gracefully
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
-    // Re-subscribe and update server
     self.registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: self.VAPID_PUBLIC_KEY || null,
     }).then(subscription => {
-      // Notify app to update subscription in database
       return clients.matchAll({ type: 'window' }).then(clientList => {
         clientList.forEach(client => {
           client.postMessage({

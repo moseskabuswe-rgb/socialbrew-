@@ -98,12 +98,14 @@ export default function UserProfilePage({ userId, onBack }: Props) {
 
   useEffect(() => {
     async function load() {
-      const profileRes = await supabase.from('profiles').select('*').eq('id', userId).single()
-      const ratingsRes = await supabase.from('ratings').select('*, coffee_shops(id,name,photo_url,city,state,country,continent,address,lat,lng)').eq('user_id', userId).order('created_at', { ascending: false })
-      const visitsRes = await supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false })
-      const wishlistRes = await supabase.from('wishlist').select('*').eq('user_id', userId).order('created_at', { ascending: false })
-      const followersRes = await supabase.from('follows').select('follower_id, profiles!follows_follower_id_fkey(id,username,full_name,avatar_url,badge)').eq('following_id', userId).eq('status', 'accepted')
-      const followingRes = await supabase.from('follows').select('following_id, profiles!follows_following_id_fkey(id,username,full_name,avatar_url,badge)').eq('follower_id', userId).eq('status', 'accepted')
+      const [profileRes, ratingsRes, visitsRes, wishlistRes, followersRes, followingRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('ratings').select('*, coffee_shops(id,name,photo_url,city,state,country,continent,address,lat,lng)').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
+        supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', userId).order('visit_count', { ascending: false }),
+        supabase.from('wishlist').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('follows').select('follower_id, profiles!follows_follower_id_fkey(id,username,full_name,avatar_url,badge)').eq('following_id', userId).eq('status', 'accepted'),
+        supabase.from('follows').select('following_id, profiles!follows_following_id_fkey(id,username,full_name,avatar_url,badge)').eq('follower_id', userId).eq('status', 'accepted'),
+      ])
 
       if (profileRes.data) setUser(profileRes.data)
       if (ratingsRes.data) setRatings(ratingsRes.data)
@@ -133,7 +135,8 @@ export default function UserProfilePage({ userId, onBack }: Props) {
       if (followingRes.data) setFollowing(followingRes.data.map((f: any) => f.profiles).filter(Boolean))
 
       if (me) {
-        const { data: followRow } = await supabase.from('follows').select('status').eq('follower_id', me.id).eq('following_id', userId).maybeSingle()
+        const { data: followRow } = await supabase.from('follows').select('status')
+          .eq('follower_id', me.id).eq('following_id', userId).maybeSingle()
         setIsFollowing(followRow?.status === 'accepted')
         setFollowPending(followRow?.status === 'pending')
       }

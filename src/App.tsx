@@ -85,10 +85,13 @@ function AppContent() {
   useEffect(() => {
     if (!profile) return
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
     function handleUrlParams() {
       const params = new URLSearchParams(window.location.search)
       const open = params.get('open')
-      const id = params.get('id') || undefined
+      const rawId = params.get('id')
+      const id = rawId && UUID_RE.test(rawId) ? rawId : undefined
       if (!open) return
       if (open === 'follow_requests') {
         setActiveTab('profile')
@@ -103,15 +106,16 @@ function AppContent() {
       if (event.data?.type !== 'NOTIFICATION_CLICK') return
       const data = event.data.data
       if (!data) return
-      if ((data.type === 'like' || data.type === 'comment' || data.type === 'mention' || data.type === 'new_post') && data.rating_id) {
+      const isUUID = (v: any) => typeof v === 'string' && UUID_RE.test(v)
+      if ((data.type === 'like' || data.type === 'comment' || data.type === 'mention' || data.type === 'new_post') && isUUID(data.rating_id)) {
         setDeepLink({ open: 'post', id: data.rating_id })
         setActiveTab('home')
-      } else if (data.type === 'follow' && data.actor_id) {
+      } else if (data.type === 'follow' && isUUID(data.actor_id)) {
         setDeepLink({ open: 'profile', id: data.actor_id })
         setActiveTab('home')
       } else if (data.type === 'follow_request') {
         setActiveTab('profile')
-      } else if (data.type === 'dm' && data.actor_id) {
+      } else if (data.type === 'dm' && isUUID(data.actor_id)) {
         setDeepLink({ open: 'messages', id: data.actor_id })
         setActiveTab('home')
       }

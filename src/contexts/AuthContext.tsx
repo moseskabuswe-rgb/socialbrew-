@@ -26,11 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(userId: string, userEmail?: string) {
     try {
-      const { data: authData } = await supabase.auth.getUser()
-      const isVerified = !!authData?.user?.email_confirmed_at
-
-      const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+      const [{ data: authData }, { data }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+      ])
       if (data) {
+        const isVerified = !!authData?.user?.email_confirmed_at
         if (data.email_verified !== isVerified) {
           await supabase.from('profiles').update({ email_verified: isVerified }).eq('id', userId)
           data.email_verified = isVerified

@@ -526,7 +526,7 @@ function CommentsSection({ ratingId, onClose }: { ratingId: string; onClose: () 
         notifyComment(rating.user_id, profile.username || 'Someone', content, ratingId)
       }
       // Notify @mentions in comment
-      const mentioned = content.match(/@(\w+)/g)
+      const mentioned = content.match(/@([a-z0-9_.]+)/gi)
       if (mentioned) {
         for (const handle of mentioned) {
           const username = handle.slice(1)

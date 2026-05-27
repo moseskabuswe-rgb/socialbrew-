@@ -363,7 +363,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       const ownerId = rating.profiles?.id || rating.user_id
       if (ownerId && ownerId !== profile.id) notifyComment(ownerId, profile.username || 'Someone', content, rating.id)
       // Notify @mentions
-      const mentioned = content.match(/@(\w+)/g)
+      const mentioned = content.match(/@([a-z0-9_.]+)/gi)
       if (mentioned) {
         for (const handle of mentioned) {
           const username = handle.slice(1)
