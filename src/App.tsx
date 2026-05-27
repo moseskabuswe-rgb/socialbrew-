@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense, Component } from 'react'
+import type { ReactNode, ErrorInfo } from 'react'
 import { usePullToRefresh } from './lib/usePullToRefresh'
 import { useWishlistProximity } from './lib/useWishlistProximity'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -26,6 +27,31 @@ import PrivacyAcceptanceModal, { CURRENT_POLICY_VERSION } from './components/sha
 
 // Re-export notification helpers so other components can import from App
 export { notifyLike, notifyComment, notifyFollow, notifyMention }
+
+class TabErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError(_: Error) { return { hasError: true } }
+  componentDidCatch(_: Error, __: ErrorInfo) {}
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6"
+          style={{ background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%)' }}>
+          <p className="text-coffee-600 font-medium text-center">Something went wrong loading this tab.</p>
+          <button
+            className="px-6 py-2.5 rounded-2xl text-white font-semibold text-sm"
+            style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+            onClick={() => window.location.reload()}
+          >Refresh App</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 type Tab = 'home' | 'discover' | 'brew' | 'trending' | 'profile'
 
@@ -220,12 +246,14 @@ function AppContent() {
             <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} deepLink={deepLink} onDeepLinkHandled={() => setDeepLink(null)} />
           </>
         )}
-        <Suspense fallback={<TabSpinner />}>
-          {activeTab === 'discover' && <DiscoverTab key={tabRefresh} />}
-          {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
-          {activeTab === 'trending' && <TrendingTab key={tabRefresh} />}
-          {activeTab === 'profile' && <ProfileTab key={tabRefresh} />}
-        </Suspense>
+        <TabErrorBoundary>
+          <Suspense fallback={<TabSpinner />}>
+            {activeTab === 'discover' && <DiscoverTab key={tabRefresh} />}
+            {activeTab === 'brew' && <BrewTab onPostCreated={handlePostCreated} />}
+            {activeTab === 'trending' && <TrendingTab key={tabRefresh} />}
+            {activeTab === 'profile' && <ProfileTab key={tabRefresh} />}
+          </Suspense>
+        </TabErrorBoundary>
       </div>
 
       <BottomNav active={activeTab} onChange={setActiveTab} />

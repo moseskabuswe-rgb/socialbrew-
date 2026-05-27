@@ -1,7 +1,7 @@
-// Social Brew Service Worker v4
+// Social Brew Service Worker v5
 // Handles push notifications, offline caching, and auto-updates
 
-const CACHE_NAME = 'social-brew-v4'
+const CACHE_NAME = 'social-brew-v5'
 const APP_SHELL = ['/', '/manifest.json', '/icon-192.png']
 
 // ── Install: pre-cache app shell ─────────────────────────────
@@ -31,11 +31,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   if (!event.request.url.startsWith(self.location.origin)) return
 
-  // Navigation requests (HTML) — cache-first so the app shell loads instantly
-  // even on slow connections or when resuming from background
+  // Navigation requests (HTML) — network-first so the browser always gets
+  // fresh index.html pointing to the latest JS chunk hashes.
+  // Falls back to cached shell only when genuinely offline.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/').then(cached => cached || fetch(event.request))
+      fetch(event.request).catch(() => caches.match('/'))
     )
     return
   }
