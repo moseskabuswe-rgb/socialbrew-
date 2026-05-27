@@ -54,22 +54,23 @@ export default function ShopCheckin({ shopId }: Props) {
   async function toggle() {
     if (!profile || toggling) return
     setToggling(true)
-
-    if (isCheckedIn) {
-      await supabase.from('shop_checkins').delete()
-        .eq('user_id', profile.id).eq('shop_id', shopId)
-    } else {
-      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-      await supabase.from('shop_checkins').upsert({
-        user_id: profile.id,
-        shop_id: shopId,
-        checked_in_at: new Date().toISOString(),
-        expires_at: expiresAt,
-      }, { onConflict: 'user_id,shop_id' })
+    try {
+      if (isCheckedIn) {
+        await supabase.from('shop_checkins').delete()
+          .eq('user_id', profile.id).eq('shop_id', shopId)
+      } else {
+        const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+        await supabase.from('shop_checkins').upsert({
+          user_id: profile.id,
+          shop_id: shopId,
+          checked_in_at: new Date().toISOString(),
+          expires_at: expiresAt,
+        }, { onConflict: 'user_id,shop_id' })
+      }
+      await load()
+    } finally {
+      setToggling(false)
     }
-
-    await load()
-    setToggling(false)
   }
 
   if (loading) return null

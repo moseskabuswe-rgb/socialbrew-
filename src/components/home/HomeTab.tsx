@@ -87,37 +87,42 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   useEffect(() => {
     if (!profile) return
     async function load() {
-      // Fetch sent and received with last message info
-      const { data: sent } = await supabase.from('direct_messages')
-        .select('to_id, created_at, content, profiles!direct_messages_to_id_fkey(id,username,avatar_url)')
-        .eq('from_id', profile!.id).order('created_at', { ascending: false })
-      const { data: received } = await supabase.from('direct_messages')
-        .select('from_id, created_at, content, profiles!direct_messages_from_id_fkey(id,username,avatar_url)')
-        .eq('to_id', profile!.id).order('created_at', { ascending: false })
+      try {
+        // Fetch sent and received in parallel
+        const [{ data: sent }, { data: received }] = await Promise.all([
+          supabase.from('direct_messages')
+            .select('to_id, created_at, content, profiles!direct_messages_to_id_fkey(id,username,avatar_url)')
+            .eq('from_id', profile!.id).order('created_at', { ascending: false }),
+          supabase.from('direct_messages')
+            .select('from_id, created_at, content, profiles!direct_messages_from_id_fkey(id,username,avatar_url)')
+            .eq('to_id', profile!.id).order('created_at', { ascending: false }),
+        ])
 
-      // Build conversation map with last message
-      const partners = new Map<string, any>()
-      ;(sent || []).forEach((s: any) => {
-        if (!partners.has(s.to_id)) partners.set(s.to_id, { ...s.profiles, lastMsg: s.content, lastAt: s.created_at })
-        else if (new Date(s.created_at) > new Date(partners.get(s.to_id).lastAt)) {
-          partners.get(s.to_id).lastMsg = s.content
-          partners.get(s.to_id).lastAt = s.created_at
-        }
-      })
-      ;(received || []).forEach((r: any) => {
-        if (!partners.has(r.from_id)) partners.set(r.from_id, { ...r.profiles, lastMsg: r.content, lastAt: r.created_at })
-        else if (new Date(r.created_at) > new Date(partners.get(r.from_id).lastAt)) {
-          partners.get(r.from_id).lastMsg = r.content
-          partners.get(r.from_id).lastAt = r.created_at
-        }
-      })
+        // Build conversation map with last message
+        const partners = new Map<string, any>()
+        ;(sent || []).forEach((s: any) => {
+          if (!partners.has(s.to_id)) partners.set(s.to_id, { ...s.profiles, lastMsg: s.content, lastAt: s.created_at })
+          else if (new Date(s.created_at) > new Date(partners.get(s.to_id).lastAt)) {
+            partners.get(s.to_id).lastMsg = s.content
+            partners.get(s.to_id).lastAt = s.created_at
+          }
+        })
+        ;(received || []).forEach((r: any) => {
+          if (!partners.has(r.from_id)) partners.set(r.from_id, { ...r.profiles, lastMsg: r.content, lastAt: r.created_at })
+          else if (new Date(r.created_at) > new Date(partners.get(r.from_id).lastAt)) {
+            partners.get(r.from_id).lastMsg = r.content
+            partners.get(r.from_id).lastAt = r.created_at
+          }
+        })
 
-      // Sort by most recent
-      const sorted = Array.from(partners.entries())
-        .map(([id, p]) => ({ id, ...p }))
-        .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
-      setConversations(sorted)
-      setLoading(false)
+        // Sort by most recent
+        const sorted = Array.from(partners.entries())
+          .map(([id, p]) => ({ id, ...p }))
+          .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
+        setConversations(sorted)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [profile])
@@ -1048,49 +1053,51 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const loadFeed = useCallback(async (reset = true) => {
     if (reset) setLoading(true)
     else setLoadingMore(true)
-    
-    const currentPage = reset ? 0 : page
-    const from = currentPage * PAGE_SIZE
-    const to = from + PAGE_SIZE - 1
 
-    const { data } = await supabase
-      .from('ratings')
-      .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified, lat, lng)')
-      .order('visited_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false, nullsFirst: false })
-      .range(from, to)
+    try {
+      const currentPage = reset ? 0 : page
+      const from = currentPage * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
 
-    if (data) {
-      if (reset) {
-        setRatings(data)
-        setPage(1)
-      } else {
-        setRatings(prev => {
-          const ids = new Set(prev.map((r: any) => r.id))
-          return [...prev, ...data.filter((r: any) => !ids.has(r.id))]
-        })
-        setPage(p => p + 1)
-      }
-      if (data.length < PAGE_SIZE) setHasMore(false)
-      else setHasMore(true)
+      const { data } = await supabase
+        .from('ratings')
+        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified, lat, lng)')
+        .order('visited_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .range(from, to)
 
-      // Load reaction counts for new batch
-      if (data.length > 0) {
-        const ratingIds = data.map((r: any) => r.id)
-        const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
-        if (rxData) {
-          const counts: Record<string, Record<string, number>> = {}
-          rxData.forEach((rx: any) => {
-            if (!counts[rx.rating_id]) counts[rx.rating_id] = {}
-            counts[rx.rating_id][rx.type] = (counts[rx.rating_id][rx.type] || 0) + 1
+      if (data) {
+        if (reset) {
+          setRatings(data)
+          setPage(1)
+        } else {
+          setRatings(prev => {
+            const ids = new Set(prev.map((r: any) => r.id))
+            return [...prev, ...data.filter((r: any) => !ids.has(r.id))]
           })
-          setReactionCounts(prev => ({ ...prev, ...counts }))
+          setPage(p => p + 1)
+        }
+        if (data.length < PAGE_SIZE) setHasMore(false)
+        else setHasMore(true)
+
+        // Load reaction counts for new batch
+        if (data.length > 0) {
+          const ratingIds = data.map((r: any) => r.id)
+          const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
+          if (rxData) {
+            const counts: Record<string, Record<string, number>> = {}
+            rxData.forEach((rx: any) => {
+              if (!counts[rx.rating_id]) counts[rx.rating_id] = {}
+              counts[rx.rating_id][rx.type] = (counts[rx.rating_id][rx.type] || 0) + 1
+            })
+            setReactionCounts(prev => ({ ...prev, ...counts }))
+          }
         }
       }
+    } finally {
+      if (reset) setLoading(false)
+      else setLoadingMore(false)
     }
-    
-    if (reset) setLoading(false)
-    else setLoadingMore(false)
   }, [page, PAGE_SIZE])
 
   // Deep link handler — triggered by notification taps

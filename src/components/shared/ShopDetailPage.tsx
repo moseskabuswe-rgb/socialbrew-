@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { ArrowLeft, MapPin, Users, Coffee, Heart } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ShopPhotoGallery from './ShopPhotoGallery'
@@ -70,7 +70,8 @@ function timeAgo(d: string) {
 
 function MiniMug({ fill, size = 40 }: { fill: number; size?: number }) {
   const color = getMugColor(fill)
-  const id = `mug-${fill}-${size}-${Math.random().toString(36).slice(2)}`
+  const uid = useId()
+  const id = `mug-${uid.replace(/:/g, '')}`
   return (
     <svg viewBox="0 0 56 68" width={size} height={size * 1.2} style={{ flexShrink: 0 }}>
       <defs><clipPath id={id}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
@@ -155,73 +156,76 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
       .select('id').eq('user_id', profile.id).eq('shop_id', resolvedShop.id).maybeSingle()
       .then(({ data }) => { if (data) setWishlisted(true) })
   }, [profile?.id, resolvedShop?.id])
- useEffect(() => {
+  useEffect(() => {
     async function load() {
-      // Resolve shop ID — look up by name if from OSM
-      let shopId = isInDb ? shop.id : null
-      if (!isInDb && shop.name) {
-        const { data: dbMatch } = await supabase
-          .from('coffee_shops').select('*')
-          .ilike('name', shop.name).eq('is_active', true).maybeSingle()
-        if (dbMatch) {
-          shopId = dbMatch.id
-          setResolvedShop(dbMatch)
-        }
-      } else if (isInDb) {
-        const { data: dbShop } = await supabase
-          .from('coffee_shops').select('*').eq('id', shop.id).single()
-        if (dbShop) setResolvedShop(dbShop)
-      }
-
-      if (!shopId) { setLoading(false); return }
-
-      const { data: ratings } = await supabase
-        .from('ratings')
-        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url)')
-        .eq('shop_id', shopId)
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      if (ratings) {
-        setAllRatings(ratings)
-        if (profile?.id) {
-          const mine = ratings.filter((r: any) => r.user_id === profile.id)
-          setMyRatings(mine)
-
-          // Calculate consecutive weekly shop streak
-          if (mine.length > 0) {
-            const weekKeys = Array.from(new Set(mine.map((r: any) => {
-              const d = new Date(r.created_at)
-              const year = d.getFullYear()
-              const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
-              return year + '-' + String(week).padStart(2, '0')
-            }))).sort().reverse()
-            let streak = 1
-            for (let i = 0; i < weekKeys.length - 1; i++) {
-              const [y1, w1] = weekKeys[i].split('-').map(Number)
-              const [y2, w2] = weekKeys[i + 1].split('-').map(Number)
-              if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
-                streak++
-              } else break
-            }
-            setShopStreak(streak)
+      try {
+        // Resolve shop ID — look up by name if from OSM
+        let shopId = isInDb ? shop.id : null
+        if (!isInDb && shop.name) {
+          const { data: dbMatch } = await supabase
+            .from('coffee_shops').select('*')
+            .ilike('name', shop.name).eq('is_active', true).maybeSingle()
+          if (dbMatch) {
+            shopId = dbMatch.id
+            setResolvedShop(dbMatch)
           }
-          const { data: follows } = await supabase
-            .from('follows').select('following_id').eq('follower_id', profile.id)
-          const followingIds = new Set((follows || []).map((f: any) => f.following_id))
-          setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
+        } else if (isInDb) {
+          const { data: dbShop } = await supabase
+            .from('coffee_shops').select('*').eq('id', shop.id).single()
+          if (dbShop) setResolvedShop(dbShop)
         }
-      }
-      // Load shop follower count + current user follow status
-      const { count: fCount } = await supabase
-        .from('shop_follows').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId)
-      setFollowerCount(fCount || 0)
-      if (profile?.id) {
-        const { data: fData } = await supabase
-          .from('shop_follows').select('user_id').eq('shop_id', shopId).eq('user_id', profile.id).maybeSingle()
+
+        if (!shopId) return
+
+        // Fetch ratings, follower count, and user's follow status in parallel
+        const [{ data: ratings }, { count: fCount }, { data: fData }, { data: follows }] = await Promise.all([
+          supabase.from('ratings')
+            .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url)')
+            .eq('shop_id', shopId).order('created_at', { ascending: false }).limit(50),
+          supabase.from('shop_follows').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId),
+          profile?.id
+            ? supabase.from('shop_follows').select('user_id').eq('shop_id', shopId).eq('user_id', profile.id).maybeSingle()
+            : Promise.resolve({ data: null }),
+          profile?.id
+            ? supabase.from('follows').select('following_id').eq('follower_id', profile.id)
+            : Promise.resolve({ data: [] }),
+        ])
+
+        setFollowerCount(fCount || 0)
         setIsFollowing(!!fData)
+
+        if (ratings) {
+          setAllRatings(ratings)
+          if (profile?.id) {
+            const mine = ratings.filter((r: any) => r.user_id === profile.id)
+            setMyRatings(mine)
+
+            // Calculate consecutive weekly shop streak
+            if (mine.length > 0) {
+              const weekKeys = Array.from(new Set(mine.map((r: any) => {
+                const d = new Date(r.created_at)
+                const year = d.getFullYear()
+                const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
+                return year + '-' + String(week).padStart(2, '0')
+              }))).sort().reverse()
+              let streak = 1
+              for (let i = 0; i < weekKeys.length - 1; i++) {
+                const [y1, w1] = weekKeys[i].split('-').map(Number)
+                const [y2, w2] = weekKeys[i + 1].split('-').map(Number)
+                if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
+                  streak++
+                } else break
+              }
+              setShopStreak(streak)
+            }
+
+            const followingIds = new Set((follows || []).map((f: any) => f.following_id))
+            setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
+          }
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [shop.id, shop.name, isInDb, profile])
