@@ -39,8 +39,8 @@ self.addEventListener('push', (event) => {
 
   let title = 'Social Brew ☕'
   let body = ''
-  let icon = '/icons/icon-192.png'
-  let badge = '/icons/icon-72.png'
+  let icon = '/icon-192.png'
+  let badge = '/icon-192.png'
   let tag = 'social-brew'
   let data = {}
 

@@ -22,6 +22,9 @@ const PortalInviteAccept = lazy(() => import('./portal/PortalInviteAccept'))
 import { supabase } from './lib/supabase'
 import { getBadge } from './lib/badges'
 import { notifyLike, notifyComment, notifyFollow, notifyMention } from './lib/push'
+import PrivacyAcceptanceModal, { CURRENT_POLICY_VERSION } from './components/shared/PrivacyAcceptanceModal'
+import PrivacyPolicyPage from './components/shared/PrivacyPolicyPage'
+import TermsPage from './components/shared/TermsPage'
 
 // Re-export notification helpers so other components can import from App
 export { notifyLike, notifyComment, notifyFollow, notifyMention }
@@ -51,6 +54,8 @@ function AppContent() {
   const [showPushPrompt, setShowPushPrompt] = useState(false)
   const [tabRefresh, setTabRefresh] = useState(0)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [showPrivacyPage, setShowPrivacyPage] = useState(false)
+  const [showTermsPage, setShowTermsPage] = useState(false)
   // Secret tap counter on logo — 5 taps opens admin panel
   const [_logoTaps, setLogoTaps] = useState(0)
 
@@ -150,6 +155,9 @@ function AppContent() {
   }
 
   if (!profile) return <AuthForm />
+
+  // Show privacy acceptance for users who haven't accepted current policy version
+  const needsPrivacyAccept = (profile as any).privacy_policy_version !== CURRENT_POLICY_VERSION
 
   // Admin panel — query param ?panel=ops, admin/moderator only
   if (
@@ -252,6 +260,17 @@ function AppContent() {
       {celebrateBadge && (
         <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />
       )}
+
+      {needsPrivacyAccept && (
+        <PrivacyAcceptanceModal
+          userId={profile.id}
+          onAccepted={() => window.location.reload()}
+          onShowPrivacy={() => setShowPrivacyPage(true)}
+          onShowTerms={() => setShowTermsPage(true)}
+        />
+      )}
+      {showPrivacyPage && <PrivacyPolicyPage onBack={() => setShowPrivacyPage(false)} />}
+      {showTermsPage && <TermsPage onBack={() => setShowTermsPage(false)} />}
 
       {/* Admin dashboard — triggered by 5 taps on logo, admin/moderator only */}
       {showAdminPanel && ['admin', 'moderator', 'viewer'].includes(profile.role as string) && (

@@ -39,80 +39,78 @@ export default function MessagingInbox({ currentUserId, onClose }: Props) {
   const [search, setSearch] = useState('')
 
   async function loadConversations() {
-    // Get conversations the user is a member of
     const { data: memberships } = await supabase
       .from('conversation_members')
       .select('conversation_id,last_read_at,conversations(id,type,name,photo_url,created_by,updated_at)')
       .eq('user_id', currentUserId)
       .order('joined_at', { ascending: false })
 
-    if (!memberships) { setLoading(false); return }
+    if (!memberships || memberships.length === 0) { setLoading(false); return }
 
-    const convList: Conversation[] = []
+    const convIds = memberships.map(m => (m.conversations as any)?.id).filter(Boolean)
 
+    // Batch: last message per conversation + DM partners in two queries
+    const [lastMsgsRes, dmMembersRes] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('conversation_id,content,created_at,sender_id')
+        .in('conversation_id', convIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('conversation_members')
+        .select('conversation_id,user_id,profiles!conversation_members_user_id_fkey(username,avatar_url)')
+        .in('conversation_id', convIds)
+        .neq('user_id', currentUserId),
+    ])
+
+    // Build lookup maps
+    const lastMsgByConv: Record<string, any> = {}
+    for (const msg of lastMsgsRes.data || []) {
+      if (!lastMsgByConv[msg.conversation_id]) lastMsgByConv[msg.conversation_id] = msg
+    }
+
+    const unreadByConv: Record<string, number> = {}
     for (const m of memberships) {
+      if (!m.last_read_at) continue
       const conv = m.conversations as any
       if (!conv) continue
+      const msgs = (lastMsgsRes.data || []).filter(
+        msg => msg.conversation_id === conv.id
+          && msg.sender_id !== currentUserId
+          && new Date(msg.created_at) > new Date(m.last_read_at!)
+      )
+      unreadByConv[conv.id] = msgs.length
+    }
 
-      // Get last message
-      const { data: lastMsgArr } = await supabase
-        .from('messages')
-        .select('content,created_at,sender_id,profiles!messages_sender_id_fkey(username)')
-        .eq('conversation_id', conv.id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      const lastMsg = lastMsgArr?.[0]
-
-      // Unread count: messages after last_read_at
-      let unread = 0
-      if (m.last_read_at) {
-        const { count } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .gt('created_at', m.last_read_at)
-          .neq('sender_id', currentUserId)
-          .is('deleted_at', null)
-        unread = count || 0
+    const dmPartnerByConv: Record<string, any> = {}
+    for (const member of dmMembersRes.data || []) {
+      if (!dmPartnerByConv[member.conversation_id]) {
+        dmPartnerByConv[member.conversation_id] = member.profiles
       }
+    }
 
-      // For DMs, get the other person's info
-      let otherUsername: string | undefined
-      let otherAvatar: string | null | undefined
-      if (conv.type === 'dm') {
-        const { data: others } = await supabase
-          .from('conversation_members')
-          .select('user_id,profiles!conversation_members_user_id_fkey(username,avatar_url)')
-          .eq('conversation_id', conv.id)
-          .neq('user_id', currentUserId)
-          .limit(1)
-        if (others?.[0]) {
-          otherUsername = (others[0].profiles as any)?.username
-          otherAvatar = (others[0].profiles as any)?.avatar_url
-        }
-      }
-
-      const lastMsgContent = lastMsg ? (
-        lastMsg.sender_id === currentUserId ? `You: ${lastMsg.content}` : lastMsg.content
-      ) : null
-
-      convList.push({
+    const convList: Conversation[] = memberships.map(m => {
+      const conv = m.conversations as any
+      if (!conv) return null
+      const lastMsg = lastMsgByConv[conv.id]
+      const partner = dmPartnerByConv[conv.id] as any
+      return {
         id: conv.id,
         type: conv.type,
         name: conv.name,
         photo_url: conv.photo_url,
         created_by: conv.created_by,
         updated_at: lastMsg?.created_at || conv.updated_at,
-        last_message: lastMsgContent,
-        unread,
-        other_username: otherUsername,
-        other_avatar: otherAvatar,
-      })
-    }
+        last_message: lastMsg
+          ? (lastMsg.sender_id === currentUserId ? `You: ${lastMsg.content}` : lastMsg.content)
+          : null,
+        unread: unreadByConv[conv.id] || 0,
+        other_username: partner?.username,
+        other_avatar: partner?.avatar_url ?? null,
+      }
+    }).filter(Boolean) as Conversation[]
 
-    // Sort by most recent
     convList.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     setConversations(convList)
     setLoading(false)
@@ -122,10 +120,9 @@ export default function MessagingInbox({ currentUserId, onClose }: Props) {
     loadConversations()
   }, [currentUserId])
 
-  function handleConversationCreated(conversationId: string, name: string | null) {
+  function handleConversationCreated(conversationId: string, name: string | null, otherUser?: { username: string; avatar_url: string | null }) {
     setShowNew(false)
     loadConversations()
-    // Find or create a placeholder conversation object to open
     const existing = conversations.find(c => c.id === conversationId)
     if (existing) {
       setActiveConversation(existing)
@@ -137,6 +134,8 @@ export default function MessagingInbox({ currentUserId, onClose }: Props) {
         photo_url: null,
         created_by: currentUserId,
         updated_at: new Date().toISOString(),
+        other_username: otherUser?.username,
+        other_avatar: otherUser?.avatar_url,
       })
     }
   }

@@ -7,13 +7,14 @@ import { registerPushNotifications } from '../../lib/push'
 
 type Notification = {
   id: string
-  type: 'like' | 'comment' | 'follow' | 'follow_request' | 'new_post' | 'mention' | 'coffee_date' | 'story'
+  type: 'like' | 'comment' | 'follow' | 'follow_request' | 'new_post' | 'mention' | 'coffee_date' | 'story' | 'punch_awarded' | 'punch_card_approved' | 'punch_card_rejected'
   content?: string
+  data?: Record<string, any>
   read: boolean
   created_at: string
-  actor_id: string
+  actor_id: string | null
   rating_id?: string
-  actor: { username: string; avatar_url: string | null }
+  actor?: { username: string; avatar_url: string | null } | null
   rating?: { fill_level: number; coffee_shops: { name: string } | null }
 }
 
@@ -34,6 +35,9 @@ function NotifIcon({ type }: { type: string }) {
   if (type === 'new_post') return <span className="text-base">☕</span>
   if (type === 'coffee_date') return <span className="text-base">📅</span>
   if (type === 'story') return <span className="text-base">🟡</span>
+  if (type === 'punch_awarded') return <span className="text-base">🎫</span>
+  if (type === 'punch_card_approved') return <span className="text-base">✅</span>
+  if (type === 'punch_card_rejected') return <span className="text-base">❌</span>
   return <span className="text-base">🔔</span>
 }
 
@@ -48,6 +52,20 @@ function notifText(n: Notification) {
   if (n.type === 'new_post') {
     const shop = (n.rating?.coffee_shops as any)?.name
     return shop ? `posted a brew at ${shop}` : 'posted a new brew'
+  }
+  if (n.type === 'punch_awarded') {
+    const d = n.data || {}
+    if (d.reward_earned) return `You earned a free reward! 🎉 ${d.new_count}/${d.required} punches at this shop`
+    return `+1 punch earned! ☕ ${d.new_count}/${d.required} at this shop`
+  }
+  if (n.type === 'punch_card_approved') {
+    const shop = n.data?.shop_name || 'your shop'
+    return `Your punch card for ${shop} was approved and is now live!`
+  }
+  if (n.type === 'punch_card_rejected') {
+    const shop = n.data?.shop_name || 'your shop'
+    const reason = n.data?.rejection_reason
+    return reason ? `Punch card for ${shop} was rejected: ${reason}` : `Punch card for ${shop} was not approved`
   }
   const shop = (n.rating?.coffee_shops as any)?.name
   return shop ? `posted at ${shop}` : 'posted a new brew'
@@ -228,18 +246,23 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
               </div>
             )}
             {notifications.map(n => {
+              const isSystem = !n.actor_id || n.type === 'punch_awarded' || n.type === 'punch_card_approved' || n.type === 'punch_card_rejected'
               const avatar = (
                 <div className="relative flex-shrink-0" style={{ minWidth: 36 }}>
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-coffee-200">
-                    {n.actor?.avatar_url
-                      ? <img src={n.actor.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-caramel">
-                          <span className="text-white text-sm font-bold">{n.actor?.username?.[0]?.toUpperCase()}</span>
-                        </div>}
+                    {isSystem
+                      ? <div className="w-full h-full flex items-center justify-center bg-amber-100"><span className="text-lg"><NotifIcon type={n.type} /></span></div>
+                      : n.actor?.avatar_url
+                        ? <img src={n.actor.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center bg-caramel">
+                            <span className="text-white text-sm font-bold">{n.actor?.username?.[0]?.toUpperCase()}</span>
+                          </div>}
                   </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center" style={{ fontSize: 10 }}>
-                    <NotifIcon type={n.type} />
-                  </div>
+                  {!isSystem && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center" style={{ fontSize: 10 }}>
+                      <NotifIcon type={n.type} />
+                    </div>
+                  )}
                 </div>
               )
 
@@ -278,16 +301,16 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
                   onClick={() => {
                     setOpen(false)
                     if (!onNavigate) return
-                    if (n.type === 'follow') onNavigate('profile', n.actor_id)
-                    if (n.type === 'coffee_date') onNavigate?.('profile', n.actor_id)
-                    if (n.type === 'story') onNavigate?.('profile', n.actor_id)
+                    if (n.type === 'follow' && n.actor_id) onNavigate('profile', n.actor_id)
+                    if (n.type === 'coffee_date' && n.actor_id) onNavigate?.('profile', n.actor_id)
+                    if (n.type === 'story' && n.actor_id) onNavigate?.('profile', n.actor_id)
                     else if (n.rating_id) onNavigate('post', n.rating_id)
                   }}
                   className={`w-full flex items-start gap-3 px-4 py-3 border-b border-cream-100 transition-colors text-left ${!n.read ? 'bg-amber-50' : 'bg-white'} hover:bg-cream-50`}>
                   {avatar}
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-coffee-700 text-sm leading-snug">
-                      <span className="font-semibold">{n.actor?.username}</span>{' '}
+                      {!isSystem && <><span className="font-semibold">{n.actor?.username}</span>{' '}</>}
                       <span className="text-coffee-500">{notifText(n)}</span>
                     </p>
                     <p className="text-coffee-400 text-xs mt-0.5">{timeAgo(n.created_at)}</p>

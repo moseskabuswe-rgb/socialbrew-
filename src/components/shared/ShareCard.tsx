@@ -142,121 +142,55 @@ function drawMug(
   size: number,
   fill: number
 ) {
-  // Proportions mirrored from MugRating.tsx SVG
-  // MugRating uses: VW=200, BX=30, BY=35, BW=110, BH=105, BR=12
-  // Scale factor: size / 200
-  const sc = size / 200
-  const BX = x + 30 * sc
-  const BY = y + 35 * sc
-  const BW = 110 * sc
-  const BH = 105 * sc
-  const BR = 12 * sc
+  // Matches the feed SVG exactly: viewBox="0 0 56 68"
+  // sc maps SVG units → canvas pixels
+  const sc = size / 56
   const liquidColor = getLiquidColor(fill)
 
-  // Saucer ellipse (under the mug)
+  // Saucer ellipse: cx=24 cy=58 rx=19 ry=5
   ctx.beginPath()
-  ctx.ellipse(BX + BW / 2, BY + BH + 18 * sc, BW / 2 + 16 * sc, 9 * sc, 0, 0, Math.PI * 2)
-  ctx.fillStyle = '#e8d8bc'
+  ctx.ellipse(x + 24 * sc, y + 58 * sc, 19 * sc, 5 * sc, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#e8ddc8'
   ctx.fill()
-  ctx.strokeStyle = '#c8b090'
-  ctx.lineWidth = 1 * sc
-  ctx.stroke()
 
-  // Handle (bezier curves matching MugRating exactly)
-  ctx.beginPath()
-  ctx.moveTo(BX + BW - 2 * sc, BY + 20 * sc)
-  ctx.bezierCurveTo(
-    BX + BW + 36 * sc, BY + 16 * sc,
-    BX + BW + 36 * sc, BY + BH - 16 * sc,
-    BX + BW - 2 * sc, BY + BH - 20 * sc
-  )
-  ctx.strokeStyle = '#c8b090'
-  ctx.lineWidth = 8 * sc
-  ctx.stroke()
-  // Inner handle line
-  ctx.beginPath()
-  ctx.moveTo(BX + BW - 2 * sc, BY + 20 * sc)
-  ctx.bezierCurveTo(
-    BX + BW + 24 * sc, BY + 17 * sc,
-    BX + BW + 24 * sc, BY + BH - 17 * sc,
-    BX + BW - 2 * sc, BY + BH - 20 * sc
-  )
-  ctx.strokeStyle = '#dcc8a8'
-  ctx.lineWidth = 4 * sc
-  ctx.stroke()
-
-  // Mug body — ceramic gradient
-  const ceramicGrad = ctx.createLinearGradient(BX, BY, BX + BW, BY)
-  ceramicGrad.addColorStop(0, '#f8f0e0')
-  ceramicGrad.addColorStop(0.4, '#fdfaf5')
-  ceramicGrad.addColorStop(1, '#e8d8bc')
-  roundRect(ctx, BX, BY, BW, BH, BR)
-  ctx.fillStyle = ceramicGrad
+  // Body background (cream): x=5 y=12 w=38 h=46 rx=5
+  roundRect(ctx, x + 5 * sc, y + 12 * sc, 38 * sc, 46 * sc, 5 * sc)
+  ctx.fillStyle = '#f7f0e4'
   ctx.fill()
+
+  // Liquid fill clipped to body
+  if (fill > 0) {
+    ctx.save()
+    roundRect(ctx, x + 5 * sc, y + 12 * sc, 38 * sc, 46 * sc, 5 * sc)
+    ctx.clip()
+    const fillH = 46 * sc * fill / 100
+    const fillY = y + 58 * sc - fillH
+    ctx.fillStyle = liquidColor
+    ctx.fillRect(x + 5 * sc, fillY, 38 * sc, fillH)
+    ctx.restore()
+  }
+
+  // Body stroke only (liquid visible through it)
+  roundRect(ctx, x + 5 * sc, y + 12 * sc, 38 * sc, 46 * sc, 5 * sc)
   ctx.strokeStyle = '#c8b090'
   ctx.lineWidth = 1.5 * sc
   ctx.stroke()
 
-  // Liquid fill
-  if (fill > 0) {
-    const IH = BH - 8 * sc
-    const fillH = IH * (fill / 100)
-    const fillY = BY + BH - fillH
-
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(BX + 4 * sc, BY + 4 * sc, BW - 8 * sc, BH - 8 * sc)
-    ctx.clip()
-
-    ctx.fillStyle = liquidColor
-    ctx.fillRect(BX + 4 * sc, fillY, BW - 8 * sc, fillH)
-
-    // Crema ellipse on top of liquid
-    ctx.beginPath()
-    const cremaCX = BX + BW / 2
-    const cremaRX = (BW - 14 * sc) / 2
-    ctx.ellipse(cremaCX, fillY + 1, cremaRX, 4 * sc, 0, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(210,170,100,0.85)'
-    ctx.fill()
-
-    ctx.restore()
-  }
-
-  // Rim (top band)
-  roundRect(ctx, BX - 3 * sc, BY - 6 * sc, BW + 6 * sc, 12 * sc, 6 * sc)
-  ctx.fillStyle = '#e8d8bc'
+  // Rim: x=3 y=8 w=42 h=8 rx=4
+  roundRect(ctx, x + 3 * sc, y + 8 * sc, 42 * sc, 8 * sc, 4 * sc)
+  ctx.fillStyle = '#d4b890'
   ctx.fill()
+
+  // Handle: M43 22 Q56 22 56 33 Q56 44 43 44
+  ctx.beginPath()
+  ctx.moveTo(x + 43 * sc, y + 22 * sc)
+  ctx.quadraticCurveTo(x + 56 * sc, y + 22 * sc, x + 56 * sc, y + 33 * sc)
+  ctx.quadraticCurveTo(x + 56 * sc, y + 44 * sc, x + 43 * sc, y + 44 * sc)
   ctx.strokeStyle = '#c8b090'
-  ctx.lineWidth = 1 * sc
+  ctx.lineWidth = 5 * sc
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
   ctx.stroke()
-  // Rim inner
-  roundRect(ctx, BX, BY - 4 * sc, BW, 7 * sc, 4 * sc)
-  ctx.fillStyle = '#dcc8a8'
-  ctx.fill()
-
-  // Highlight stripe
-  roundRect(ctx, BX + 8 * sc, BY + 6 * sc, 12 * sc, BH - 16 * sc, 6 * sc)
-  ctx.fillStyle = 'rgba(255,255,255,0.25)'
-  ctx.fill()
-
-  // Steam (fill >= 65)
-  if (fill >= 65) {
-    ctx.strokeStyle = liquidColor
-    ctx.lineWidth = 2 * sc
-    ctx.lineCap = 'round'
-    const steamPositions = [BX + BW * 0.25, BX + BW * 0.5, BX + BW * 0.75]
-    steamPositions.forEach((sx, i) => {
-      const offset = i % 2 === 0 ? 5 * sc : -5 * sc
-      ctx.beginPath()
-      ctx.moveTo(sx, BY - 8 * sc)
-      ctx.bezierCurveTo(
-        sx + offset, BY - 18 * sc,
-        sx - offset, BY - 28 * sc,
-        sx, BY - 38 * sc
-      )
-      ctx.stroke()
-    })
-  }
 }
 
 function drawAvatar(
@@ -397,11 +331,16 @@ export default function ShareCard({ rating, onClose }: Props) {
 
     // ── Header ───────────────────────────────────────────────
     let Y = 0
-    const hdrGrad = ctx.createLinearGradient(0, 0, W, 0)
-    hdrGrad.addColorStop(0, '#1c0a02')
-    hdrGrad.addColorStop(1, '#3d1a06')
-    ctx.fillStyle = hdrGrad
+    // Cream background matching the app header
+    ctx.fillStyle = '#fdfaf5'
     ctx.fillRect(0, Y, W, HEADER_H)
+    // Subtle bottom border
+    ctx.strokeStyle = '#e8d8c0'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, Y + HEADER_H)
+    ctx.lineTo(W, Y + HEADER_H)
+    ctx.stroke()
 
     // ☕ icon circle
     const iconCX = PAD + 22, iconCY = Y + HEADER_H / 2
@@ -418,10 +357,10 @@ export default function ShareCard({ rating, onClose }: Props) {
     ctx.textAlign = 'left'
 
     ctx.font = 'bold 21px Georgia, serif'
-    ctx.fillStyle = 'white'
+    ctx.fillStyle = '#1c0a02'
     ctx.fillText('Social Brew', PAD + 54, Y + HEADER_H / 2 - 2)
     ctx.font = '12px system-ui, -apple-system, sans-serif'
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.fillStyle = '#9b7a55'
     ctx.fillText('Independent coffee only', PAD + 54, Y + HEADER_H / 2 + 17)
 
     Y += HEADER_H + 16

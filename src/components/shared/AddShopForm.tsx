@@ -59,10 +59,13 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
     setGeocoding(true)
     try {
       const encoded = encodeURIComponent(fullAddress)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&addressdetails=1`,
-        { headers: { 'User-Agent': 'SocialBrew/1.0' } }
+        { headers: { 'User-Agent': 'SocialBrew/1.0' }, signal: controller.signal }
       )
+      clearTimeout(timeout)
       const data = await res.json()
       if (data && data[0]) {
         setLat(parseFloat(data[0].lat))

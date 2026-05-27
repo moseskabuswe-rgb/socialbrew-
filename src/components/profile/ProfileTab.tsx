@@ -12,6 +12,8 @@ import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
 import PunchCardRedemption from '../shops/PunchCardRedemption'
+import PrivacyPolicyPage from '../shared/PrivacyPolicyPage'
+import TermsPage from '../shared/TermsPage'
 import { compressAvatar } from '../../lib/compressImage'
 import { cachedUrl } from '../../lib/storageUrl'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
@@ -138,7 +140,7 @@ function VisitedShopsModal({ visits, onClose, onShopClick }: { visits: any[]; on
   )
 }
 // ── SETTINGS MODAL ───────────────────────────────────────
-function SettingsModal({ onClose }: { onClose: () => void }) {
+function SettingsModal({ onClose, onShowPrivacy, onShowTerms }: { onClose: () => void; onShowPrivacy: () => void; onShowTerms: () => void }) {
   const { profile, signOut, refreshProfile } = useAuth()
   const [username, setUsername] = useState(profile?.username || '')
   const [fullName, setFullName] = useState(profile?.full_name || '')
@@ -162,6 +164,9 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [blockedProfiles, setBlockedProfiles] = useState<any[]>([])
   const [loadingBlocked, setLoadingBlocked] = useState(false)
   const [unblockingId, setUnblockingId] = useState<string | null>(null)
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
   const [homeCity, setHomeCity] = useState(() => localStorage.getItem('sb_home_city') || '')
   const [pushEnabled, setPushEnabled] = useState(
     typeof Notification !== 'undefined' && Notification.permission === 'granted'
@@ -273,6 +278,23 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     }
     setLoadingBlocked(false)
   }
+  async function handleDeleteAccount() {
+    if (!profile || deleteConfirmText !== 'DELETE') return
+    setDeletingAccount(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://pifpkfuulfnweeiqufbq.supabase.co'}/functions/v1/delete-account`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      if (!res.ok) throw new Error('Deletion failed')
+      await signOut()
+    } catch {
+      alert('Could not delete account. Please try again or contact support.')
+    }
+    setDeletingAccount(false)
+  }
+
   async function handleUnblock(blockedId: string) {
     if (!profile) return
     setUnblockingId(blockedId)
@@ -485,6 +507,49 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
               <span className="font-medium text-sm">Sign Out</span>
             </button>
           </div>
+          {/* Privacy & Legal */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-cream-100">
+              <p className="text-coffee-600 font-semibold text-sm">Legal</p>
+            </div>
+            <button onClick={onShowPrivacy} className="w-full flex items-center justify-between px-5 py-3 border-b border-cream-100">
+              <p className="text-coffee-700 text-sm font-medium">Privacy Policy</p>
+              <ChevronRight size={16} className="text-coffee-400" />
+            </button>
+            <button onClick={onShowTerms} className="w-full flex items-center justify-between px-5 py-3">
+              <p className="text-coffee-700 text-sm font-medium">Terms of Service</p>
+              <ChevronRight size={16} className="text-coffee-400" />
+            </button>
+          </div>
+          {/* Delete Account */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl border border-red-100 shadow-sm overflow-hidden mb-4">
+            <button
+              onClick={() => setShowDeleteAccount(v => !v)}
+              className="w-full flex items-center justify-between px-5 py-4"
+            >
+              <p className="text-red-600 font-semibold text-sm">Delete Account</p>
+              <ChevronRight size={16} className={`text-red-400 transition-transform ${showDeleteAccount ? 'rotate-90' : ''}`} />
+            </button>
+            {showDeleteAccount && (
+              <div className="px-5 pb-5 border-t border-red-50 space-y-3">
+                <p className="text-coffee-500 text-xs pt-3">This permanently deletes your account, all your brews, ratings, and data. This cannot be undone.</p>
+                <p className="text-coffee-600 text-xs font-medium">Type <span className="font-bold text-red-600">DELETE</span> to confirm:</p>
+                <input
+                  value={deleteConfirmText}
+                  onChange={e => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full bg-red-50 text-red-800 rounded-xl px-4 py-2.5 text-sm border border-red-200 focus:border-red-400 focus:outline-none placeholder-red-300 font-mono"
+                />
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== 'DELETE' || deletingAccount}
+                  className="w-full py-3 rounded-xl text-sm font-bold text-white bg-red-500 disabled:opacity-30"
+                >
+                  {deletingAccount ? 'Deleting...' : 'Permanently Delete My Account'}
+                </button>
+              </div>
+            )}
+          </div>
           {/* Blocked Users */}
           <div className="bg-white mx-4 mt-3 rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
             <button
@@ -532,6 +597,10 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
 export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (shop?: any) => void }) {
   const { profile } = useAuth()
   const [ratings, setRatings] = useState<any[]>([])
+  const [ratingsPage, setRatingsPage] = useState(0)
+  const [ratingsHasMore, setRatingsHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const RATINGS_PER_PAGE = 50
   const [visitedShops, setVisitedShops] = useState<any[]>([])
   const [followerCount, setFollowerCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
@@ -539,6 +608,8 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [wishlist, setWishlist] = useState<any[]>([])
   const [activeSection, setActiveSection] = useState<'sips' | 'map' | 'wishlist' | 'cards'>('sips')
   const [showSettings, setShowSettings] = useState(false)
+  const [showPrivacyPage, setShowPrivacyPage] = useState(false)
+  const [showTermsPage, setShowTermsPage] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [explorationStats, setExplorationStats] = useState<any>(null)
   const [totalCount, setTotalCount] = useState(0)
@@ -561,7 +632,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
     if (!profile) return
     async function load() {
       const [ratingsRes, visitsRes, followersRes, followingRes, wishlistRes] = await Promise.all([
-        supabase.from('ratings').select('id, user_id, fill_level, drink_name, photo_url, photo_urls, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(500),
+        supabase.from('ratings').select('id, user_id, fill_level, drink_name, photo_url, photo_urls, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)').eq('user_id', profile!.id).order('created_at', { ascending: false }).range(0, RATINGS_PER_PAGE - 1),
         supabase.from('user_shop_visits').select('*, coffee_shops(id,name,city,state,lat,lng,photo_url)').eq('user_id', profile!.id).order('visit_count', { ascending: false }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile!.id),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile!.id),
@@ -589,6 +660,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
       }
       if (ratingsRes.data) {
         setRatings(ratingsRes.data)
+        setRatingsHasMore(ratingsRes.data.length === RATINGS_PER_PAGE)
         // Compute exploration stats for advanced badge levels
         const shops = ratingsRes.data.filter((r: any) => r.coffee_shops)
         const uniqueShops = new Set(shops.map((r: any) => r.shop_id)).size
@@ -663,6 +735,24 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   async function deleteWishlistItem(id: string) {
     await supabase.from('wishlist').delete().eq('id', id)
     setWishlist(prev => prev.filter(w => w.id !== id))
+  }
+
+  async function loadMoreRatings() {
+    if (!profile || loadingMore || !ratingsHasMore) return
+    setLoadingMore(true)
+    const nextPage = ratingsPage + 1
+    const { data } = await supabase
+      .from('ratings')
+      .select('id, user_id, fill_level, drink_name, photo_url, photo_urls, caption, created_at, shop_id, coffee_shops(id, name, city, state, country, continent, photo_url, lat, lng)')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .range(nextPage * RATINGS_PER_PAGE, nextPage * RATINGS_PER_PAGE + RATINGS_PER_PAGE - 1)
+    if (data) {
+      setRatings(prev => [...prev, ...data])
+      setRatingsHasMore(data.length === RATINGS_PER_PAGE)
+      setRatingsPage(nextPage)
+    }
+    setLoadingMore(false)
   }
   const badgeInfo = getBadge(totalCount || ratings.length, explorationStats || undefined)
   return (
@@ -816,7 +906,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               </div>
             )}
             <div className="space-y-2">
-              {ratings.map(rating => {
+              {ratings.map((rating: any) => {
                 const shop = rating.coffee_shops as any
                 return (
                   <div key={rating.id} className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-sm border border-cream-200">
@@ -840,6 +930,15 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                 )
               })}
             </div>
+            {ratingsHasMore && (
+              <button
+                onClick={loadMoreRatings}
+                disabled={loadingMore}
+                className="w-full py-3 rounded-xl text-sm font-medium text-coffee-500 bg-white border border-cream-200 shadow-sm disabled:opacity-40 mt-1"
+              >
+                {loadingMore ? 'Loading...' : 'Load more sips'}
+              </button>
+            )}
           </div>
         )}
         {/* Wishlist */}
@@ -975,7 +1074,13 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         )}
       </div>
       {showWrapped && <BrewWrapped onClose={() => setShowWrapped(false)} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onShowPrivacy={() => { setShowSettings(false); setShowPrivacyPage(true) }}
+          onShowTerms={() => { setShowSettings(false); setShowTermsPage(true) }}
+        />
+      )}
       {showFollowers && <FollowersModal userId={profile.id} type={showFollowers} onClose={() => setShowFollowers(null)} />}
       {showShops && <VisitedShopsModal visits={visitedShops} onClose={() => setShowShops(false)} onShopClick={(s) => setSelectedShop(s)} />}
       {celebrateBadge && <BadgeCelebration badge={celebrateBadge} onClose={() => setCelebrateBadge(null)} />}
@@ -1012,6 +1117,8 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           onClose={() => setShowRedemptionFor(null)}
         />
       )}
+      {showPrivacyPage && <PrivacyPolicyPage onBack={() => setShowPrivacyPage(false)} />}
+      {showTermsPage && <TermsPage onBack={() => setShowTermsPage(false)} />}
     </div>
   )
 }

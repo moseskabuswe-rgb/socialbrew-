@@ -91,10 +91,10 @@ export default function EditPostModal({ rating, onClose, onSaved }: Props) {
         const ext = photo.name.split('.').pop() || 'jpg'
         const path = `moments/${profile.id}/${Date.now()}.${ext}`
         const { error: upErr } = await supabase.storage
-          .from('avatars')
+          .from('photos')
           .upload(path, photo, { upsert: true })
         if (upErr) throw upErr
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
         photoUrl = publicUrl
         // Replace the old primary photo in the array; preserve any extras
         const existing: string[] = rating.photo_urls || (rating.photo_url ? [rating.photo_url] : [])

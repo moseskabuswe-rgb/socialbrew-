@@ -2,8 +2,8 @@
 
 import { supabase } from './supabase'
 
-const SUPABASE_URL = 'https://pifpkfuulfnweeiqufbq.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://pifpkfuulfnweeiqufbq.supabase.co'
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw'
 
 async function callEdgeFunction(body: object): Promise<void> {
   try {
@@ -22,11 +22,14 @@ async function callEdgeFunction(body: object): Promise<void> {
 }
 
 export async function registerPushNotifications(userId: string): Promise<boolean> {
-  // Navigate to standalone registration page.
-  // Firebase Messaging crashes React when called in the main thread.
-  // The standalone page uses the same Firebase CDN approach as test-push.html
-  // which is proven to work, and saves the token via Edge Function (service role key).
-  window.location.href = `/enable-notifications.html?uid=${encodeURIComponent(userId)}`
+  // Firebase Messaging must run in a standalone page (crashes React's event loop).
+  // Open as popup so app state is preserved.
+  const url = `/enable-notifications.html?uid=${encodeURIComponent(userId)}`
+  const popup = window.open(url, 'sb-push-setup', 'width=480,height=360,menubar=no,toolbar=no,location=no')
+  if (!popup) {
+    // Popup blocked — fall back to full navigation
+    window.location.href = url
+  }
   return false
 }
 

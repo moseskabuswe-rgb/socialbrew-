@@ -32,18 +32,47 @@ interface StoryGroup {
   hasUnviewed: boolean
 }
 
-export default function StoriesBar() {
+interface Props {
+  mode?: 'people' | 'shops'
+  onShopSelect?: (shop: any) => void
+}
+
+export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
   const { profile } = useAuth()
   const [groups, setGroups] = useState<StoryGroup[]>([])
   const [myStories, setMyStories] = useState<Story[]>([])
   const [viewingGroup, setViewingGroup] = useState<StoryGroup | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [followedShops, setFollowedShops] = useState<any[]>([])
 
   useEffect(() => {
     if (!profile) return
-    loadStories()
-  }, [profile])
+    if (mode === 'shops') loadShops()
+    else loadStories()
+  }, [profile, mode])
+
+  async function loadShops() {
+    if (!profile) return
+    setLoading(true)
+    const { data: shopFollows } = await supabase
+      .from('shop_follows')
+      .select('shop_id, coffee_shops(id, name, photo_url, city, state)')
+      .eq('user_id', profile.id)
+      .limit(20)
+    if (shopFollows && shopFollows.length > 0) {
+      setFollowedShops(shopFollows.map((sf: any) => sf.coffee_shops).filter(Boolean))
+    } else {
+      const { data: active } = await supabase
+        .from('coffee_shops')
+        .select('id, name, photo_url, city, state')
+        .eq('is_active', true)
+        .order('total_ratings', { ascending: false })
+        .limit(12)
+      setFollowedShops(active || [])
+    }
+    setLoading(false)
+  }
 
   async function loadStories() {
     if (!profile) return
@@ -126,7 +155,30 @@ export default function StoriesBar() {
     await supabase.from('story_views').upsert({ story_id: storyId, viewer_id: profile.id }, { onConflict: 'story_id,viewer_id', ignoreDuplicates: true })
   }
 
-  if (loading) return null
+  if (loading) return <div className="h-24" />
+
+  if (mode === 'shops') {
+    return (
+      <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-cream-200">
+        {followedShops.length === 0 ? (
+          <p className="text-coffee-400 text-sm py-2">Explore shops in Discover to follow them</p>
+        ) : followedShops.map(shop => (
+          <button key={shop.id} onClick={() => onShopSelect?.(shop)}
+            className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <div className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 border-2 border-cream-200">
+              {shop.photo_url
+                ? <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center bg-caramel">
+                    <span className="text-white text-xl">☕</span>
+                  </div>}
+            </div>
+            <span className="text-coffee-500 text-xs font-medium max-w-[56px] truncate">{shop.name}</span>
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   if (groups.length === 0 && myStories.length === 0) return (
     <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide">
       <button onClick={() => setShowCreate(true)} className="flex flex-col items-center gap-1.5 flex-shrink-0">

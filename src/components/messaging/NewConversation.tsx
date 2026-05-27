@@ -11,7 +11,7 @@ interface Profile {
 
 interface Props {
   currentUserId: string
-  onConversationCreated: (conversationId: string, name: string | null) => void
+  onConversationCreated: (conversationId: string, name: string | null, otherUser?: { username: string; avatar_url: string | null }) => void
   onBack: () => void
 }
 
@@ -66,7 +66,7 @@ export default function NewConversation({ currentUserId, onConversationCreated, 
         const dm = (shared as any)?.find((c: any) => (c.conversations as any)?.type === 'dm')
         if (dm) {
           setCreating(false)
-          onConversationCreated(dm.conversation_id, null)
+          onConversationCreated(dm.conversation_id, null, { username: selected[0].username, avatar_url: selected[0].avatar_url })
           return
         }
       }
@@ -93,7 +93,7 @@ export default function NewConversation({ currentUserId, onConversationCreated, 
     await supabase.from('conversation_members').insert(members)
 
     setCreating(false)
-    onConversationCreated(conv.id, convName)
+    onConversationCreated(conv.id, convName, !isGroup ? { username: selected[0].username, avatar_url: selected[0].avatar_url } : undefined)
   }
 
   const isGroup = selected.length > 1

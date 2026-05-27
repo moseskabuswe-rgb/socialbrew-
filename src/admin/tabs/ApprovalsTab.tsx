@@ -200,6 +200,19 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
     onPendingChange()
   }
 
+  async function notifyShopOwner(shopId: string, type: 'punch_card_approved' | 'punch_card_rejected', data: Record<string, any>) {
+    const { data: owner } = await supabase
+      .from('shop_owners').select('profile_id').eq('shop_id', shopId).maybeSingle()
+    if (owner?.profile_id) {
+      await supabase.from('notifications').insert({
+        user_id: owner.profile_id,
+        actor_id: currentUserId,
+        type,
+        data,
+      })
+    }
+  }
+
   async function approvePunchCard(card: PunchCard) {
     setWorking(true)
     await supabase.from('punch_cards').update({
@@ -207,12 +220,17 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       approved_by: currentUserId,
       approved_at: new Date().toISOString(),
     }).eq('id', card.id)
+    await notifyShopOwner(card.shop_id, 'punch_card_approved', {
+      shop_name: (card.coffee_shops as any)?.name,
+      reward_description: card.reward_description,
+    })
     setWorking(false)
     fetchAll()
     onPendingChange()
   }
 
   async function rejectPunchCard(id: string) {
+    const card = punchCards.find(c => c.id === id)
     setWorking(true)
     await supabase.from('punch_cards').update({
       is_active: false,
@@ -220,6 +238,12 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       approved_by: currentUserId,
       approved_at: new Date().toISOString(),
     }).eq('id', id)
+    if (card) {
+      await notifyShopOwner(card.shop_id, 'punch_card_rejected', {
+        shop_name: (card.coffee_shops as any)?.name,
+        rejection_reason: rejectReason || null,
+      })
+    }
     setWorking(false)
     setRejectTarget(null)
     setRejectReason('')

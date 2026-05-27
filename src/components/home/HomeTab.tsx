@@ -1324,42 +1324,58 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
   return (
     <div className="min-h-screen bg-cream-100">
-      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200 px-5 py-4 flex items-center justify-between">
-        <div className="relative inline-flex items-center" onClick={onLogoTap} style={{ userSelect: 'none', cursor: 'pointer' }}>
-          <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
-          {unreadNotifs > 0 && (
-            <span className="absolute -top-1.5 -right-5 min-w-[18px] h-[18px] rounded-full bg-red-500 flex items-center justify-center px-1"
-              style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>
-              {unreadNotifs > 99 ? '99+' : unreadNotifs}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setShowNewInbox(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
-            <MessageCircle size={22} />
-            {unreadDMs > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
-                <span className="text-white font-bold" style={{ fontSize: 9 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
+      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200">
+        <div className="px-5 py-4 flex items-center justify-between">
+          <div className="relative inline-flex items-center" onClick={onLogoTap} style={{ userSelect: 'none', cursor: 'pointer' }}>
+            <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
+            {unreadNotifs > 0 && (
+              <span className="absolute -top-1.5 -right-5 min-w-[18px] h-[18px] rounded-full bg-red-500 flex items-center justify-center px-1"
+                style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>
+                {unreadNotifs > 99 ? '99+' : unreadNotifs}
               </span>
             )}
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowNewInbox(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+              <MessageCircle size={22} />
+              {unreadDMs > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                  <span className="text-white font-bold" style={{ fontSize: 9 }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
+                </span>
+              )}
+            </button>
+            <NotificationBell
+              onOpen={() => setUnreadNotifs(0)}
+              onNavigate={async (type, id) => {
+              if (type === 'profile') {
+                setActiveUserProfile(id)
+              } else if (type === 'post') {
+                const { data } = await supabase
+                  .from('ratings')
+                  .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
+                  .eq('id', id)
+                  .single()
+                if (data) setActivePost(data)
+              }
+            }} />
+            <button onClick={() => loadSavedPosts()} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+              <Bookmark size={22} />
+            </button>
+          </div>
+        </div>
+        {/* People / Shops toggle — static below title */}
+        <div className="flex gap-2 px-4 pb-3">
+          <button
+            onClick={() => setFeedTab('people')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'people' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
+          >
+            👥 People
           </button>
-          <NotificationBell
-            onOpen={() => setUnreadNotifs(0)}
-            onNavigate={async (type, id) => {
-            if (type === 'profile') {
-              setActiveUserProfile(id)
-            } else if (type === 'post') {
-              // Load the rating and open PostDetailModal
-              const { data } = await supabase
-                .from('ratings')
-                .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
-                .eq('id', id)
-                .single()
-              if (data) setActivePost(data)
-            }
-          }} />
-          <button onClick={() => loadSavedPosts()} className="w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
-            <Bookmark size={22} />
+          <button
+            onClick={() => setFeedTab('shops')}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'shops' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
+          >
+            ☕ Shops
           </button>
         </div>
       </div>
@@ -1378,23 +1394,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           </div>
         )}
 
-        {/* Stories */}
-        <StoriesBar />
-        {/* People / Shops feed switcher */}
-        <div className="flex gap-2 px-4 pt-3 pb-1">
-          <button
-            onClick={() => setFeedTab('people')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'people' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
-          >
-            👥 People
-          </button>
-          <button
-            onClick={() => setFeedTab('shops')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'shops' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
-          >
-            ☕ Shops
-          </button>
-        </div>
+        {/* Stories — context-aware: people stories or shop bubbles */}
+        <StoriesBar mode={feedTab} onShopSelect={setSelectedShop} />
         {feedTab === 'shops' && <ShopsFeed profileId={profile?.id || null} />}
         {feedTab === 'people' && (<>
         {/* Wrapped Season Banner */}
@@ -1411,48 +1412,50 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             </div>
           </button>
         )}
-        {/* Friend suggestions strip */}
-        {!loading && suggestedUsers.length > 0 && (
-          <div className="mx-4 mt-3 mb-1 bg-white rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
-            <p className="px-4 pt-3 pb-1 text-coffee-700 font-semibold text-sm">People you might know</p>
-            <div className="flex gap-4 overflow-x-auto px-4 pb-3 pt-1 scrollbar-hide">
-              {suggestedUsers.map(u => {
-                const isFollowing = followedSuggestions.has(u.id)
-                return (
-                  <div key={u.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-20">
-                    <button onClick={() => setActiveUserProfile(u.id)} className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
-                      {u.avatar_url
-                        ? <img src={u.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
-                            <span className="text-white font-bold">{u.username?.[0]?.toUpperCase()}</span>
-                          </div>}
-                    </button>
-                    <p className="text-coffee-700 text-xs font-medium text-center truncate w-full">@{u.username}</p>
-                    {u.badge && <p className="text-caramel text-center truncate w-full" style={{ fontSize: 10 }}>{u.badge}</p>}
-                    <button
-                      onClick={async () => {
-                        if (!profile || isFollowing) return
-                        await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id, status: 'pending' })
-                        await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow_request' })
-                        notifyFollow(u.id, profile.username || 'Someone')
-                        setFollowedSuggestions(prev => new Set([...prev, u.id]))
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-full font-semibold transition-all active:scale-95"
-                      style={isFollowing
-                        ? { background: '#f0e8df', color: '#9b7a55' }
-                        : { background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', color: '#fff' }
-                      }
-                    >
-                      {isFollowing ? '✓ Requested' : 'Follow'}
-                    </button>
-                  </div>
-                )
-              })}
+        {(() => {
+          const suggestionCard = suggestedUsers.length > 0 ? (
+            <div key="__suggestions" className="mx-4 mt-3 mb-1 bg-white rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+              <p className="px-4 pt-3 pb-1 text-coffee-700 font-semibold text-sm">People you might know</p>
+              <div className="flex gap-4 overflow-x-auto px-4 pb-3 pt-1 scrollbar-hide">
+                {suggestedUsers.map(u => {
+                  const isFollowing = followedSuggestions.has(u.id)
+                  return (
+                    <div key={u.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-20">
+                      <button onClick={() => setActiveUserProfile(u.id)} className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                        {u.avatar_url
+                          ? <img src={u.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
+                              <span className="text-white font-bold">{u.username?.[0]?.toUpperCase()}</span>
+                            </div>}
+                      </button>
+                      <p className="text-coffee-700 text-xs font-medium text-center truncate w-full">@{u.username}</p>
+                      {u.badge && <p className="text-caramel text-center truncate w-full" style={{ fontSize: 10 }}>{u.badge}</p>}
+                      <button
+                        onClick={async () => {
+                          if (!profile || isFollowing) return
+                          await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id, status: 'pending' })
+                          await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow_request' })
+                          notifyFollow(u.id, profile.username || 'Someone')
+                          setFollowedSuggestions(prev => new Set([...prev, u.id]))
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-full font-semibold transition-all active:scale-95"
+                        style={isFollowing
+                          ? { background: '#f0e8df', color: '#9b7a55' }
+                          : { background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', color: '#fff' }
+                        }
+                      >
+                        {isFollowing ? '✓ Requested' : 'Follow'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          ) : null
 
-        {visibleRatings.map(rating => {
+          const INSERT_AFTER = 3
+          const items: React.ReactNode[] = []
+          visibleRatings.forEach((rating, idx) => {
           const shop = rating.coffee_shops as any
           const user = rating.profiles as any
           const isLiked = likedIds.has(rating.id)
@@ -1464,7 +1467,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           const visitTime = rating.visit_time
 
           if (isVibePost) {
-            return (
+            items.push(
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
                 {/* Header */}
                 <div className="flex items-center gap-3 px-4 py-3">
@@ -1542,10 +1545,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 </div>
               </div>
             )
+            if (idx + 1 === INSERT_AFTER && suggestionCard) items.push(suggestionCard)
+            return
           }
 
           if (isQuickSip) {
-            return (
+            items.push(
               <div key={rating.id} className="bg-white mx-4 mb-2 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
                 <div className="flex items-start gap-3 px-4 py-3">
                   <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
@@ -1622,9 +1627,11 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                 )}
               </div>
             )
+            if (idx + 1 === INSERT_AFTER && suggestionCard) items.push(suggestionCard)
+            return
           }
 
-          return (
+          items.push(
             <div key={rating.id} className="bg-white mx-4 mb-3 rounded-2xl shadow-sm border border-cream-200 overflow-hidden animate-fade-in">
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
                 <div className="flex items-start gap-3">
@@ -1828,7 +1835,10 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               </div>
             </div>
           )
-        })}
+          if (idx + 1 === INSERT_AFTER && suggestionCard) items.push(suggestionCard)
+          })
+          return items
+        })()}
         </>)}
       </div>
 
