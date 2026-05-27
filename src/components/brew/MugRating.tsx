@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Clock, Camera, Image as ImageIcon, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import exifr from 'exifr'
@@ -64,6 +64,11 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const mugRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [showHint, setShowHint] = useState(!hasSeenHint())
+
+  // Revoke blob URLs when previews change or component unmounts to avoid memory leak
+  useEffect(() => {
+    return () => { photoPreviews.forEach(url => URL.revokeObjectURL(url)) }
+  }, [photoPreviews])
 
   const s = getMugStyle(fill)
   const showSteam = fill >= 65

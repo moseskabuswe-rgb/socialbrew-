@@ -229,6 +229,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [showShareCard, setShowShareCard] = useState(false)
   const swipeBack = useSwipeBack(() => onClose(comments.length, likesCount))
   const [zoomedPhoto, setZoomedPhoto] = useState<number | null>(null)
+  const mentionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const user = rating.profiles as any
   const shop = rating.coffee_shops as any
@@ -236,17 +237,19 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
 
   useEffect(() => {
     async function load() {
-      const [commentsRes, likeRes, saveRes, commentLikesRes] = await Promise.all([
-        supabase.from('comments').select('*, profiles(username, avatar_url)').eq('rating_id', rating.id).order('created_at', { ascending: true }),
-        profile ? supabase.from('likes').select('id').eq('user_id', profile.id).eq('rating_id', rating.id).single() : Promise.resolve({ data: null }),
-        profile ? supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).eq('rating_id', rating.id).single() : Promise.resolve({ data: null }),
-        profile ? supabase.from('comment_likes').select('comment_id').eq('user_id', profile.id) : Promise.resolve({ data: [] }),
-      ])
-      if (commentsRes.data) setComments(commentsRes.data)
-      setIsLiked(!!likeRes.data)
-      setIsSaved(!!saveRes.data)
-      if (commentLikesRes.data) setLikedComments(new Set(commentLikesRes.data.map((l: any) => l.comment_id)))
-      setLoading(false)
+      try {
+        const [commentsRes, likeRes, saveRes, commentLikesRes] = await Promise.all([
+          supabase.from('comments').select('*, profiles(username, avatar_url)').eq('rating_id', rating.id).order('created_at', { ascending: true }),
+          profile ? supabase.from('likes').select('id').eq('user_id', profile.id).eq('rating_id', rating.id).single() : Promise.resolve({ data: null }),
+          profile ? supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).eq('rating_id', rating.id).single() : Promise.resolve({ data: null }),
+          profile ? supabase.from('comment_likes').select('comment_id').eq('user_id', profile.id) : Promise.resolve({ data: [] }),
+        ])
+        if (commentsRes.data) setComments(commentsRes.data)
+        setIsLiked(!!likeRes.data)
+        setIsSaved(!!saveRes.data)
+        if (commentLikesRes.data) setLikedComments(new Set(commentLikesRes.data.map((l: any) => l.comment_id)))
+      } catch { /* network error — show empty state rather than hanging spinner */ }
+      finally { setLoading(false) }
     }
     load()
 
@@ -296,18 +299,20 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     }
   }
 
-  async function handleCommentChange(val: string) {
+  function handleCommentChange(val: string) {
     setNewComment(val)
-    // Detect @mention trigger
     const lastAt = val.lastIndexOf('@')
     if (lastAt >= 0) {
       const query = val.slice(lastAt + 1).split(' ')[0]
       if (query.length >= 1) {
         setMentionStart(lastAt)
         setMentionQuery(query)
-        const { data } = await supabase.from('profiles').select('id, username, avatar_url')
-          .ilike('username', `${query}%`).neq('id', profile?.id ?? '').limit(5)
-        setMentionUsers(data || [])
+        if (mentionTimerRef.current) clearTimeout(mentionTimerRef.current)
+        mentionTimerRef.current = setTimeout(async () => {
+          const { data } = await supabase.from('profiles').select('id, username, avatar_url')
+            .ilike('username', `${query}%`).neq('id', profile?.id ?? '').limit(5)
+          setMentionUsers(data || [])
+        }, 300)
         return
       }
     }
@@ -354,27 +359,29 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
     if (!newComment.trim() || !profile || posting) return
     setPosting(true)
     const content = newComment.trim()
-    const { data } = await supabase.from('comments')
-      .insert({ user_id: profile.id, rating_id: rating.id, content })
-      .select('*, profiles(username, avatar_url)').single()
-    if (data) {
-      setComments(prev => [...prev, data])
-      // Notify post owner
-      const ownerId = rating.profiles?.id || rating.user_id
-      if (ownerId && ownerId !== profile.id) notifyComment(ownerId, profile.username || 'Someone', content, rating.id)
-      // Notify @mentions
-      const mentioned = content.match(/@([a-z0-9_.]+)/gi)
-      if (mentioned) {
-        for (const handle of mentioned) {
-          const username = handle.slice(1)
-          const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
-          if (mentionedUser?.id && mentionedUser.id !== profile.id) {
-            notifyMention(mentionedUser.id, profile.username || 'Someone', content, rating.id)
+    try {
+      const { data, error } = await supabase.from('comments')
+        .insert({ user_id: profile.id, rating_id: rating.id, content })
+        .select('*, profiles(username, avatar_url)').single()
+      if (error) throw error
+      if (data) {
+        setComments(prev => [...prev, data])
+        setNewComment('')
+        const ownerId = rating.profiles?.id || rating.user_id
+        if (ownerId && ownerId !== profile.id) notifyComment(ownerId, profile.username || 'Someone', content, rating.id)
+        const mentioned = content.match(/@([a-z0-9_.]+)/gi)
+        if (mentioned) {
+          for (const handle of mentioned) {
+            const username = handle.slice(1)
+            const { data: mentionedUser } = await supabase.from('profiles').select('id').eq('username', username).single()
+            if (mentionedUser?.id && mentionedUser.id !== profile.id) {
+              notifyMention(mentionedUser.id, profile.username || 'Someone', content, rating.id)
+            }
           }
         }
       }
-    }
-    setNewComment(''); setPosting(false)
+    } catch { /* comment failed — input stays so user can retry */ }
+    finally { setPosting(false) }
   }
 
   async function deleteComment(id: string) {

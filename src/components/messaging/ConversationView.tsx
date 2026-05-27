@@ -58,6 +58,7 @@ export default function ConversationView({ conversation, currentUserId, currentS
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingChannelRef = useRef<any>(null)
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const typingTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const scrollToBottom = useCallback((smooth = false) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
@@ -125,9 +126,10 @@ export default function ConversationView({ conversation, currentUserId, currentS
         if (payload.user_id === currentUserId) return
         const username = payload.username as string
         setTypingUsers(prev => new Set([...prev, username]))
-        setTimeout(() => {
+        const t = setTimeout(() => {
           setTypingUsers(prev => { const s = new Set(prev); s.delete(username); return s })
         }, 3000)
+        typingTimeoutsRef.current.push(t)
       })
       .subscribe()
     typingChannelRef.current = typingChannel
@@ -135,11 +137,13 @@ export default function ConversationView({ conversation, currentUserId, currentS
     return () => {
       supabase.removeChannel(channel)
       supabase.removeChannel(typingChannel)
+      typingTimeoutsRef.current.forEach(clearTimeout)
+      typingTimeoutsRef.current = []
     }
   }, [conversation.id, currentUserId, scrollToBottom])
 
   async function handleSend(text: string, attachment?: Attachment, replyToId?: string) {
-    await supabase.from('messages').insert({
+    const { error } = await supabase.from('messages').insert({
       conversation_id: conversation.id,
       sender_id: currentShopId ? null : currentUserId,
       sender_shop_id: currentShopId || null,
@@ -149,6 +153,7 @@ export default function ConversationView({ conversation, currentUserId, currentS
       attachment_mime_type: attachment?.mimeType || null,
       reply_to_message_id: replyToId || null,
     })
+    if (error) return // message stays in input bar so user can retry
     setReplyingTo(null)
     supabase.from('conversations')
       .update({ updated_at: new Date().toISOString() })
