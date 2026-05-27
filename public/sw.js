@@ -4,14 +4,15 @@
 const CACHE_NAME = 'social-brew-v4'
 const APP_SHELL = ['/', '/manifest.json', '/icon-192.png']
 
-// ── Install: pre-cache app shell, do NOT skip waiting ────────
-// skipWaiting was removed — it caused forced page reloads during
-// active sessions whenever an update deployed (blank screen on resume).
-// New SWs now wait until all tabs are closed before activating.
+// ── Install: pre-cache app shell ─────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   )
+  // Activate immediately so updates reach users without requiring
+  // all tabs to close. The controllerchange reload was removed from
+  // main.tsx so there is no forced blank-screen on update.
+  self.skipWaiting()
 })
 
 // ── Activate: clear old caches, claim clients ────────────────

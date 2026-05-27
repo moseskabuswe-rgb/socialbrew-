@@ -1,17 +1,23 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import PrivacyPolicyPage from './PrivacyPolicyPage'
+import TermsPage from './TermsPage'
 
 export const CURRENT_POLICY_VERSION = '2026-05-27'
+
+type View = 'modal' | 'privacy' | 'terms'
 
 interface Props {
   userId: string
   onAccepted: () => void
-  onShowPrivacy: () => void
-  onShowTerms: () => void
 }
 
-export default function PrivacyAcceptanceModal({ userId, onAccepted, onShowPrivacy, onShowTerms }: Props) {
+export default function PrivacyAcceptanceModal({ userId, onAccepted }: Props) {
+  const [view, setView] = useState<View>('modal')
   const [accepting, setAccepting] = useState(false)
+
+  if (view === 'privacy') return <PrivacyPolicyPage onBack={() => setView('modal')} />
+  if (view === 'terms') return <TermsPage onBack={() => setView('modal')} />
 
   async function accept() {
     setAccepting(true)
@@ -38,7 +44,7 @@ export default function PrivacyAcceptanceModal({ userId, onAccepted, onShowPriva
 
           <div className="bg-white rounded-2xl p-4 border border-cream-200 space-y-2">
             <button
-              onClick={onShowPrivacy}
+              onClick={() => setView('privacy')}
               className="w-full flex items-center justify-between py-2 text-left"
             >
               <div>
@@ -49,7 +55,7 @@ export default function PrivacyAcceptanceModal({ userId, onAccepted, onShowPriva
             </button>
             <div className="h-px bg-cream-200" />
             <button
-              onClick={onShowTerms}
+              onClick={() => setView('terms')}
               className="w-full flex items-center justify-between py-2 text-left"
             >
               <div>
