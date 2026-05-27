@@ -11,6 +11,7 @@ import AvatarCropper from '../shared/AvatarCropper'
 import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
+import PunchCardRedemption from '../shops/PunchCardRedemption'
 import { compressAvatar } from '../../lib/compressImage'
 import { cachedUrl } from '../../lib/storageUrl'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
@@ -536,7 +537,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [followingCount, setFollowingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [wishlist, setWishlist] = useState<any[]>([])
-  const [activeSection, setActiveSection] = useState<'sips' | 'map'>('sips')
+  const [activeSection, setActiveSection] = useState<'sips' | 'map' | 'wishlist' | 'cards'>('sips')
   const [showSettings, setShowSettings] = useState(false)
   const [celebrateBadge, setCelebrateBadge] = useState<any>(null)
   const [explorationStats, setExplorationStats] = useState<any>(null)
@@ -550,6 +551,8 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [showAddWishlist, setShowAddWishlist] = useState(false)
   const [showWrapped, setShowWrapped] = useState(false)
+  const [punchCards, setPunchCards] = useState<any[]>([])
+  const [showRedemptionFor, setShowRedemptionFor] = useState<{ shopId: string; shopName: string; punchCardId: string } | null>(null)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth()) // December or January
   const [newDrink, setNewDrink] = useState('')
   const [newShop, setNewShop] = useState('')
@@ -614,6 +617,30 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
       if (wishlistRes.data) setWishlist(wishlistRes.data)
       setFollowerCount(followersRes.count ?? 0)
       setFollowingCount(followingRes.count ?? 0)
+
+      // Punch cards
+      const { data: punchesData } = await supabase
+        .from('user_punches')
+        .select('shop_id, current_count, total_earned, coffee_shops(id, name, city)')
+        .eq('user_id', profile!.id)
+        .gt('current_count', 0)
+      if (punchesData && punchesData.length > 0) {
+        const shopIds = punchesData.map((p: any) => p.shop_id)
+        const { data: cards } = await supabase
+          .from('punch_cards')
+          .select('id, shop_id, punches_required, reward_description')
+          .in('shop_id', shopIds)
+          .eq('is_active', true)
+        if (cards) {
+          const cardMap = Object.fromEntries(cards.map((c: any) => [c.shop_id, c]))
+          setPunchCards(
+            punchesData
+              .map((p: any) => ({ ...p, punch_card: cardMap[p.shop_id] }))
+              .filter((p: any) => p.punch_card)
+          )
+        }
+      }
+
       setLoading(false)
     }
     load()
@@ -754,7 +781,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           )}
         </div>
         {/* Section toggle */}
-        <div className="mx-4 mt-4 grid grid-cols-3 bg-white rounded-xl p-1 border border-cream-200 shadow-sm gap-1">
+        <div className="mx-4 mt-4 grid grid-cols-4 bg-white rounded-xl p-1 border border-cream-200 shadow-sm gap-1">
           <button onClick={() => setActiveSection('sips')}
             className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === 'sips' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
             <Coffee size={12} /> Sips
@@ -763,9 +790,13 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === 'map' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
             <MapPin size={12} /> Map
           </button>
-          <button onClick={() => setActiveSection('wishlist' as any)}
-            className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === ('wishlist' as any) ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
-            ☕ Wishlist
+          <button onClick={() => setActiveSection('wishlist')}
+            className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === 'wishlist' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
+            ☕ List
+          </button>
+          <button onClick={() => setActiveSection('cards')}
+            className={`py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${activeSection === 'cards' ? 'bg-coffee-700 text-white shadow' : 'text-coffee-500'}`}>
+            🎫 Cards
           </button>
         </div>
         {/* Sips */}
@@ -812,7 +843,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           </div>
         )}
         {/* Wishlist */}
-        {(activeSection as string) === 'wishlist' && (
+        {activeSection === 'wishlist' && (
           <div className="px-4 mt-3">
             <button onClick={() => setShowAddWishlist(true)}
               className="w-full mb-3 flex items-center justify-center gap-2 bg-caramel text-white rounded-xl py-3 font-semibold text-sm shadow-sm">
@@ -870,6 +901,60 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
             </div>
           </div>
         )}
+        {/* Punch Cards */}
+        {activeSection === 'cards' && (
+          <div className="px-4 mt-3">
+            {loading && <div className="flex justify-center py-8"><div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
+            {!loading && punchCards.length === 0 && (
+              <div className="text-center py-10">
+                <p className="text-4xl mb-2">🎫</p>
+                <p className="text-coffee-600 font-display">No punch cards yet</p>
+                <p className="text-coffee-400 text-sm mt-1">Rate a visit at a participating shop to earn punches</p>
+              </div>
+            )}
+            <div className="space-y-3">
+              {punchCards.map(pc => {
+                const shop = pc.coffee_shops as any
+                const card = pc.punch_card
+                const count = pc.current_count as number
+                const required = card.punches_required as number
+                const progress = Math.min(count / required, 1)
+                const earned = count >= required
+                return (
+                  <div key={pc.shop_id} className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-coffee-800 font-semibold text-sm">{shop?.name}</p>
+                        {shop?.city && <p className="text-coffee-400 text-xs">{shop.city}</p>}
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${earned ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-cream-100 text-coffee-600 border border-cream-200'}`}>
+                        {count}/{required} ☕
+                      </span>
+                    </div>
+                    <div className="h-2 bg-cream-200 rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${progress * 100}%`, background: earned ? 'linear-gradient(90deg, #d97706, #92400e)' : 'linear-gradient(90deg, #c8853a, #9b5e1a)' }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-coffee-500 text-xs flex-1">{card.reward_description}</p>
+                      {earned && (
+                        <button
+                          onClick={() => setShowRedemptionFor({ shopId: shop.id, shopName: shop.name, punchCardId: card.id })}
+                          className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold text-white"
+                          style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+                        >
+                          Redeem →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
         {/* Map */}
         {activeSection === 'map' && (
           <div className="px-4 mt-3">
@@ -919,6 +1004,14 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         <PostDetailModal rating={activePost} onClose={() => setActivePost(null)} onShopClick={(shop) => { setActivePost(null); setSelectedShop(shop) }} />
       )}
       {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} />}
+      {showRedemptionFor && (
+        <PunchCardRedemption
+          shop={{ id: showRedemptionFor.shopId, name: showRedemptionFor.shopName }}
+          punchCardId={showRedemptionFor.punchCardId}
+          userId={profile.id}
+          onClose={() => setShowRedemptionFor(null)}
+        />
+      )}
     </div>
   )
 }

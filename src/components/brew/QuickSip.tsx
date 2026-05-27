@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
+import { tryAwardPunch, type PunchAwardResult } from '../../lib/punchCard'
 
 type Props = { onClose: () => void; onComplete: () => void }
 
@@ -39,6 +40,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [step, setStep] = useState<'rate' | 'price' | 'submitting' | 'done'>('rate')
   const [showFeedback, setShowFeedback] = useState(false)
   const [submittedShop, setSubmittedShop] = useState<any>(null)
+  const [punchResult, setPunchResult] = useState<PunchAwardResult | null>(null)
   const mugRef = useRef<HTMLDivElement>(null)
   const [showHint, setShowHint] = useState(!hasSeenHint())
 
@@ -200,6 +202,11 @@ export default function QuickSip({ onClose, onComplete }: Props) {
       // Best-effort — don't block post on RPC failure
       Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})
 
+      // Award punch — non-blocking, fire and forget
+      tryAwardPunch(String(shopId), profile.id)
+        .then(r => { if (r.awarded) setPunchResult(r) })
+        .catch(() => {})
+
       setStep('done')
       // Call onComplete first, then show feedback after the done animation
       setTimeout(() => {
@@ -224,10 +231,26 @@ export default function QuickSip({ onClose, onComplete }: Props) {
     return (
       <>
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,9,4,0.95)' }}>
-          <div className="text-center animate-bounce-in">
+          <div className="text-center animate-bounce-in px-6">
             <div className="text-5xl mb-3">⚡</div>
             <p className="text-white font-display text-xl font-bold">Sip Logged!</p>
             <p className="text-amber-400 text-sm mt-1">{s.label}</p>
+            {punchResult?.awarded && (
+              <div className="mt-4">
+                {punchResult.rewardEarned ? (
+                  <div className="bg-amber-500/20 rounded-xl px-4 py-3 border border-amber-500/40">
+                    <p className="text-amber-300 font-bold text-sm">🎉 Reward earned!</p>
+                    <p className="text-amber-200/70 text-xs mt-0.5">
+                      {punchResult.newCount}/{punchResult.required} punches — redeem in your profile
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-500/10 rounded-xl px-4 py-2 border border-amber-500/20">
+                    <p className="text-amber-400 text-sm">+1 punch ☕ {punchResult.newCount}/{punchResult.required}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {showFeedback && submittedShop && (

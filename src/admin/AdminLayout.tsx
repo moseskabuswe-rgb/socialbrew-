@@ -19,6 +19,7 @@ interface PendingCounts {
   edits: number
   shopPosts: number
   reports: number
+  punchCards: number
 }
 
 function Badge({ n }: { n: number }) {
@@ -41,24 +42,26 @@ const NAV_ITEMS: { id: AdminTab; label: string; adminOnly?: boolean }[] = [
 
 export default function AdminLayout({ profile, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')
-  const [pending, setPending] = useState<PendingCounts>({ claims: 0, edits: 0, shopPosts: 0, reports: 0 })
+  const [pending, setPending] = useState<PendingCounts>({ claims: 0, edits: 0, shopPosts: 0, reports: 0, punchCards: 0 })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isAdmin = profile.role === 'admin'
   const isViewer = profile.role === 'viewer'
 
   async function fetchPending() {
-    const [claims, edits, shopPosts, userReports, shopReports] = await Promise.all([
+    const [claims, edits, shopPosts, userReports, shopReports, punchCardsRes] = await Promise.all([
       supabase.from('shop_claims').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('shop_edit_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('shop_posts').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('reports').select('id', { count: 'exact', head: true }).eq('resolved', false),
       supabase.from('shop_post_reports').select('id', { count: 'exact', head: true }).eq('resolved', false),
+      supabase.from('punch_cards').select('id', { count: 'exact', head: true }).eq('is_active', false).is('approved_by', null),
     ])
     setPending({
       claims: claims.count || 0,
       edits: edits.count || 0,
       shopPosts: shopPosts.count || 0,
       reports: (userReports.count || 0) + (shopReports.count || 0),
+      punchCards: punchCardsRes.count || 0,
     })
   }
 
@@ -71,14 +74,15 @@ export default function AdminLayout({ profile, onClose }: Props) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_posts' }, fetchPending)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, fetchPending)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_post_reports' }, fetchPending)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'punch_cards' }, fetchPending)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const totalPending = pending.claims + pending.edits + pending.shopPosts + pending.reports
+  const totalPending = pending.claims + pending.edits + pending.shopPosts + pending.reports + pending.punchCards
 
   function pendingForTab(tab: AdminTab) {
-    if (tab === 'approvals') return pending.claims + pending.edits + pending.shopPosts
+    if (tab === 'approvals') return pending.claims + pending.edits + pending.shopPosts + pending.punchCards
     if (tab === 'reports') return pending.reports
     return 0
   }

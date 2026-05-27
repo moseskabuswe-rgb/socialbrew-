@@ -4,6 +4,7 @@ import { X, MapPin, Star, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
+import PunchCardRedemption from '../shops/PunchCardRedemption'
 
 type Props = {
   shop: Partial<CoffeeShop> & { id: string; name: string }
@@ -42,6 +43,9 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
   const [friendRatings, setFriendRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
+  const [punchCard, setPunchCard] = useState<any>(null)
+  const [userPunches, setUserPunches] = useState<any>(null)
+  const [showRedemption, setShowRedemption] = useState(false)
 
   const swipe = useSwipeDown(onClose)
   const isInDb = !String(shop.id).startsWith('osm-') && !String(shop.id).startsWith('fsq-') && !String(shop.id).startsWith('gpl-')
@@ -75,6 +79,16 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
           setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
         }
       }
+      // Punch card progress
+      if (profile?.id && shopId) {
+        const [cardRes, punchesRes] = await Promise.all([
+          supabase.from('punch_cards').select('id, punches_required, reward_description').eq('shop_id', shopId).eq('is_active', true).maybeSingle(),
+          supabase.from('user_punches').select('current_count, total_earned').eq('user_id', profile.id).eq('shop_id', shopId).maybeSingle(),
+        ])
+        if (cardRes.data) setPunchCard(cardRes.data)
+        if (punchesRes.data) setUserPunches(punchesRes.data)
+      }
+
       setLoading(false)
     }
     load()
@@ -222,6 +236,45 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
             </div>
           )}
 
+          {/* Punch card progress — shown in overview when active card exists */}
+          {isInDb && !loading && punchCard && profile && (
+            <div className="px-4 pt-3">
+              <div className="bg-amber-50 rounded-2xl p-3.5 border border-amber-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🎫</span>
+                    <div>
+                      <p className="text-coffee-700 font-semibold text-xs">{punchCard.reward_description}</p>
+                      <p className="text-coffee-400 text-xs">{(userPunches?.current_count || 0)}/{punchCard.punches_required} stamps</p>
+                    </div>
+                  </div>
+                  {(userPunches?.current_count || 0) >= punchCard.punches_required ? (
+                    <button
+                      onClick={() => setShowRedemption(true)}
+                      className="px-3 py-1.5 text-xs font-bold text-white rounded-full"
+                      style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+                    >
+                      Redeem →
+                    </button>
+                  ) : (
+                    <p className="text-caramel font-bold text-sm">
+                      {(userPunches?.current_count || 0)}/{punchCard.punches_required} ☕
+                    </p>
+                  )}
+                </div>
+                <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, ((userPunches?.current_count || 0) / punchCard.punches_required) * 100)}%`,
+                      background: 'linear-gradient(90deg, #c8853a, #9b5e1a)',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {isInDb && !loading && (
             <div className="px-4 py-3 space-y-2.5 pb-6">
               {/* Overview tab */}
@@ -268,6 +321,16 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
             </div>
           )}
         </div>
+
+        {/* Redemption modal */}
+        {showRedemption && punchCard && profile && (
+          <PunchCardRedemption
+            shop={{ id: String(shop.id), name: shop.name }}
+            punchCardId={punchCard.id}
+            userId={profile.id}
+            onClose={() => setShowRedemption(false)}
+          />
+        )}
 
         {/* Directions button */}
         {(shop.lat && shop.lng) && (

@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { type AdminTab } from '../AdminLayout'
 
 interface Props {
-  pending: { claims: number; edits: number; shopPosts: number; reports: number }
+  pending: { claims: number; edits: number; shopPosts: number; reports: number; punchCards: number }
   onNavigate: (tab: AdminTab) => void
   isAdmin?: boolean
   isViewer?: boolean
@@ -14,6 +14,9 @@ interface Stats {
   ratings: number
   shops: number
   reports: number
+  activePunchCards: number
+  punchRedemptions: number
+  foundingPartners: number
 }
 
 interface TopShop {
@@ -30,13 +33,16 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
   useEffect(() => {
     async function load() {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const [users, ratings, shops, reports, shopReports, weekRatings] = await Promise.all([
+      const [users, ratings, shops, reports, shopReports, weekRatings, activePunchCards, punchRedemptions, foundingPartners] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('ratings').select('id', { count: 'exact', head: true }),
         supabase.from('coffee_shops').select('id', { count: 'exact', head: true }),
         supabase.from('reports').select('id', { count: 'exact', head: true }).eq('resolved', false),
         supabase.from('shop_post_reports').select('id', { count: 'exact', head: true }).eq('resolved', false),
         supabase.from('ratings').select('shop_id, coffee_shops(name)').gte('created_at', weekAgo).limit(500),
+        supabase.from('punch_cards').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('punch_redemptions').select('id', { count: 'exact', head: true }).not('redeemed_at', 'is', null),
+        supabase.from('shop_owners').select('id', { count: 'exact', head: true }).eq('founding_partner', true),
       ])
 
       setStats({
@@ -44,6 +50,9 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
         ratings: ratings.count || 0,
         shops: shops.count || 0,
         reports: (reports.count || 0) + (shopReports.count || 0),
+        activePunchCards: activePunchCards.count || 0,
+        punchRedemptions: punchRedemptions.count || 0,
+        foundingPartners: foundingPartners.count || 0,
       })
 
       // Aggregate top shops client-side
@@ -64,7 +73,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
     load()
   }, [])
 
-  const totalPending = pending.claims + pending.edits + pending.shopPosts + pending.reports
+  const totalPending = pending.claims + pending.edits + pending.shopPosts + pending.reports + pending.punchCards
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -74,6 +83,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
       </div>
 
       {/* Stat cards */}
+      <div className="space-y-3">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Users', value: stats?.users },
@@ -93,6 +103,23 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
           </div>
         ))}
       </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Active Cards', value: stats?.activePunchCards },
+          { label: 'Redemptions', value: stats?.punchRedemptions },
+          { label: 'Founding Partners', value: stats?.foundingPartners },
+        ].map(card => (
+          <div key={card.label} className="bg-white rounded-xl border border-gray-100 p-4">
+            <p className="text-xs text-gray-500 mb-1">{card.label}</p>
+            {loadingStats ? (
+              <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
+            ) : (
+              <p className="text-2xl font-bold text-gray-900">{card.value?.toLocaleString() ?? '—'}</p>
+            )}
+          </div>
+        ))}
+      </div>
+      </div>
 
       {/* Pending actions — hidden for viewers */}
       {totalPending > 0 && !isViewer && (
@@ -106,6 +133,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
                 {pending.claims > 0 && <span>{pending.claims} claim{pending.claims !== 1 ? 's' : ''}</span>}
                 {pending.edits > 0 && <span>{pending.edits} edit{pending.edits !== 1 ? 's' : ''}</span>}
                 {pending.shopPosts > 0 && <span>{pending.shopPosts} post{pending.shopPosts !== 1 ? 's' : ''}</span>}
+                {pending.punchCards > 0 && <span>{pending.punchCards} punch card{pending.punchCards !== 1 ? 's' : ''}</span>}
                 {pending.reports > 0 && <span>{pending.reports} report{pending.reports !== 1 ? 's' : ''}</span>}
               </div>
             </div>

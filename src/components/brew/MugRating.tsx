@@ -8,6 +8,7 @@ import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import { compressImage } from '../../lib/compressImage'
 import CreateStory from '../shared/CreateStory'
+import { tryAwardPunch, type PunchAwardResult } from '../../lib/punchCard'
 
 type Props = { shop: any; onClose: () => void; onComplete: () => void }
 
@@ -56,6 +57,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [addToStory, setAddToStory] = useState(false)
   const [createdRatingId, setCreatedRatingId] = useState<string | null>(null)
   const [showStoryCreate, setShowStoryCreate] = useState(false)
+  const [punchResult, setPunchResult] = useState<PunchAwardResult | null>(null)
   // Steps: rate → (feedback if low) → details → price → submitting → done
   const [step, setStep] = useState<'rate' | 'details' | 'price' | 'submitting' | 'done'>('rate')
   const [showFeedback, setShowFeedback] = useState(false)
@@ -254,6 +256,13 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       .maybeSingle()
     if (newRatingForStory) setCreatedRatingId(newRatingForStory.id)
 
+    // Award punch — non-blocking, fire and forget
+    if (shopId) {
+      tryAwardPunch(String(shopId), profile.id)
+        .then(r => { if (r.awarded) setPunchResult(r) })
+        .catch(() => {})
+    }
+
     setStep('done')
     setTimeout(() => {
       onComplete()
@@ -269,10 +278,26 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       <>
         <div className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: 'rgba(13,9,4,0.95)' }}>
-          <div className="text-center animate-bounce-in">
+          <div className="text-center animate-bounce-in px-6">
             <div className="text-6xl mb-4">☕</div>
             <p className="text-white font-display text-2xl font-bold">Brewed!</p>
             <p className="text-amber-300 text-sm mt-2">{s.label}</p>
+            {punchResult?.awarded && (
+              <div className="mt-5">
+                {punchResult.rewardEarned ? (
+                  <div className="bg-amber-500/20 rounded-xl px-4 py-3 border border-amber-500/40">
+                    <p className="text-amber-300 font-bold text-sm">🎉 Reward earned!</p>
+                    <p className="text-amber-200/70 text-xs mt-0.5">
+                      {punchResult.newCount}/{punchResult.required} punches — redeem in your profile
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-500/10 rounded-xl px-4 py-2 border border-amber-500/20">
+                    <p className="text-amber-400 text-sm">+1 punch earned! ☕ {punchResult.newCount}/{punchResult.required}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {showFeedback && (

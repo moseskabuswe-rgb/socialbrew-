@@ -7,14 +7,20 @@ import PortalEditShop from './pages/PortalEditShop'
 import PortalPosts from './pages/PortalPosts'
 import PortalSettings from './pages/PortalSettings'
 import PortalMessages from './pages/PortalMessages'
+import PortalPunchCard from './pages/PortalPunchCard'
+import PortalScanner from './pages/PortalScanner'
 
-export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'messages' | 'settings'
+export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'messages' | 'punchcard' | 'scanner' | 'settings'
 
 interface ShopOwner {
   id: string
   profile_id: string
   shop_id: string
   notification_prefs: any
+  founding_partner: boolean
+  punches_issued_total: number
+  punches_issued_this_month: number
+  punch_quota_reset_at: string | null
 }
 
 interface Shop {
@@ -34,6 +40,8 @@ const NAV: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'posts', label: 'Posts', icon: '📢' },
   { id: 'messages', label: 'Messages', icon: '💬' },
   { id: 'edit', label: 'Edit Shop', icon: '✏️' },
+  { id: 'punchcard', label: 'Punch Card', icon: '🎫' },
+  { id: 'scanner', label: 'Scan QR', icon: '📷' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 
@@ -60,7 +68,7 @@ export default function PortalApp() {
       setUserId(user.id)
       const { data: owner } = await supabase
         .from('shop_owners')
-        .select('id,profile_id,shop_id,notification_prefs')
+        .select('id,profile_id,shop_id,notification_prefs,founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at')
         .eq('profile_id', user.id)
         .maybeSingle()
       if (!owner) { setLoading(false); return }
@@ -171,10 +179,12 @@ export default function PortalApp() {
           {activeTab === 'edit' && <PortalEditShop shop={shop} onShopUpdate={s => setShop(s)} />}
           {activeTab === 'posts' && <PortalPosts shop={shop} userId={userId} />}
           {activeTab === 'messages' && <PortalMessages shop={shop} userId={userId} />}
+          {activeTab === 'punchcard' && <PortalPunchCard shop={shop} shopOwner={shopOwner} />}
+          {activeTab === 'scanner' && <PortalScanner shop={shop} userId={userId} />}
           {activeTab === 'settings' && (
             <PortalSettings
               shopOwner={shopOwner}
-              onUpdate={o => setShopOwner(o)}
+              onUpdate={o => setShopOwner(o as any)}
             />
           )}
         </main>

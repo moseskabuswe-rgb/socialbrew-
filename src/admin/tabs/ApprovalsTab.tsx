@@ -12,10 +12,14 @@ interface Props {
 interface Claim {
   id: string
   shop_id: string
-  user_id: string
+  user_id: string | null
   status: string
   created_at: string
-  coffee_shops: { name: string } | null
+  claimant_name: string | null
+  claimant_email: string | null
+  claimant_role: string | null
+  message: string | null
+  coffee_shops: { name: string; is_verified: boolean; is_active: boolean } | null
   profiles: { username: string } | null
 }
 
@@ -42,13 +46,24 @@ interface ShopPost {
   profiles: { username: string } | null
 }
 
-type Section = 'claims' | 'edits' | 'posts'
+interface PunchCard {
+  id: string
+  shop_id: string
+  punches_required: number
+  reward_description: string
+  expiry_days: number | null
+  created_at: string
+  coffee_shops: { name: string } | null
+}
+
+type Section = 'claims' | 'edits' | 'posts' | 'punchcards'
 
 export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) {
   const [open, setOpen] = useState<Section>('claims')
   const [claims, setClaims] = useState<Claim[]>([])
   const [edits, setEdits] = useState<EditSubmission[]>([])
   const [posts, setPosts] = useState<ShopPost[]>([])
+  const [punchCards, setPunchCards] = useState<PunchCard[]>([])
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [rejectTarget, setRejectTarget] = useState<{ type: Section; id: string; name: string } | null>(null)
@@ -57,14 +72,16 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
 
   async function fetchAll() {
     setLoading(true)
-    const [claimsRes, editsRes, postsRes] = await Promise.all([
-      supabase.from('shop_claims').select('id,shop_id,user_id,status,created_at,coffee_shops(name),profiles(username)').eq('status', 'pending').order('created_at'),
+    const [claimsRes, editsRes, postsRes, punchCardsRes] = await Promise.all([
+      supabase.from('shop_claims').select('id,shop_id,user_id,status,created_at,claimant_name,claimant_email,claimant_role,message,coffee_shops(name,is_verified,is_active),profiles(username)').eq('status', 'pending').order('created_at'),
       supabase.from('shop_edit_submissions').select('id,shop_id,submitted_by,status,field_changes,created_at,rejection_reason,coffee_shops(name),profiles(username)').eq('status', 'pending').order('created_at'),
       supabase.from('shop_posts').select('id,shop_id,owner_id,content,status,created_at,coffee_shops(name),profiles(username)').eq('status', 'pending').order('created_at'),
+      supabase.from('punch_cards').select('id,shop_id,punches_required,reward_description,expiry_days,created_at,coffee_shops(name)').eq('is_active', false).is('approved_by', null).order('created_at'),
     ])
     setClaims((claimsRes.data as any) || [])
     setEdits((editsRes.data as any) || [])
     setPosts((postsRes.data as any) || [])
+    setPunchCards((punchCardsRes.data as any) || [])
     setLoading(false)
   }
 
@@ -81,6 +98,14 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       invite_token: inviteToken,
       invite_expires_at: expiry,
     }).eq('id', claim.id)
+    // Activate + verify shop if it was submitted via portal sign-up (inactive) or is unverified
+    const shopData = claim.coffee_shops as any
+    const shopUpdates: Record<string, boolean> = {}
+    if (!shopData?.is_active) shopUpdates.is_active = true
+    if (!shopData?.is_verified) shopUpdates.is_verified = true
+    if (Object.keys(shopUpdates).length > 0) {
+      await supabase.from('coffee_shops').update(shopUpdates).eq('id', claim.shop_id)
+    }
     setApprovedToken(inviteToken)
     setWorking(false)
     fetchAll()
@@ -175,10 +200,38 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
     onPendingChange()
   }
 
+  async function approvePunchCard(card: PunchCard) {
+    setWorking(true)
+    await supabase.from('punch_cards').update({
+      is_active: true,
+      approved_by: currentUserId,
+      approved_at: new Date().toISOString(),
+    }).eq('id', card.id)
+    setWorking(false)
+    fetchAll()
+    onPendingChange()
+  }
+
+  async function rejectPunchCard(id: string) {
+    setWorking(true)
+    await supabase.from('punch_cards').update({
+      is_active: false,
+      rejection_reason: rejectReason,
+      approved_by: currentUserId,
+      approved_at: new Date().toISOString(),
+    }).eq('id', id)
+    setWorking(false)
+    setRejectTarget(null)
+    setRejectReason('')
+    fetchAll()
+    onPendingChange()
+  }
+
   function handleRejectConfirm() {
     if (!rejectTarget) return
     if (rejectTarget.type === 'claims') rejectClaim(rejectTarget.id)
     else if (rejectTarget.type === 'edits') rejectEdit(rejectTarget.id)
+    else if (rejectTarget.type === 'punchcards') rejectPunchCard(rejectTarget.id)
     else rejectPost(rejectTarget.id)
   }
 
@@ -186,6 +239,7 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
     { id: 'claims', label: 'Shop Claims', count: claims.length },
     { id: 'edits', label: 'Edit Submissions', count: edits.length },
     { id: 'posts', label: 'Shop Posts', count: posts.length },
+    { id: 'punchcards', label: 'Punch Cards', count: punchCards.length },
   ]
 
   return (
@@ -227,10 +281,29 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
               ) : claims.map(claim => (
                 <div key={claim.id} className="bg-white rounded-xl border border-gray-100 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">{(claim.coffee_shops as any)?.name || claim.shop_id}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Claimed by @{(claim.profiles as any)?.username || claim.user_id}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{new Date(claim.created_at).toLocaleDateString()}</p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-gray-900 text-sm">{(claim.coffee_shops as any)?.name || claim.shop_id}</p>
+                        {!(claim.coffee_shops as any)?.is_verified && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">New shop</span>
+                        )}
+                      </div>
+                      {claim.claimant_name && (
+                        <p className="text-xs text-gray-700 mt-0.5 font-medium">{claim.claimant_name}</p>
+                      )}
+                      {claim.claimant_email && (
+                        <p className="text-xs text-gray-500">{claim.claimant_email}</p>
+                      )}
+                      {claim.claimant_role && (
+                        <p className="text-xs text-gray-400">{claim.claimant_role}</p>
+                      )}
+                      {!(claim.claimant_name || claim.claimant_email) && (
+                        <p className="text-xs text-gray-500 mt-0.5">@{(claim.profiles as any)?.username || claim.user_id}</p>
+                      )}
+                      {claim.message && (
+                        <p className="text-xs text-gray-500 mt-1.5 italic line-clamp-2">"{claim.message}"</p>
+                      )}
+                      <p className="text-xs text-gray-300 mt-1">{new Date(claim.created_at).toLocaleDateString()}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => setRejectTarget({ type: 'claims', id: claim.id, name: (claim.coffee_shops as any)?.name || '' })} className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Reject</button>
@@ -297,6 +370,33 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
               ))}
             </div>
           )}
+
+          {/* Punch card configs */}
+          {open === 'punchcards' && (
+            <div className="space-y-3">
+              {punchCards.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100 py-10 text-center text-sm text-gray-400">No pending punch card configs</div>
+              ) : punchCards.map(card => (
+                <div key={card.id} className="bg-white rounded-xl border border-gray-100 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 text-sm">{(card.coffee_shops as any)?.name || card.shop_id}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-xs font-semibold text-caramel">{card.punches_required} punches</span>
+                        {card.expiry_days && <span className="text-xs text-gray-400">Expires {card.expiry_days}d after earn</span>}
+                      </div>
+                      <p className="text-sm text-gray-700 mt-1.5">Reward: {card.reward_description}</p>
+                      <p className="text-xs text-gray-300 mt-1">{new Date(card.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => setRejectTarget({ type: 'punchcards', id: card.id, name: (card.coffee_shops as any)?.name || '' })} className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Reject</button>
+                      <button onClick={() => approvePunchCard(card)} disabled={working} className="px-3 py-1.5 text-xs font-medium text-white bg-caramel rounded-lg hover:bg-caramel/90 disabled:opacity-50">Approve</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -321,7 +421,7 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       {rejectTarget && (
         <ConfirmModal
           title="Reject submission"
-          message={`Reject this ${rejectTarget.type === 'claims' ? 'claim' : rejectTarget.type === 'edits' ? 'edit' : 'post'} for "${rejectTarget.name}"?`}
+          message={`Reject this ${rejectTarget.type === 'claims' ? 'claim' : rejectTarget.type === 'edits' ? 'edit' : rejectTarget.type === 'punchcards' ? 'punch card config' : 'post'} for "${rejectTarget.name}"?`}
           confirmLabel="Reject"
           danger
           onConfirm={handleRejectConfirm}

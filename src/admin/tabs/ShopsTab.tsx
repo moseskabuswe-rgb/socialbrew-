@@ -7,6 +7,13 @@ interface Props {
   isAdmin: boolean
 }
 
+interface ShopOwner {
+  founding_partner: boolean
+  punches_issued_total: number
+  punches_issued_this_month: number
+  punch_quota_reset_at: string | null
+}
+
 interface Shop {
   id: string
   name: string
@@ -22,6 +29,7 @@ interface Shop {
   lat: number | null
   lng: number | null
   country: string | null
+  shop_owners: ShopOwner | null
 }
 
 interface EditDraft {
@@ -49,22 +57,25 @@ export default function ShopsTab({ isAdmin }: Props) {
   const [editTarget, setEditTarget] = useState<Shop | null>(null)
   const [draft, setDraft] = useState<EditDraft | null>(null)
   const [closeConfirm, setCloseConfirm] = useState<Shop | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<Shop | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [addDraft, setAddDraft] = useState<EditDraft>({ name: '', city: '', state: '', address: '', website: '', phone: '', status: 'active', zip: '', lat: '', lng: '', country: '' })
   const [working, setWorking] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [foundingConfirm, setFoundingConfirm] = useState<{ shopId: string; shopName: string; enable: boolean } | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   async function fetchShops(q: string, p: number) {
     setLoading(true)
     let query = supabase
       .from('coffee_shops')
-      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at', { count: 'exact' })
+      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at)', { count: 'exact' })
       .order('name')
       .range(p * PAGE, p * PAGE + PAGE - 1)
     if (q) query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,address.ilike.%${q}%`)
     const { data, count } = await query
-    setShops(data || [])
+    setShops((data || []) as any as Shop[])
     setTotal(count || 0)
     setLoading(false)
   }
@@ -118,6 +129,19 @@ export default function ShopsTab({ isAdmin }: Props) {
     fetchShops(search, page)
   }
 
+  async function deleteShop() {
+    if (!deleteConfirm) return
+    setDeleteError(null)
+    setWorking(true)
+    const { error } = await supabase.from('coffee_shops').delete().eq('id', deleteConfirm.id)
+    setWorking(false)
+    if (error) { setDeleteError(error.message); return }
+    setDeleteConfirm(null)
+    setEditTarget(null)
+    setDraft(null)
+    fetchShops(search, page)
+  }
+
   async function markClosed() {
     if (!closeConfirm) return
     setWorking(true)
@@ -131,23 +155,54 @@ export default function ShopsTab({ isAdmin }: Props) {
     if (!addDraft.name.trim()) return
     setSaveError(null)
     setWorking(true)
-    const { error } = await supabase.from('coffee_shops').insert({
-      name: addDraft.name,
-      city: addDraft.city || null,
-      state: addDraft.state || null,
-      address: addDraft.address || null,
-      website: addDraft.website || null,
-      phone: addDraft.phone || null,
+    const { data, error } = await supabase.from('coffee_shops').insert({
+      name: addDraft.name.trim(),
+      city: addDraft.city.trim() || null,
+      state: addDraft.state.trim() || null,
+      address: addDraft.address.trim() || null,
+      website: addDraft.website.trim() || null,
+      phone: addDraft.phone.trim() || null,
       status: addDraft.status || 'active',
-      zip: addDraft.zip || null,
+      zip: addDraft.zip.trim() || null,
       lat: addDraft.lat ? parseFloat(addDraft.lat) : null,
       lng: addDraft.lng ? parseFloat(addDraft.lng) : null,
-      country: addDraft.country || null,
-    })
+      country: addDraft.country.trim() || null,
+      is_active: true,
+      is_verified: true,
+      avg_rating: 0,
+      total_ratings: 0,
+      weekly_visits: 0,
+      avg_fill: 0,
+      vibes: [],
+    }).select('id').single()
     setWorking(false)
-    if (error) { setSaveError(error.message); return }
+    if (error || !data) {
+      setSaveError(error?.message || 'Insert failed — the shop was not saved. Check your connection and try again.')
+      return
+    }
     setAddOpen(false)
     setAddDraft({ name: '', city: '', state: '', address: '', website: '', phone: '', status: 'active', zip: '', lat: '', lng: '', country: '' })
+    fetchShops(search, page)
+  }
+
+  async function toggleFoundingPartner() {
+    if (!foundingConfirm) return
+    setWorking(true)
+    const { shopId, enable } = foundingConfirm
+    const existing = shops.find(s => s.id === shopId)
+    if (existing?.shop_owners) {
+      await supabase.from('shop_owners').update({ founding_partner: enable }).eq('shop_id', shopId)
+    } else {
+      await supabase.from('shop_owners').insert({ shop_id: shopId, founding_partner: enable })
+    }
+    setWorking(false)
+    setFoundingConfirm(null)
+    const { data } = await supabase
+      .from('coffee_shops')
+      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at)')
+      .eq('id', shopId)
+      .single()
+    if (data && editTarget?.id === shopId) setEditTarget(data as any)
     fetchShops(search, page)
   }
 
@@ -193,7 +248,12 @@ export default function ShopsTab({ isAdmin }: Props) {
             {shops.map(shop => (
               <div key={shop.id} className="grid grid-cols-[1fr_100px_80px_80px] gap-2 px-4 py-3 items-center hover:bg-gray-50/50">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800">{shop.name}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium text-gray-800">{shop.name}</p>
+                    {shop.shop_owners?.founding_partner && (
+                      <span title="Founding Partner" className="text-amber-400 text-xs leading-none">⭐</span>
+                    )}
+                  </div>
                   {shop.address && <p className="text-xs text-gray-400 truncate">{shop.address}</p>}
                 </div>
                 <span className="text-xs text-gray-500 truncate">{[shop.city, shop.state].filter(Boolean).join(', ') || '—'}</span>
@@ -266,6 +326,30 @@ export default function ShopsTab({ isAdmin }: Props) {
                     <option value="closed">Closed</option>
                   </select>
                 </div>
+                {isAdmin && (
+                  <div className="border border-amber-200 rounded-xl p-3 bg-amber-50/40">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-700">Founding Partner</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {editTarget.shop_owners?.founding_partner
+                            ? `${50 - (editTarget.shop_owners.punches_issued_total || 0)} of 50 total punches remaining`
+                            : '10 punches/month standard quota'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setFoundingConfirm({ shopId: editTarget.id, shopName: editTarget.name, enable: !editTarget.shop_owners?.founding_partner })}
+                        className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                          editTarget.shop_owners?.founding_partner
+                            ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {editTarget.shop_owners?.founding_partner ? '⭐ Founding' : 'Make Founding'}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {saveError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>}
               </div>
             </div>
@@ -276,6 +360,9 @@ export default function ShopsTab({ isAdmin }: Props) {
               </div>
               {isAdmin && editTarget.status !== 'closed' && (
                 <button onClick={() => { setEditTarget(null); setDraft(null); setSaveError(null); setCloseConfirm(editTarget) }} className="w-full py-2 rounded-xl text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50">Mark as closed</button>
+              )}
+              {isAdmin && (
+                <button onClick={() => { setEditTarget(null); setDraft(null); setSaveError(null); setDeleteConfirm(editTarget) }} className="w-full py-2 rounded-xl text-sm font-medium text-red-700 border border-red-300 hover:bg-red-50">Delete shop permanently</button>
               )}
             </div>
           </div>
@@ -293,6 +380,23 @@ export default function ShopsTab({ isAdmin }: Props) {
           onCancel={() => setCloseConfirm(null)}
           loading={working}
         />
+      )}
+
+      {/* Delete confirm */}
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Delete shop"
+          message={`Permanently delete "${deleteConfirm.name}"? This removes the shop and all its data from the database and cannot be undone.`}
+          confirmLabel="Delete permanently"
+          danger
+          onConfirm={deleteShop}
+          onCancel={() => { setDeleteConfirm(null); setDeleteError(null) }}
+          loading={working}
+        >
+          {deleteError && (
+            <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{deleteError}</p>
+          )}
+        </ConfirmModal>
       )}
 
       {/* Add shop modal */}
@@ -341,6 +445,21 @@ export default function ShopsTab({ isAdmin }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Founding partner confirm */}
+      {foundingConfirm && (
+        <ConfirmModal
+          title={foundingConfirm.enable ? 'Grant founding partner status?' : 'Remove founding partner status?'}
+          message={foundingConfirm.enable
+            ? `"${foundingConfirm.shopName}" will receive 50 total lifetime punches instead of the standard 10/month.`
+            : `Remove founding partner status from "${foundingConfirm.shopName}"? They revert to 10 punches/month.`}
+          confirmLabel={foundingConfirm.enable ? 'Grant status' : 'Remove status'}
+          danger={!foundingConfirm.enable}
+          onConfirm={toggleFoundingPartner}
+          onCancel={() => setFoundingConfirm(null)}
+          loading={working}
+        />
       )}
     </div>
   )
