@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 
 export default function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
   return (
-    <div className="fixed inset-0 z-[200] bg-cream-100 flex flex-col">
+    <div className="fixed inset-0 z-[400] bg-cream-100 flex flex-col">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-200 bg-white">
         <button onClick={onBack} className="text-coffee-500"><ArrowLeft size={22} /></button>
         <h2 className="font-display text-xl font-bold text-coffee-800">Privacy Policy</h2>
