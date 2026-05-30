@@ -44,9 +44,10 @@ export default function PortalInviteAccept() {
       password,
     })
 
-    // If user already exists, try sign in instead
     let userId = signUpData?.user?.id
+
     if (signUpErr?.message?.includes('already registered')) {
+      // Account exists — sign in with the password they just set
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
         email: claim.claimant_email,
         password,
@@ -61,6 +62,19 @@ export default function PortalInviteAccept() {
       setError(signUpErr?.message || 'Account setup failed. Please try again.')
       setSubmitting(false)
       return
+    } else if (!signUpData?.session) {
+      // signUp succeeded but no session — email confirmation is enabled.
+      // Sign in explicitly so subsequent DB writes are authenticated.
+      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+        email: claim.claimant_email,
+        password,
+      })
+      if (signInErr || !signInData?.user) {
+        setError('Account created but sign-in failed. Please try signing in manually.')
+        setSubmitting(false)
+        return
+      }
+      userId = signInData.user.id
     }
 
     // Create shop_owners record
