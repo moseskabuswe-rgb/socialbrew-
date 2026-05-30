@@ -112,7 +112,7 @@ export default function PortalApp() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
+    <div className="h-screen bg-cream-50 flex overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -120,10 +120,10 @@ export default function PortalApp() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-56 bg-white border-r border-gray-200 z-30 flex flex-col transition-transform duration-200
+        className={`fixed top-0 left-0 h-full w-56 bg-cream-50 border-r border-cream-200 z-30 flex flex-col transition-transform duration-200
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:flex`}
       >
-        <div className="px-5 py-4 border-b border-gray-100">
+        <div className="px-5 py-4 border-b border-cream-200">
           <p className="font-display text-base font-bold text-coffee-900 truncate">{shop.name}</p>
           <p className="text-xs text-coffee-400 mt-0.5">Owner Portal</p>
         </div>
@@ -134,7 +134,7 @@ export default function PortalApp() {
               key={item.id}
               onClick={() => handleTabChange(item.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                ${activeTab === item.id ? 'bg-caramel/10 text-caramel' : 'text-gray-600 hover:bg-gray-100'}`}
+                ${activeTab === item.id ? 'bg-caramel/10 text-caramel' : 'text-coffee-600 hover:bg-cream-200'}`}
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
@@ -142,16 +142,16 @@ export default function PortalApp() {
           ))}
         </nav>
 
-        <div className="px-3 pb-4 border-t border-gray-100 pt-3">
+        <div className="px-3 pb-4 border-t border-cream-200 pt-3">
           <button
             onClick={() => { window.location.href = '/' }}
-            className="w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 text-left transition-colors"
+            className="w-full px-3 py-2 rounded-lg text-sm text-coffee-500 hover:bg-cream-200 hover:text-coffee-700 text-left transition-colors"
           >
             ← Back to app
           </button>
           <button
             onClick={async () => { await supabase.auth.signOut(); window.location.reload() }}
-            className="w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 text-left transition-colors"
+            className="w-full px-3 py-2 rounded-lg text-sm text-coffee-500 hover:bg-cream-200 hover:text-coffee-700 text-left transition-colors"
           >
             Sign out
           </button>
@@ -161,13 +161,13 @@ export default function PortalApp() {
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile topbar */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-          <button onClick={() => setSidebarOpen(true)} className="p-1 rounded-md text-gray-500 hover:bg-gray-100">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-cream-50 border-b border-cream-200">
+          <button onClick={() => setSidebarOpen(true)} className="p-1 rounded-md text-coffee-500 hover:bg-cream-200">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-display text-base font-semibold text-coffee-900">
+          <span className="font-display text-base font-semibold text-coffee-900 truncate">
             {NAV.find(n => n.id === activeTab)?.label}
           </span>
           <div className="w-7" />

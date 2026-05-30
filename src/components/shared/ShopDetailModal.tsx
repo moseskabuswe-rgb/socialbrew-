@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
 import PunchCardRedemption from '../shops/PunchCardRedemption'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Props = {
   shop: Partial<CoffeeShop> & { id: string; name: string }
@@ -248,7 +249,7 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
                       <p className="text-coffee-400 text-xs">{(userPunches?.current_count || 0)}/{punchCard.punches_required} stamps</p>
                     </div>
                   </div>
-                  {(userPunches?.current_count || 0) >= punchCard.punches_required ? (
+                  {(userPunches?.current_count || 0) >= punchCard.punches_required && (
                     <button
                       onClick={() => setShowRedemption(true)}
                       className="px-3 py-1.5 text-xs font-bold text-white rounded-full"
@@ -256,13 +257,9 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
                     >
                       Redeem →
                     </button>
-                  ) : (
-                    <p className="text-caramel font-bold text-sm">
-                      {(userPunches?.current_count || 0)}/{punchCard.punches_required} ☕
-                    </p>
                   )}
                 </div>
-                <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden mb-3">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
@@ -271,6 +268,14 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
                     }}
                   />
                 </div>
+                {(userPunches?.current_count || 0) < punchCard.punches_required && (
+                  <div className="flex flex-col items-center gap-2 pt-1 border-t border-amber-200">
+                    <p className="text-coffee-400 text-xs mt-2">Show this to the barista to get stamped</p>
+                    <div className="bg-white rounded-xl p-3 shadow-sm border border-cream-200">
+                      <QRCodeSVG value={`punch:${profile.id}`} size={140} level="M" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

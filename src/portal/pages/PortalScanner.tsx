@@ -17,13 +17,17 @@ interface RedemptionResult {
   profiles: { username: string; full_name: string | null } | null
 }
 
-type ScanState = 'idle' | 'scanning' | 'processing' | 'valid' | 'redeemed' | 'expired' | 'invalid' | 'wrong_shop' | 'done'
+type ScanState = 'idle' | 'scanning' | 'processing' | 'valid' | 'redeemed' | 'expired' | 'invalid' | 'wrong_shop' | 'done' | 'punched' | 'punch_failed'
+
+interface PunchResult { newCount: number; required: number; rewardEarned: boolean }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const PUNCH_PREFIX = 'punch:'
 
 export default function PortalScanner({ shop, userId }: Props) {
   const [scanState, setScanState] = useState<ScanState>('idle')
   const [result, setResult] = useState<RedemptionResult | null>(null)
+  const [punchResult, setPunchResult] = useState<PunchResult | null>(null)
   const [working, setWorking] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -60,10 +64,25 @@ export default function PortalScanner({ shop, userId }: Props) {
   }, [cameraActive])
 
   async function processToken(token: string) {
-    if (!UUID_RE.test(token)) {
-      setScanState('invalid')
+    // Punch stamp QR: format is "punch:{userId}"
+    if (token.startsWith(PUNCH_PREFIX)) {
+      const userId = token.slice(PUNCH_PREFIX.length).trim()
+      if (!UUID_RE.test(userId)) { setScanState('invalid'); return }
+      const { data, error } = await supabase.rpc('award_punch', {
+        p_shop_id: shop.id,
+        p_user_id: userId,
+      })
+      if (error || !data?.awarded) {
+        setScanState('punch_failed')
+      } else {
+        setPunchResult({ newCount: data.new_count, required: data.required, rewardEarned: data.reward_earned })
+        setScanState('punched')
+      }
       return
     }
+
+    // Reward redemption QR: a bare UUID
+    if (!UUID_RE.test(token)) { setScanState('invalid'); return }
 
     const { data } = await supabase
       .from('punch_redemptions')
@@ -94,6 +113,7 @@ export default function PortalScanner({ shop, userId }: Props) {
   function reset() {
     setScanState('idle')
     setResult(null)
+    setPunchResult(null)
     setCameraActive(false)
   }
 
@@ -190,6 +210,39 @@ export default function PortalScanner({ shop, userId }: Props) {
               {working ? 'Marking…' : 'Confirm'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Punch awarded */}
+      {scanState === 'punched' && punchResult && (
+        <div className="bg-white rounded-2xl border border-amber-200 p-8 flex flex-col items-center gap-3">
+          <div className="text-5xl">☕</div>
+          <p className="font-bold text-coffee-900 text-lg">Stamp added!</p>
+          <p className="text-sm text-coffee-600 text-center">
+            {punchResult.newCount}/{punchResult.required} stamps
+          </p>
+          {punchResult.rewardEarned && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-center">
+              <p className="text-xs font-bold text-amber-700">🎉 Reward earned! Customer can now redeem.</p>
+            </div>
+          )}
+          <button onClick={reset} className="mt-2 w-full py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-200 hover:bg-gray-50">
+            Scan another
+          </button>
+        </div>
+      )}
+
+      {/* Punch failed */}
+      {scanState === 'punch_failed' && (
+        <div className="bg-white rounded-2xl border border-red-200 p-8 flex flex-col items-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <X size={28} className="text-red-500" />
+          </div>
+          <p className="font-bold text-gray-900">Couldn't award stamp</p>
+          <p className="text-xs text-gray-400 text-center">The stamp couldn't be awarded. The customer may have already earned their reward or there was an error.</p>
+          <button onClick={reset} className="mt-2 w-full py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-200 hover:bg-gray-50">
+            Try again
+          </button>
         </div>
       )}
 
