@@ -45,10 +45,73 @@ const FULL_TO_ABBREV: Record<string, string> = {
   'West Virginia': 'WV', Wisconsin: 'WI', Wyoming: 'WY',
 }
 
+const US_ABBREVS = new Set(Object.values(FULL_TO_ABBREV))
+const US_FULL_NAMES = new Set(Object.keys(FULL_TO_ABBREV))
+
+// Values that appear in the state column but are actually countries
+const STATE_AS_COUNTRY: Record<string, string> = {
+  Indonesia: 'Indonesia',
+  Bali: 'Indonesia',
+  Turkey: 'Turkey',
+  Germany: 'Germany',
+  France: 'France',
+  Australia: 'Australia',
+  Canada: 'Canada',
+  Mexico: 'Mexico',
+  'United Kingdom': 'United Kingdom',
+  UK: 'United Kingdom',
+  Japan: 'Japan',
+  India: 'India',
+  Brazil: 'Brazil',
+}
+
+const COUNTRY_TO_CONTINENT: Record<string, string> = {
+  'United States': 'North America',
+  Canada: 'North America',
+  Mexico: 'North America',
+  'United Kingdom': 'Europe',
+  Germany: 'Europe',
+  France: 'Europe',
+  Netherlands: 'Europe',
+  Spain: 'Europe',
+  Italy: 'Europe',
+  Turkey: 'Europe',
+  Indonesia: 'Asia',
+  Japan: 'Asia',
+  India: 'Asia',
+  China: 'Asia',
+  'South Korea': 'Asia',
+  'Saudi Arabia': 'Asia',
+  UAE: 'Asia',
+  Australia: 'Oceania',
+  'New Zealand': 'Oceania',
+  Brazil: 'South America',
+  Argentina: 'South America',
+  Colombia: 'South America',
+  Kenya: 'Africa',
+  Ethiopia: 'Africa',
+  'South Africa': 'Africa',
+}
+
 function normalizeState(s: string | null): string | null {
   if (!s) return null
   const t = s.trim()
   return FULL_TO_ABBREV[t] ?? (t.length <= 4 ? t.toUpperCase() : t)
+}
+
+function inferCountry(state: string | null, country: string | null): string | null {
+  if (country) return country
+  if (!state) return null
+  const t = state.trim()
+  if (US_ABBREVS.has(t.toUpperCase()) || US_FULL_NAMES.has(t)) return 'United States'
+  if (STATE_AS_COUNTRY[t]) return STATE_AS_COUNTRY[t]
+  return null
+}
+
+function inferContinent(country: string | null, continent: string | null): string | null {
+  if (continent) return continent
+  if (!country) return null
+  return COUNTRY_TO_CONTINENT[country] ?? null
 }
 
 function Skeleton({ w = 'w-12', h = 'h-7' }: { w?: string; h?: string }) {
@@ -93,6 +156,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
   const [followedShops, setFollowedShops] = useState<FollowedShop[]>([])
   const [stateBreakdown, setStateBreakdown] = useState<GeoEntry[]>([])
   const [countryBreakdown, setCountryBreakdown] = useState<GeoEntry[]>([])
+  const [continentBreakdown, setContinentBreakdown] = useState<GeoEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -106,7 +170,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
         weekRatings, monthRatings,
         activePunchCards, punchRedemptions, foundingPartners,
         follows, postsWeek, totalPosts, claimedShops,
-        followsData, allStates, countriesData,
+        followsData, allGeoData,
       ] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('ratings').select('id', { count: 'exact', head: true }),
@@ -125,8 +189,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
         supabase.from('shop_posts').select('id', { count: 'exact', head: true }),
         supabase.from('coffee_shops').select('id', { count: 'exact', head: true }).not('claimed_by', 'is', null),
         supabase.from('shop_follows').select('shop_id, coffee_shops(name)').limit(1000),
-        supabase.from('coffee_shops').select('state').not('state', 'is', null),
-        supabase.from('coffee_shops').select('country').not('country', 'is', null),
+        supabase.from('coffee_shops').select('state, country, continent'),
       ])
 
       setStats({
@@ -177,27 +240,39 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
           .slice(0, 6)
       )
 
-      // State breakdown — normalize and aggregate
+      // Geo breakdown — infer country + continent from state where missing
       const stateTally: Record<string, number> = {}
-      for (const row of allStates.data || []) {
-        const norm = normalizeState(row.state)
-        if (!norm) continue
-        stateTally[norm] = (stateTally[norm] || 0) + 1
+      const countryTally: Record<string, number> = {}
+      const continentTally: Record<string, number> = {}
+
+      for (const row of allGeoData.data || []) {
+        const country = inferCountry(row.state, row.country)
+        const continent = inferContinent(country, row.continent)
+
+        // Only count states for US shops (or shops with a recognisable US state)
+        const isUSState = country === 'United States'
+        if (isUSState && row.state) {
+          const norm = normalizeState(row.state)
+          if (norm) stateTally[norm] = (stateTally[norm] || 0) + 1
+        }
+
+        if (country) countryTally[country] = (countryTally[country] || 0) + 1
+        if (continent) continentTally[continent] = (continentTally[continent] || 0) + 1
       }
+
       setStateBreakdown(
         Object.entries(stateTally)
           .map(([label, count]) => ({ label, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 12)
       )
-
-      // Country breakdown
-      const countryTally: Record<string, number> = {}
-      for (const row of countriesData.data || []) {
-        if (row.country) countryTally[row.country] = (countryTally[row.country] || 0) + 1
-      }
       setCountryBreakdown(
         Object.entries(countryTally)
+          .map(([label, count]) => ({ label, count }))
+          .sort((a, b) => b.count - a.count)
+      )
+      setContinentBreakdown(
+        Object.entries(continentTally)
           .map(([label, count]) => ({ label, count }))
           .sort((a, b) => b.count - a.count)
       )
@@ -335,6 +410,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
           {[
             { label: 'States', value: stateBreakdown.length, icon: '🗺️' },
             { label: 'Countries', value: countryBreakdown.length, icon: '🌍' },
+            { label: 'Continents', value: continentBreakdown.length, icon: '🌐' },
             { label: 'Total Shops', value: stats?.shops, icon: '🏪' },
           ].map(p => (
             <div key={p.label} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ background: '#fff', border: '1px solid #e8ddc8' }}>
@@ -382,27 +458,51 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
 
           {/* Countries + Loyalty stacked */}
           <div className="space-y-4">
-            {/* Countries */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e8ddc8' }}>
-              <div className="px-4 py-3" style={{ background: '#f7f0e6', borderBottom: '1px solid #e8ddc8' }}>
-                <p className="text-sm font-semibold text-coffee-800">🌍 Countries</p>
+            {/* Countries + Continents */}
+            <div className="space-y-3">
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e8ddc8' }}>
+                <div className="px-4 py-3" style={{ background: '#f7f0e6', borderBottom: '1px solid #e8ddc8' }}>
+                  <p className="text-sm font-semibold text-coffee-800">🌍 Countries</p>
+                </div>
+                {loading ? (
+                  <div className="p-4 space-y-2">
+                    {[1,2,3].map(i => <div key={i} className="h-4 rounded animate-pulse" style={{ background: '#e8ddc8' }} />)}
+                  </div>
+                ) : countryBreakdown.length === 0 ? (
+                  <p className="px-4 py-4 text-xs text-coffee-400 text-center">No country data yet</p>
+                ) : (
+                  <div>
+                    {countryBreakdown.map(c => (
+                      <div key={c.label} className="flex items-center justify-between px-4 py-2" style={{ borderBottom: '1px solid #f5ead8' }}>
+                        <span className="text-sm text-coffee-700 truncate">{c.label}</span>
+                        <span className="text-xs font-semibold text-coffee-500 shrink-0 ml-2">{c.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {loading ? (
-                <div className="p-4 space-y-2">
-                  {[1,2].map(i => <div key={i} className="h-4 rounded animate-pulse" style={{ background: '#e8ddc8' }} />)}
+
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e8ddc8' }}>
+                <div className="px-4 py-3" style={{ background: '#f7f0e6', borderBottom: '1px solid #e8ddc8' }}>
+                  <p className="text-sm font-semibold text-coffee-800">🌐 Continents</p>
                 </div>
-              ) : countryBreakdown.length === 0 ? (
-                <p className="px-4 py-4 text-xs text-coffee-400 text-center">No country data yet</p>
-              ) : (
-                <div>
-                  {countryBreakdown.map(c => (
-                    <div key={c.label} className="flex items-center justify-between px-4 py-2" style={{ borderBottom: '1px solid #f5ead8' }}>
-                      <span className="text-sm text-coffee-700 truncate">{c.label}</span>
-                      <span className="text-xs font-semibold text-coffee-500 shrink-0 ml-2">{c.count}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                {loading ? (
+                  <div className="p-4 space-y-2">
+                    {[1,2].map(i => <div key={i} className="h-4 rounded animate-pulse" style={{ background: '#e8ddc8' }} />)}
+                  </div>
+                ) : continentBreakdown.length === 0 ? (
+                  <p className="px-4 py-4 text-xs text-coffee-400 text-center">No continent data yet</p>
+                ) : (
+                  <div>
+                    {continentBreakdown.map(c => (
+                      <div key={c.label} className="flex items-center justify-between px-4 py-2" style={{ borderBottom: '1px solid #f5ead8' }}>
+                        <span className="text-sm text-coffee-700 truncate">{c.label}</span>
+                        <span className="text-xs font-semibold text-coffee-500 shrink-0 ml-2">{c.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Loyalty */}
