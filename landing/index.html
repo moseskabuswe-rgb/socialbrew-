@@ -269,6 +269,29 @@
       footer{padding:48px 20px 32px}
       .footer-links{gap:20px;flex-wrap:wrap}
     }
+
+    /* CLAIM SECTION */
+    .claim{padding:100px 48px;background:var(--cream2)}
+    .claim-inner{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;max-width:1100px;margin:0 auto}
+    .claim-headline{font-family:'Playfair Display',serif;font-size:clamp(32px,4vw,48px);font-weight:900;line-height:1.1;color:var(--text);margin-bottom:16px}
+    .claim-headline em{font-style:italic;color:var(--sage-dark)}
+    .claim-sub{font-size:16px;color:var(--mid);line-height:1.7;margin-bottom:32px;max-width:480px}
+    .claim-steps{display:flex;flex-direction:column;gap:20px;margin-bottom:36px}
+    .claim-step{display:flex;align-items:flex-start;gap:16px}
+    .claim-step-num{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--sage-dark);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+    .claim-step-text{font-size:15px;color:var(--mid);line-height:1.5;padding-top:4px}
+    .claim-step-text strong{color:var(--text)}
+    .claim-actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+    .claim-card{background:#fff;border-radius:20px;padding:32px;box-shadow:0 8px 32px rgba(90,138,96,.1);border:1px solid rgba(168,197,160,.3)}
+    .claim-card-tag{display:inline-block;background:var(--sage-l);color:var(--sage-dark);font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:24px;letter-spacing:.04em;text-transform:uppercase}
+    .claim-feature{display:flex;align-items:center;gap:12px;font-size:15px;color:var(--text);padding:10px 0;border-bottom:1px solid rgba(168,197,160,.2)}
+    .claim-feature:last-child{border-bottom:none}
+    .claim-feature span{font-weight:500}
+    @media(max-width:768px){
+      .claim{padding:64px 24px}
+      .claim-inner{grid-template-columns:1fr;gap:40px}
+      .claim-actions{flex-direction:column;align-items:flex-start}
+    }
   </style>
 </head>
 <body>
@@ -292,10 +315,10 @@
         <a href="#how" class="btn-outline">How it works →</a>
       </div>
       <div class="hero-stats fade-up">
-        <div><div class="stat-num">75</div><div class="stat-label">Brewers</div></div>
-        <div><div class="stat-num">296</div><div class="stat-label">Shops</div></div>
-        <div><div class="stat-num">133</div><div class="stat-label">Brews</div></div>
-        <div><div class="stat-num">11</div><div class="stat-label">States</div></div>
+        <div><div class="stat-num" id="stat-brewers">87</div><div class="stat-label">Brewers</div></div>
+        <div><div class="stat-num" id="stat-shops">309</div><div class="stat-label">Shops</div></div>
+        <div><div class="stat-num" id="stat-brews">171</div><div class="stat-label">Brews</div></div>
+        <div><div class="stat-num" id="stat-states">25</div><div class="stat-label">States</div></div>
       </div>
     </div>
     <div class="hero-right fade-up">
@@ -367,6 +390,48 @@
   </div>
 </section>
 
+<!-- CLAIM YOUR SHOP -->
+<section class="claim" id="claim">
+  <div class="section-inner">
+    <div class="claim-inner reveal">
+      <div class="claim-left">
+        <div class="section-eyebrow">For Shop Owners</div>
+        <h2 class="claim-headline">Your shop is already<br>here. <em>Claim it.</em></h2>
+        <p class="claim-sub">Social Brew is free for independent coffee shops. Claim your listing and get access to your owner portal — post updates, set up a punch card loyalty program, and connect with the customers who already love your shop.</p>
+        <div class="claim-steps">
+          <div class="claim-step">
+            <div class="claim-step-num">01</div>
+            <div class="claim-step-text"><strong>Find your shop</strong> on Social Brew and tap "Claim it." Takes 60 seconds.</div>
+          </div>
+          <div class="claim-step">
+            <div class="claim-step-num">02</div>
+            <div class="claim-step-text"><strong>We verify your ownership</strong> and send you a portal invite within 2 business days.</div>
+          </div>
+          <div class="claim-step">
+            <div class="claim-step-num">03</div>
+            <div class="claim-step-text"><strong>Post updates, run punch cards,</strong> and build loyalty with your regulars — all free.</div>
+          </div>
+        </div>
+        <div class="claim-actions">
+          <a href="https://socialbrewapp.com" class="btn-primary">☕ &nbsp;Claim your shop</a>
+          <a href="mailto:moses@socialbrewapp.com" class="btn-outline">Questions? Email us →</a>
+        </div>
+      </div>
+      <div class="claim-right">
+        <div class="claim-card">
+          <div class="claim-card-tag">Free forever</div>
+          <div class="claim-feature">🏪 <span>Verified shop listing</span></div>
+          <div class="claim-feature">📢 <span>Post updates &amp; events</span></div>
+          <div class="claim-feature">🎫 <span>Punch card loyalty program</span></div>
+          <div class="claim-feature">👥 <span>Team portal access</span></div>
+          <div class="claim-feature">📊 <span>See who's visiting your shop</span></div>
+          <div class="claim-feature">⭐ <span>Founding Partner perks</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- DISCOVER -->
 <section class="discover" id="discover">
   <div class="discover-inner">
@@ -377,7 +442,7 @@
       <div class="discover-points">
         <div class="discover-point">
           <div class="discover-point-icon">📍</div>
-          <div class="discover-point-text"><strong>296 shops and counting</strong> — from Normal, IL to Bali, Indonesia. Every one independently owned.</div>
+          <div class="discover-point-text"><strong><span id="stat3-shops">309</span> shops and counting</strong> — from Normal, IL to Bali, Indonesia. Every one independently owned.</div>
         </div>
         <div class="discover-point">
           <div class="discover-point-icon">✚</div>
@@ -385,7 +450,7 @@
         </div>
         <div class="discover-point">
           <div class="discover-point-icon">🌍</div>
-          <div class="discover-point-text"><strong>Already in 11 states and 5 countries</strong> — and we're just getting started.</div>
+          <div class="discover-point-text"><strong>Already in <span id="stat3-states">25</span> states and 5 countries</strong> — and we're just getting started.</div>
         </div>
       </div>
     </div>
@@ -417,10 +482,10 @@
 <section class="stats">
   <div class="section-inner">
     <div class="stats-grid reveal">
-      <div class="stat-block"><div class="stat-block-num">75</div><div class="stat-block-label">Brewers</div><div class="stat-block-sub">Growing every day</div></div>
-      <div class="stat-block"><div class="stat-block-num">296</div><div class="stat-block-label">Shops</div><div class="stat-block-sub">Zero chains included</div></div>
-      <div class="stat-block"><div class="stat-block-num">133</div><div class="stat-block-label">Brews posted</div><div class="stat-block-sub">Real visits, real ratings</div></div>
-      <div class="stat-block"><div class="stat-block-num">11</div><div class="stat-block-label">States</div><div class="stat-block-sub">IL · IN · MI · TN · TX + more</div></div>
+      <div class="stat-block"><div class="stat-block-num" id="stat2-brewers">87</div><div class="stat-block-label">Brewers</div><div class="stat-block-sub">Growing every day</div></div>
+      <div class="stat-block"><div class="stat-block-num" id="stat2-shops">309</div><div class="stat-block-label">Shops</div><div class="stat-block-sub">Zero chains included</div></div>
+      <div class="stat-block"><div class="stat-block-num" id="stat2-brews">171</div><div class="stat-block-label">Brews posted</div><div class="stat-block-sub">Real visits, real ratings</div></div>
+      <div class="stat-block"><div class="stat-block-num" id="stat2-states">25</div><div class="stat-block-label">States</div><div class="stat-block-sub">IL · IN · MI · TN · TX + more</div></div>
     </div>
   </div>
 </section>
@@ -501,7 +566,7 @@
     <div class="footer-tagline">Independent coffee finally has a community.</div>
     <div class="footer-links">
       <a href="https://instagram.com/socialbrew_app" class="footer-link" target="_blank">Instagram</a>
-      <a href="mailto:moses.kabuswe@gmail.com" class="footer-link">Contact</a>
+      <a href="mailto:moses@socialbrewapp.com" class="footer-link">Contact</a>
       <a href="https://socialbrewapp.com" class="footer-link">Open the App</a>
     </div>
     <div class="footer-divider"></div>
@@ -703,6 +768,47 @@
     document.querySelector('nav').style.boxShadow =
       window.scrollY > 40 ? '0 2px 20px rgba(90,138,96,.1)' : 'none';
   });
+
+  /* ── Live stats from Supabase ────────────────────────────────── */
+  (async function() {
+    const BASE = 'https://pifpkfuulfnweeiqufbq.supabase.co/rest/v1';
+    const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZnBrZnV1bGZud2VlaXF1ZmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NjY5ODIsImV4cCI6MjA5MTM0Mjk4Mn0.5jtK3M5Y-ZQdqXlBL1FLxsr10najtUfpQ3pTP8eimpw';
+    const H = { apikey: KEY, Authorization: 'Bearer ' + KEY, Prefer: 'count=exact' };
+
+    async function count(table) {
+      const res = await fetch(BASE + '/' + table + '?select=id&limit=0', { headers: H });
+      const m = (res.headers.get('Content-Range') || '').match(/\/(\d+)$/);
+      return m ? +m[1] : null;
+    }
+
+    async function distinctStates() {
+      const res = await fetch(BASE + '/coffee_shops?select=state&state=not.is.null', {
+        headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
+      });
+      if (!res.ok) return null;
+      const rows = await res.json();
+      const n = new Set(rows.map(r => r.state).filter(Boolean)).size;
+      return n > 0 ? n : null;
+    }
+
+    function set(ids, val) {
+      if (val == null) return;
+      ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = val; });
+    }
+
+    try {
+      var results = await Promise.all([
+        count('profiles'),
+        count('coffee_shops'),
+        count('ratings'),
+        distinctStates(),
+      ]);
+      set(['stat-brewers', 'stat2-brewers'], results[0]);
+      set(['stat-shops', 'stat2-shops', 'stat3-shops'], results[1]);
+      set(['stat-brews', 'stat2-brews'], results[2]);
+      set(['stat-states', 'stat2-states', 'stat3-states'], results[3]);
+    } catch (_) { /* keep hardcoded fallbacks */ }
+  })();
 </script>
 </body>
 </html>

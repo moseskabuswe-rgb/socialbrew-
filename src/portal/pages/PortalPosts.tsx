@@ -90,7 +90,7 @@ export default function PortalPosts({ shop }: Props) {
       }
     }
 
-    const { error } = await supabase.from('shop_posts').insert({
+    const { data: newPost, error } = await supabase.from('shop_posts').insert({
       shop_id: shop.id,
       title: title.trim(),
       body: body.trim(),
@@ -98,9 +98,27 @@ export default function PortalPosts({ shop }: Props) {
       category,
       status: 'approved',
       approved_at: new Date().toISOString(),
-    })
+    }).select('id').single()
     setSubmitting(false)
     if (error) { setErrors({ submit: error.message || 'Something went wrong. Please try again.' }); return }
+
+    // Notify all followers of this shop
+    if (newPost) {
+      const { data: followers } = await supabase
+        .from('shop_follows')
+        .select('user_id')
+        .eq('shop_id', shop.id)
+      if (followers && followers.length > 0) {
+        await supabase.from('notifications').insert(
+          followers.map((f: any) => ({
+            user_id: f.user_id,
+            actor_id: null,
+            type: 'shop_post',
+            data: { shop_id: shop.id, shop_name: shop.name, post_id: newPost.id, post_title: title.trim() },
+          }))
+        )
+      }
+    }
     setTitle('')
     setBody('')
     setCategory('')

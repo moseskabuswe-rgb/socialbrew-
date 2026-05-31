@@ -220,7 +220,7 @@ function AppContent() {
       {profile && !profile.email_verified && <EmailVerificationBanner />}
 
       {/* Pull-to-refresh indicator */}
-      {(pullProgress > 0 || pullRefreshing) && (
+      {(pullProgress > 0.15 || pullRefreshing) && (
         <div
           className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none"
           style={{ marginTop: Math.round((pullRefreshing ? 1 : pullProgress) * 48) }}

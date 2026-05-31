@@ -7,7 +7,7 @@ import { registerPushNotifications } from '../../lib/push'
 
 type Notification = {
   id: string
-  type: 'like' | 'comment' | 'follow' | 'follow_request' | 'new_post' | 'mention' | 'coffee_date' | 'story' | 'punch_awarded' | 'punch_card_approved' | 'punch_card_rejected'
+  type: 'like' | 'comment' | 'follow' | 'follow_request' | 'new_post' | 'mention' | 'coffee_date' | 'story' | 'punch_awarded' | 'punch_card_approved' | 'punch_card_rejected' | 'shop_post'
   content?: string
   data?: Record<string, any>
   read: boolean
@@ -38,6 +38,7 @@ function NotifIcon({ type }: { type: string }) {
   if (type === 'punch_awarded') return <span className="text-base">🎫</span>
   if (type === 'punch_card_approved') return <span className="text-base">✅</span>
   if (type === 'punch_card_rejected') return <span className="text-base">❌</span>
+  if (type === 'shop_post') return <span className="text-base">🏪</span>
   return <span className="text-base">🔔</span>
 }
 
@@ -66,6 +67,11 @@ function notifText(n: Notification) {
     const shop = n.data?.shop_name || 'your shop'
     const reason = n.data?.rejection_reason
     return reason ? `Punch card for ${shop} was rejected: ${reason}` : `Punch card for ${shop} was not approved`
+  }
+  if (n.type === 'shop_post') {
+    const shop = n.data?.shop_name || 'A shop you follow'
+    const title = n.data?.post_title
+    return title ? `${shop} posted: ${title}` : `${shop} posted a new update`
   }
   const shop = (n.rating?.coffee_shops as any)?.name
   return shop ? `posted at ${shop}` : 'posted a new brew'

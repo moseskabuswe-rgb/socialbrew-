@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-const THRESHOLD = 72  // px of pull needed to trigger refresh
-const MIN_PULL = 12   // px moved before we decide intent
-const AXIS_RATIO = 1.2 // vertical must be this much more than horizontal
+const THRESHOLD = 80  // px of pull needed to trigger refresh
+const MIN_PULL = 24   // px moved before we decide intent
+const AXIS_RATIO = 2.5 // vertical must be this much more than horizontal
 
 export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
   const [pullProgress, setPullProgress] = useState(0)
