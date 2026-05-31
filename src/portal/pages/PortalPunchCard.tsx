@@ -26,11 +26,12 @@ interface PunchCardData {
   reward_description: string
   expiry_days: number | null
   is_active: boolean
+  paused: boolean
   approved_by: string | null
   rejection_reason: string | null
 }
 
-type CardState = 'loading' | 'empty' | 'pending' | 'rejected' | 'active'
+type CardState = 'loading' | 'empty' | 'pending' | 'rejected' | 'active' | 'paused'
 
 function MugPreview({ required }: { required: number }) {
   const display = Math.min(required, 15)
@@ -57,6 +58,7 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
   const [reward, setReward] = useState('')
   const [expiryDays, setExpiryDays] = useState('')
   const [saving, setSaving] = useState(false)
+  const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
 
   const isFoundingPartner = shopOwner.founding_partner
@@ -86,7 +88,7 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
     setCardState('loading')
     const { data } = await supabase
       .from('punch_cards')
-      .select('id,punches_required,reward_description,expiry_days,is_active,approved_by,rejection_reason')
+      .select('id,punches_required,reward_description,expiry_days,is_active,paused,approved_by,rejection_reason')
       .eq('shop_id', shop.id)
       .maybeSingle()
     if (!data) {
@@ -97,9 +99,20 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
     setPunches(data.punches_required)
     setReward(data.reward_description)
     setExpiryDays(data.expiry_days ? String(data.expiry_days) : '')
-    const state = data.is_active ? 'active' : !data.approved_by ? 'pending' : 'rejected'
+    const state = data.is_active
+      ? data.paused ? 'paused' : 'active'
+      : !data.approved_by ? 'pending' : 'rejected'
     setCardState(state)
     if (state === 'active') loadCustomers()
+  }
+
+  async function togglePause() {
+    if (!card) return
+    setToggling(true)
+    const newPaused = !card.paused
+    await supabase.from('punch_cards').update({ paused: newPaused }).eq('id', card.id)
+    setToggling(false)
+    loadCard()
   }
 
   function openEdit() {
@@ -149,6 +162,7 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
   }
 
   const showForm = cardState === 'empty' || editing || cardState === 'rejected'
+  const showPauseToggle = (cardState === 'active' || cardState === 'paused') && !editing
 
   if (cardState === 'loading') {
     return (
@@ -271,6 +285,25 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
         </div>
       )}
 
+      {/* Paused state */}
+      {cardState === 'paused' && !editing && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-gray-400" />
+            <p className="text-sm font-semibold text-gray-500">Paused</p>
+          </div>
+          {card && (
+            <>
+              <p className="text-base font-semibold text-gray-400">{card.reward_description}</p>
+              <p className="text-xs text-gray-400">
+                Customers cannot see or earn stamps while paused. Resume to make it live again instantly.
+              </p>
+              <MugPreview required={card.punches_required} />
+            </>
+          )}
+        </div>
+      )}
+
       {/* Rejected notice */}
       {cardState === 'rejected' && (
         <div className="bg-red-50 rounded-xl border border-red-200 p-4">
@@ -280,6 +313,21 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
           )}
           <p className="text-xs text-gray-400 mt-1">Update the form below and resubmit for review.</p>
         </div>
+      )}
+
+      {/* Pause / Resume toggle */}
+      {showPauseToggle && (
+        <button
+          onClick={togglePause}
+          disabled={toggling}
+          className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-colors disabled:opacity-40 ${
+            cardState === 'paused'
+              ? 'text-green-700 border-green-200 hover:bg-green-50'
+              : 'text-gray-500 border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          {toggling ? 'Saving…' : cardState === 'paused' ? '▶ Resume punch card' : '⏸ Pause punch card'}
+        </button>
       )}
 
       {/* Create / Edit form */}

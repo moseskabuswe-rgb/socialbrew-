@@ -83,7 +83,7 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
       // Punch card progress
       if (profile?.id && shopId) {
         const [cardRes, punchesRes] = await Promise.all([
-          supabase.from('punch_cards').select('id, punches_required, reward_description').eq('shop_id', shopId).eq('is_active', true).maybeSingle(),
+          supabase.from('punch_cards').select('id, punches_required, reward_description').eq('shop_id', shopId).eq('is_active', true).eq('paused', false).maybeSingle(),
           supabase.from('user_punches').select('current_count, total_earned').eq('user_id', profile.id).eq('shop_id', shopId).maybeSingle(),
         ])
         if (cardRes.data) setPunchCard(cardRes.data)
