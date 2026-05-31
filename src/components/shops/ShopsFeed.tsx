@@ -29,6 +29,7 @@ export default function ShopsFeed({ profileId }: Props) {
   const [posts, setPosts] = useState<Post[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [selectedShop, setSelectedShop] = useState<any>(null)
 
@@ -64,17 +65,22 @@ export default function ShopsFeed({ profileId }: Props) {
       const loadedPosts = (data as any) || []
       setPosts(loadedPosts)
 
-      // Load like counts for loaded posts
+      // Load like and comment counts for loaded posts
       if (loadedPosts.length > 0) {
         const postIds = loadedPosts.map((p: any) => p.id)
-        const { data: counts } = await supabase
-          .from('shop_post_likes')
-          .select('post_id')
-          .in('post_id', postIds)
-        if (counts) {
+        const [{ data: likes }, { data: commentRows }] = await Promise.all([
+          supabase.from('shop_post_likes').select('post_id').in('post_id', postIds),
+          supabase.from('shop_post_comments').select('post_id').in('post_id', postIds),
+        ])
+        if (likes) {
           const countMap: Record<string, number> = {}
-          counts.forEach((c: any) => { countMap[c.post_id] = (countMap[c.post_id] || 0) + 1 })
+          likes.forEach((c: any) => { countMap[c.post_id] = (countMap[c.post_id] || 0) + 1 })
           setLikeCounts(countMap)
+        }
+        if (commentRows) {
+          const countMap: Record<string, number> = {}
+          commentRows.forEach((c: any) => { countMap[c.post_id] = (countMap[c.post_id] || 0) + 1 })
+          setCommentCounts(countMap)
         }
       }
 
@@ -111,6 +117,7 @@ export default function ShopsFeed({ profileId }: Props) {
           post={post}
           likedByMe={likedIds.has(post.id)}
           likeCount={likeCounts[post.id] || 0}
+          commentCount={commentCounts[post.id] || 0}
           profileId={profileId}
           onShopClick={shop => setSelectedShop(shop)}
         />
