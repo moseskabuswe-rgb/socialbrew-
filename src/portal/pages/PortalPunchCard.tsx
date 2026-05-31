@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Check, RotateCcw } from 'lucide-react'
 
+interface CustomerPunch {
+  user_id: string
+  current_count: number
+  total_earned: number
+  last_earned_at: string
+  profiles: { username: string; avatar_url: string | null } | null
+}
+
 interface Props {
   shop: { id: string; name: string }
   shopOwner: {
@@ -42,6 +50,8 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
   const [cardState, setCardState] = useState<CardState>('loading')
   const [card, setCard] = useState<PunchCardData | null>(null)
   const [editing, setEditing] = useState(false)
+  const [customers, setCustomers] = useState<CustomerPunch[]>([])
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
 
   const [punches, setPunches] = useState(10)
   const [reward, setReward] = useState('')
@@ -60,6 +70,18 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
 
   useEffect(() => { loadCard() }, [])
 
+  async function loadCustomers() {
+    setLoadingCustomers(true)
+    const { data } = await supabase
+      .from('user_punches')
+      .select('user_id, current_count, total_earned, last_earned_at, profiles:user_id(username, avatar_url)')
+      .eq('shop_id', shop.id)
+      .gt('current_count', 0)
+      .order('last_earned_at', { ascending: false })
+    setCustomers((data as any) || [])
+    setLoadingCustomers(false)
+  }
+
   async function loadCard() {
     setCardState('loading')
     const { data } = await supabase
@@ -75,7 +97,9 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
     setPunches(data.punches_required)
     setReward(data.reward_description)
     setExpiryDays(data.expiry_days ? String(data.expiry_days) : '')
-    setCardState(data.is_active ? 'active' : !data.approved_by ? 'pending' : 'rejected')
+    const state = data.is_active ? 'active' : !data.approved_by ? 'pending' : 'rejected'
+    setCardState(state)
+    if (state === 'active') loadCustomers()
   }
 
   function openEdit() {
@@ -349,6 +373,61 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
             }
           </button>
           <p className="text-center text-xs text-gray-400">All punch cards are reviewed before going live</p>
+        </div>
+      )}
+
+      {/* Customer tracker */}
+      {cardState === 'active' && !editing && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-800">Punch card holders</h2>
+            <button onClick={loadCustomers} className="text-xs text-caramel hover:underline">Refresh</button>
+          </div>
+          {loadingCustomers ? (
+            <div className="flex justify-center py-6">
+              <div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+            </div>
+          ) : customers.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 p-6 text-center">
+              <p className="text-2xl mb-1">☕</p>
+              <p className="text-sm text-gray-400">No customers have stamps yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {customers.map(c => (
+                <div key={c.user_id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
+                  {c.profiles?.avatar_url ? (
+                    <img src={c.profiles.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-sm">
+                      {c.profiles?.username?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{c.profiles?.username ?? 'Unknown'}</p>
+                    <p className="text-xs text-gray-400">
+                      Last stamped {new Date(c.last_earned_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-bold text-coffee-800">
+                      {c.current_count}
+                      {card && <span className="text-xs font-normal text-gray-400">/{card.punches_required}</span>}
+                    </p>
+                    <div className="w-16 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: card ? `${Math.min(100, (c.current_count / card.punches_required) * 100)}%` : '0%',
+                          background: 'linear-gradient(90deg, #c8853a, #9b5e1a)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
