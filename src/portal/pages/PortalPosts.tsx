@@ -19,7 +19,7 @@ const CATEGORIES = ['Update', 'Promotion', 'Event', 'New menu item', 'Community'
 const MAX_TITLE = 80
 const MAX_BODY = 600
 
-export default function PortalPosts({ shop, userId }: Props) {
+export default function PortalPosts({ shop }: Props) {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -89,7 +89,6 @@ export default function PortalPosts({ shop, userId }: Props) {
 
     const { error } = await supabase.from('shop_posts').insert({
       shop_id: shop.id,
-      owner_id: userId,
       title: title.trim(),
       body: body.trim(),
       photo_url: photoUrl,

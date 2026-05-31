@@ -12,6 +12,7 @@ import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
 import PunchCardRedemption from '../shops/PunchCardRedemption'
+import { QRCodeSVG } from 'qrcode.react'
 import PrivacyPolicyPage from '../shared/PrivacyPolicyPage'
 import TermsPage from '../shared/TermsPage'
 import { compressAvatar } from '../../lib/compressImage'
@@ -1048,6 +1049,14 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                         </button>
                       )}
                     </div>
+                    {!earned && (
+                      <div className="mt-3 pt-3 border-t border-cream-200 flex flex-col items-center gap-1.5">
+                        <p className="text-coffee-400 text-xs">Show this to get stamped</p>
+                        <div className="bg-white rounded-xl p-2.5 border border-cream-200 shadow-sm">
+                          <QRCodeSVG value={`punch:${profile.id}`} size={120} level="M" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
