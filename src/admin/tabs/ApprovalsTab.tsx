@@ -42,17 +42,6 @@ interface EditSubmission {
   rejection_reason: string | null
 }
 
-interface ShopPost {
-  id: string
-  shop_id: string
-  owner_id: string
-  content: string
-  status: string
-  created_at: string
-  coffee_shops: { name: string } | null
-  profiles: { username: string } | null
-}
-
 interface PunchCard {
   id: string
   shop_id: string
@@ -63,13 +52,12 @@ interface PunchCard {
   coffee_shops: { name: string } | null
 }
 
-type Section = 'claims' | 'edits' | 'posts' | 'punchcards'
+type Section = 'claims' | 'edits' | 'punchcards'
 
 export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) {
   const [open, setOpen] = useState<Section>('claims')
   const [claims, setClaims] = useState<Claim[]>([])
   const [edits, setEdits] = useState<EditSubmission[]>([])
-  const [posts, setPosts] = useState<ShopPost[]>([])
   const [punchCards, setPunchCards] = useState<PunchCard[]>([])
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
@@ -109,14 +97,12 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       profiles: null,
     }))
 
-    const [editsRes, postsRes, punchCardsRes] = await Promise.all([
+    const [editsRes, punchCardsRes] = await Promise.all([
       supabase.from('shop_edit_submissions').select('id,shop_id,submitted_by,status,field_changes,created_at,rejection_reason,coffee_shops(name),profiles(username)').eq('status', 'pending').order('created_at'),
-      supabase.from('shop_posts').select('id,shop_id,owner_id,content,status,created_at,coffee_shops(name),profiles(username)').eq('status', 'pending').order('created_at'),
       supabase.from('punch_cards').select('id,shop_id,punches_required,reward_description,expiry_days,created_at,coffee_shops(name)').eq('is_active', false).is('approved_by', null).order('created_at'),
     ])
     setClaims(mergedClaims)
     setEdits((editsRes.data as any) || [])
-    setPosts((postsRes.data as any) || [])
     setPunchCards((punchCardsRes.data as any) || [])
     setLoading(false)
   }
@@ -233,47 +219,6 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
     onPendingChange()
   }
 
-  async function approvePost(post: ShopPost) {
-    setWorking(true)
-    await supabase.from('shop_posts').update({
-      status: 'approved',
-      reviewed_by: currentUserId,
-      reviewed_at: new Date().toISOString(),
-    }).eq('id', post.id)
-    // Notify all followers of this shop about the new post
-    const { data: followers } = await supabase
-      .from('shop_follows').select('user_id').eq('shop_id', post.shop_id)
-    if (followers && followers.length > 0) {
-      await supabase.from('notifications').insert(
-        followers.map((f: any) => ({
-          user_id: f.user_id,
-          actor_id: null,
-          type: 'shop_post',
-          rating_id: null,
-          read: false,
-        }))
-      )
-    }
-    setWorking(false)
-    fetchAll()
-    onPendingChange()
-  }
-
-  async function rejectPost(id: string) {
-    setWorking(true)
-    await supabase.from('shop_posts').update({
-      status: 'rejected',
-      reviewed_by: currentUserId,
-      reviewed_at: new Date().toISOString(),
-      rejection_reason: rejectReason,
-    }).eq('id', id)
-    setWorking(false)
-    setRejectTarget(null)
-    setRejectReason('')
-    fetchAll()
-    onPendingChange()
-  }
-
   async function notifyShopOwner(shopId: string, type: 'punch_card_approved' | 'punch_card_rejected', data: Record<string, any>) {
     const { data: owner } = await supabase
       .from('shop_owners').select('profile_id').eq('shop_id', shopId).maybeSingle()
@@ -329,14 +274,12 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
     if (!rejectTarget) return
     if (rejectTarget.type === 'claims') rejectClaim(rejectTarget.id)
     else if (rejectTarget.type === 'edits') rejectEdit(rejectTarget.id)
-    else if (rejectTarget.type === 'punchcards') rejectPunchCard(rejectTarget.id)
-    else rejectPost(rejectTarget.id)
+    else rejectPunchCard(rejectTarget.id)
   }
 
   const sections: { id: Section; label: string; count: number }[] = [
     { id: 'claims', label: 'Shop Claims', count: claims.length },
     { id: 'edits', label: 'Edit Submissions', count: edits.length },
-    { id: 'posts', label: 'Shop Posts', count: posts.length },
     { id: 'punchcards', label: 'Punch Cards', count: punchCards.length },
   ]
 
@@ -442,29 +385,6 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Shop posts */}
-          {open === 'posts' && (
-            <div className="space-y-2">
-              {posts.length === 0 ? (
-                <div className="bg-white rounded-xl border border-gray-100 py-10 text-center text-sm text-gray-400">No pending posts</div>
-              ) : posts.map(post => (
-                <div key={post.id} className="bg-white rounded-xl border border-gray-100 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 text-sm">{(post.coffee_shops as any)?.name || post.shop_id}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">By @{(post.profiles as any)?.username || post.owner_id} · {new Date(post.created_at).toLocaleDateString()}</p>
-                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{post.content}</p>
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => setRejectTarget({ type: 'posts', id: post.id, name: (post.coffee_shops as any)?.name || '' })} className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Reject</button>
-                      <button onClick={() => approvePost(post)} disabled={working} className="px-3 py-1.5 text-xs font-medium text-white bg-caramel rounded-lg hover:bg-caramel/90 disabled:opacity-50">Approve</button>
-                    </div>
                   </div>
                 </div>
               ))}

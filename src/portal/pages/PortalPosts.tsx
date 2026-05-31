@@ -97,6 +97,7 @@ export default function PortalPosts({ shop }: Props) {
       photo_url: photoUrl,
       category,
       status: 'approved',
+      approved_at: new Date().toISOString(),
     })
     setSubmitting(false)
     if (error) { setErrors({ submit: error.message || 'Something went wrong. Please try again.' }); return }

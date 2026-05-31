@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { type AdminTab } from '../AdminLayout'
 
 interface Props {
-  pending: { claims: number; edits: number; shopPosts: number; reports: number; punchCards: number }
+  pending: { claims: number; edits: number; reports: number; punchCards: number }
   onNavigate: (tab: AdminTab) => void
   isAdmin?: boolean
   isViewer?: boolean
@@ -73,7 +73,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
     load()
   }, [])
 
-  const totalPending = pending.claims + pending.edits + pending.shopPosts + pending.reports + pending.punchCards
+  const totalPending = pending.claims + pending.edits + pending.reports + pending.punchCards
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -132,13 +132,12 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
               <div className="text-xs text-amber-700 mt-1 space-x-3">
                 {pending.claims > 0 && <span>{pending.claims} claim{pending.claims !== 1 ? 's' : ''}</span>}
                 {pending.edits > 0 && <span>{pending.edits} edit{pending.edits !== 1 ? 's' : ''}</span>}
-                {pending.shopPosts > 0 && <span>{pending.shopPosts} post{pending.shopPosts !== 1 ? 's' : ''}</span>}
                 {pending.punchCards > 0 && <span>{pending.punchCards} punch card{pending.punchCards !== 1 ? 's' : ''}</span>}
                 {pending.reports > 0 && <span>{pending.reports} report{pending.reports !== 1 ? 's' : ''}</span>}
               </div>
             </div>
             <button
-              onClick={() => onNavigate(pending.reports > 0 && (pending.claims + pending.edits + pending.shopPosts) === 0 ? 'reports' : 'approvals')}
+              onClick={() => onNavigate(pending.reports > 0 && (pending.claims + pending.edits) === 0 ? 'reports' : 'approvals')}
               className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors"
             >
               Review all

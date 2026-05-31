@@ -39,7 +39,7 @@ export default function ShopsFeed({ profileId }: Props) {
         .from('shop_posts')
         .select('id,shop_id,title,body,photo_url,category,created_at,approved_at,coffee_shops(id,name,city,state,photo_url)')
         .eq('status', 'approved')
-        .order('approved_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(40)
 
       if (profileId) {
