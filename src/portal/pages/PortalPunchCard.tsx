@@ -151,6 +151,18 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
     if (err) { setError(err.message); return }
     setEditing(false)
     loadCard()
+    supabase.functions.invoke('notify-admin', {
+      body: {
+        type: 'punch_card',
+        data: {
+          shop_name: shop.name,
+          punches_required: punches,
+          reward_description: reward.trim(),
+          expiry_days: expiryDays ? parseInt(expiryDays) : null,
+          is_update: !!card,
+        },
+      },
+    })
   }
 
   async function deleteCard() {
