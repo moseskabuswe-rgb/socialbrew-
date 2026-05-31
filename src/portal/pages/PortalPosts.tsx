@@ -10,9 +10,7 @@ interface Post {
   body: string
   photo_url: string | null
   category: string
-  status: string
   created_at: string
-  rejection_reason: string | null
 }
 
 const CATEGORIES: { value: string; label: string }[] = [
@@ -41,7 +39,7 @@ export default function PortalPosts({ shop }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from('shop_posts')
-      .select('id,title,body,photo_url,category,status,created_at,rejection_reason')
+      .select('id,title,body,photo_url,category,created_at')
       .eq('shop_id', shop.id)
       .order('created_at', { ascending: false })
     setPosts(data || [])
@@ -98,7 +96,7 @@ export default function PortalPosts({ shop }: Props) {
       body: body.trim(),
       photo_url: photoUrl,
       category,
-      status: 'pending',
+      status: 'approved',
     })
     setSubmitting(false)
     if (error) { setErrors({ submit: error.message || 'Something went wrong. Please try again.' }); return }
@@ -114,12 +112,6 @@ export default function PortalPosts({ shop }: Props) {
     setShowForm(false)
     setErrors({})
     clearImage()
-  }
-
-  const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    approved: 'bg-green-50 text-green-700 border-green-200',
-    rejected: 'bg-red-50 text-red-700 border-red-200',
   }
 
   return (
@@ -196,7 +188,7 @@ export default function PortalPosts({ shop }: Props) {
             )}
           </div>
 
-          <p className="text-xs text-coffee-400">Posts are reviewed before going live (usually same day).</p>
+          <p className="text-xs text-coffee-400">Posts go live immediately.</p>
           {errors.submit && <p className="text-red-500 text-xs bg-red-50 rounded-lg px-3 py-2">{errors.submit}</p>}
           <button type="submit" disabled={submitting}
             className="w-full py-2.5 rounded-xl text-white font-semibold text-sm disabled:opacity-40"
@@ -219,22 +211,14 @@ export default function PortalPosts({ shop }: Props) {
         <div className="space-y-3">
           {posts.map(p => (
             <div key={p.id} className="bg-white rounded-xl border border-cream-200 p-4">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-coffee-800 leading-tight">{p.title}</p>
-                  <p className="text-xs text-coffee-400 mt-0.5">{CATEGORIES.find(c => c.value === p.category)?.label ?? p.category} · {new Date(p.created_at).toLocaleDateString()}</p>
-                </div>
-                <span className={`flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${statusColors[p.status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                  {p.status}
-                </span>
+              <div className="mb-2">
+                <p className="text-sm font-semibold text-coffee-800 leading-tight">{p.title}</p>
+                <p className="text-xs text-coffee-400 mt-0.5">{CATEGORIES.find(c => c.value === p.category)?.label ?? p.category} · {new Date(p.created_at).toLocaleDateString()}</p>
               </div>
               {p.photo_url && (
                 <img src={p.photo_url} alt="" className="w-full h-36 object-cover rounded-lg mb-2 border border-cream-100" />
               )}
               <p className="text-sm text-coffee-600 leading-relaxed line-clamp-3">{p.body}</p>
-              {p.rejection_reason && (
-                <p className="text-xs text-red-600 mt-2 bg-red-50 rounded-lg px-2 py-1">Reason: {p.rejection_reason}</p>
-              )}
             </div>
           ))}
         </div>
