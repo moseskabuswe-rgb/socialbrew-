@@ -79,7 +79,6 @@ export default function PortalInviteAccept() {
         displayName: claim.claimant_name || '',
       })
       setFullName(claim.claimant_name || '')
-      await detectExistingAccount(claim.claimant_email)
       setScreen('form')
       return
     }
@@ -117,24 +116,12 @@ export default function PortalInviteAccept() {
         portalRole: member.portal_role,
       })
       setFullName(member.display_name || '')
-      await detectExistingAccount(member.email)
       setScreen('form')
       return
     }
 
     setErrorMsg('This invite link is invalid. Please check the link in your email or contact support.')
     setScreen('error')
-  }
-
-  async function detectExistingAccount(email: string) {
-    // Supabase doesn't expose "does this email exist" directly.
-    // We attempt a dummy sign-in and check the error message.
-    const { error } = await supabase.auth.signInWithPassword({ email, password: '___probe___' })
-    // "Invalid login credentials" → account exists but wrong password
-    // "Email not confirmed" → account exists (unconfirmed)
-    const exists = error?.message?.toLowerCase().includes('invalid login') ||
-                   error?.message?.toLowerCase().includes('email not confirmed')
-    setAlreadyHasAccount(exists ?? false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
