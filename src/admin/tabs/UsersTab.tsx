@@ -17,6 +17,7 @@ interface User {
   suspended_at: string | null
   suspended_reason: string | null
   created_at: string
+  is_portal_only: boolean | null
 }
 
 interface Rating {
@@ -42,16 +43,21 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
   const [suspendReason, setSuspendReason] = useState('')
   const [targetRole, setTargetRole] = useState('')
   const [working, setWorking] = useState(false)
+  const [roleFilter, setRoleFilter] = useState<'all' | 'consumer' | 'business' | 'team' | 'portal_only'>('all')
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  async function fetchUsers(q: string, p: number) {
+  async function fetchUsers(q: string, p: number, rf = roleFilter) {
     setLoading(true)
     let query = supabase
       .from('profiles')
-      .select('id,username,full_name,role,badge,suspended_at,suspended_reason,created_at', { count: 'exact' })
+      .select('id,username,full_name,role,badge,suspended_at,suspended_reason,created_at,is_portal_only', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(p * PAGE, p * PAGE + PAGE - 1)
     if (q) query = query.or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
+    if (rf === 'consumer') query = query.eq('role', 'consumer').eq('is_portal_only', false)
+    else if (rf === 'business') query = query.eq('role', 'business')
+    else if (rf === 'team') query = query.not('team_shop_id', 'is', null)
+    else if (rf === 'portal_only') query = query.eq('is_portal_only', true)
     const { data, count } = await query
     setUsers(data || [])
     setTotal(count || 0)
@@ -69,6 +75,12 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
       setPage(0)
       fetchUsers(val, 0)
     }, 350)
+  }
+
+  function handleRoleFilter(rf: typeof roleFilter) {
+    setRoleFilter(rf)
+    setPage(0)
+    fetchUsers(search, 0, rf)
   }
 
   async function openUser(user: User) {
@@ -143,6 +155,17 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
         <span className="text-sm text-gray-400">{total.toLocaleString()} total</span>
       </div>
 
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {(['all','consumer','business','team','portal_only'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => handleRoleFilter(f)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${roleFilter === f ? 'bg-caramel text-white border-caramel' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          >
+            {f === 'all' ? 'All users' : f === 'consumer' ? 'Consumers' : f === 'business' ? 'Business owners' : f === 'team' ? 'Team members' : 'Portal only'}
+          </button>
+        ))}
+      </div>
       <input
         className="w-full mb-4 px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-caramel/30"
         placeholder="Search username, name or email…"
@@ -168,7 +191,12 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
             {users.map(user => (
               <div key={user.id} className="grid grid-cols-[1fr_80px_80px_80px] gap-2 px-4 py-3 items-center hover:bg-gray-50/50">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">@{user.username}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-gray-800 truncate">@{user.username}</p>
+                    {user.is_portal_only && (
+                      <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">Portal only</span>
+                    )}
+                  </div>
                   {user.full_name && (
                     <p className="text-xs text-gray-400 truncate">{user.full_name}</p>
                   )}

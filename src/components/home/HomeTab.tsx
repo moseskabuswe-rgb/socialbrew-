@@ -250,7 +250,7 @@ function MessagesPanel({ onClose, unreadPerSender = {}, onMarkRead }: {
   async function searchUsers(q: string) {
     setSearchUser(q)
     if (q.trim().length < 2) { setSearchResults([]); return }
-    const { data } = await supabase.from('profiles').select('id,username,avatar_url').ilike('username', `%${q}%`).neq('id', profile?.id).limit(6)
+    const { data } = await supabase.from('profiles').select('id,username,avatar_url').ilike('username', `%${q}%`).neq('id', profile?.id).eq('is_portal_only', false).limit(6)
     setSearchResults(data || [])
   }
 

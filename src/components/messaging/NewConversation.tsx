@@ -32,6 +32,7 @@ export default function NewConversation({ currentUserId, onConversationCreated, 
       .select('id,username,full_name,avatar_url')
       .ilike('username', `%${val.trim()}%`)
       .neq('id', currentUserId)
+      .eq('is_portal_only', false)
       .limit(10)
     setResults(data || [])
     setSearching(false)

@@ -311,7 +311,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
         if (mentionTimerRef.current) clearTimeout(mentionTimerRef.current)
         mentionTimerRef.current = setTimeout(async () => {
           const { data } = await supabase.from('profiles').select('id, username, avatar_url')
-            .ilike('username', `${query}%`).neq('id', profile?.id ?? '').limit(5)
+            .ilike('username', `${query}%`).neq('id', profile?.id ?? '').eq('is_portal_only', false).limit(5)
           setMentionUsers(data || [])
         }, 300)
         return

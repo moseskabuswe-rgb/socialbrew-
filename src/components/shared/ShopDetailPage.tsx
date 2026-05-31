@@ -6,6 +6,7 @@ import CoffeeDate from './CoffeeDate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
 import ClaimShopModal from '../shops/ClaimShopModal'
+import { isAffiliatedWithShop } from '../../lib/shopAffiliation'
 
 type Props = {
   shop: Partial<CoffeeShop> & { id: string; name: string }
@@ -265,6 +266,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
 
   async function toggleFollow() {
     if (!profile?.id || !resolvedShop?.id || followLoading) return
+    if (isAffiliatedWithShop(profile, resolvedShop.id)) return
     setFollowLoading(true)
     if (isFollowing) {
       await supabase.from('shop_follows').delete().eq('user_id', profile.id).eq('shop_id', resolvedShop.id)

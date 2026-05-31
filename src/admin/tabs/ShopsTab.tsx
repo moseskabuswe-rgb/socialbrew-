@@ -32,6 +32,15 @@ interface Shop {
   shop_owners: ShopOwner | null
 }
 
+interface TeamMember {
+  id: string
+  profile_id: string | null
+  email: string
+  display_name: string
+  portal_role: string
+  status: string
+}
+
 interface EditDraft {
   name: string
   city: string
@@ -64,6 +73,9 @@ export default function ShopsTab({ isAdmin }: Props) {
   const [working, setWorking] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [foundingConfirm, setFoundingConfirm] = useState<{ shopId: string; shopName: string; enable: boolean } | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [loadingTeam, setLoadingTeam] = useState(false)
+  const [revokeConfirm, setRevokeConfirm] = useState<TeamMember | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   async function fetchShops(q: string, p: number) {
@@ -88,9 +100,41 @@ export default function ShopsTab({ isAdmin }: Props) {
     searchTimer.current = setTimeout(() => { setPage(0); fetchShops(val, 0) }, 350)
   }
 
+  async function loadTeamMembers(shopId: string) {
+    setLoadingTeam(true)
+    const { data } = await supabase
+      .from('shop_team_members')
+      .select('id,profile_id,email,display_name,portal_role,status')
+      .eq('shop_id', shopId)
+      .in('status', ['invited', 'active'])
+      .order('created_at', { ascending: true })
+    setTeamMembers((data || []) as TeamMember[])
+    setLoadingTeam(false)
+  }
+
+  async function doRevokeTeamMember() {
+    if (!revokeConfirm) return
+    setWorking(true)
+    await supabase
+      .from('shop_team_members')
+      .update({ status: 'revoked' })
+      .eq('id', revokeConfirm.id)
+    if (revokeConfirm.profile_id) {
+      await supabase
+        .from('profiles')
+        .update({ team_shop_id: null, portal_role: null })
+        .eq('id', revokeConfirm.profile_id)
+    }
+    setWorking(false)
+    setRevokeConfirm(null)
+    if (editTarget) loadTeamMembers(editTarget.id)
+  }
+
   function openEdit(shop: Shop) {
     setSaveError(null)
     setEditTarget(shop)
+    setTeamMembers([])
+    loadTeamMembers(shop.id)
     setDraft({
       name: shop.name,
       city: shop.city || '',
@@ -350,6 +394,37 @@ export default function ShopsTab({ isAdmin }: Props) {
                     </div>
                   </div>
                 )}
+                {/* Team members */}
+                <div className="border border-gray-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-gray-700">Team members</p>
+                  {loadingTeam ? (
+                    <p className="text-xs text-gray-400">Loading…</p>
+                  ) : teamMembers.length === 0 ? (
+                    <p className="text-xs text-gray-400">No active team members</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {teamMembers.map(m => (
+                        <div key={m.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-800 truncate">{m.display_name}</p>
+                            <p className="text-[10px] text-gray-400 truncate">{m.email} · <span className="capitalize">{m.portal_role}</span></p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${m.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {m.status === 'active' ? 'Active' : 'Invited'}
+                            </span>
+                            <button
+                              onClick={() => setRevokeConfirm(m)}
+                              className="text-[10px] font-medium text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:bg-red-50 transition-colors"
+                            >
+                              Revoke
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {saveError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>}
               </div>
             </div>
@@ -445,6 +520,19 @@ export default function ShopsTab({ isAdmin }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Emergency revoke team member */}
+      {revokeConfirm && (
+        <ConfirmModal
+          title="Emergency revoke"
+          message={`Revoke portal access for ${revokeConfirm.display_name} (${revokeConfirm.email})? They will immediately lose access to the portal.`}
+          confirmLabel="Revoke access"
+          danger
+          onConfirm={doRevokeTeamMember}
+          onCancel={() => setRevokeConfirm(null)}
+          loading={working}
+        />
       )}
 
       {/* Founding partner confirm */}

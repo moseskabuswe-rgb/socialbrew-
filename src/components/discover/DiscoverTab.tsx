@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
 import { notifyFollow } from '../../lib/push'
 import { useAuth } from '../../contexts/AuthContext'
+import { isAffiliatedWithShop } from '../../lib/shopAffiliation'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import UserProfilePage from '../shared/UserProfilePage'
 
@@ -236,6 +237,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
         .select('id, username, full_name, avatar_url, badge')
         .or(`username.ilike.%${friendQuery.trim()}%,full_name.ilike.%${friendQuery.trim()}%`)
         .neq('id', profile?.id || '')
+        .eq('is_portal_only', false)
         .limit(20)
       setFriendResults(data || [])
       setFriendSearching(false)
@@ -329,6 +331,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   async function toggleFollowShop(e: React.MouseEvent, shopId: string) {
     e.stopPropagation()
     if (!profile?.id || followLoading) return
+    if (isAffiliatedWithShop(profile, shopId)) return
     setFollowLoading(shopId)
     if (followedShopIds.has(shopId)) {
       await supabase.from('shop_follows').delete().eq('user_id', profile.id).eq('shop_id', shopId)

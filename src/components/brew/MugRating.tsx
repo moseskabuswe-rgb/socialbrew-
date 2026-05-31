@@ -3,6 +3,7 @@ import { X, Clock, Camera, Image as ImageIcon, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import exifr from 'exifr'
 import { notifyMention, notifyNewPost } from '../../lib/push'
+import { isAffiliatedWithShop } from '../../lib/shopAffiliation'
 import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
@@ -185,6 +186,12 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
     const shopId = await resolveShopId(shop)
     if (!shopId) { setStep('details'); alert('Something went wrong finding the shop. Please try again.'); return }
+
+    if (isAffiliatedWithShop(profile, shopId)) {
+      setStep('details')
+      alert("You can't rate your own shop — but we'd love to hear what your customers think! Share Social Brew with them. ☕")
+      return
+    }
 
     const priceValue = drinkPrice ? parseFloat(drinkPrice) : null
 

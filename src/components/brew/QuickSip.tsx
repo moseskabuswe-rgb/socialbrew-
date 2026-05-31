@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Zap, Search, CheckCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { isAffiliatedWithShop } from '../../lib/shopAffiliation'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import { tryAwardPunch, type PunchAwardResult } from '../../lib/punchCard'
@@ -15,8 +16,6 @@ function getMugStyle(fill: number) {
   if (fill <= 75)  return { liquid: '#a06428',     crema: '#c07c38',     glow: 'rgba(160,100,40,0.4)',  label: 'Good Pour',     color: '#a06428' }
   return             { liquid: '#4e2008',     crema: '#7a3a12',     glow: 'rgba(210,140,60,0.6)',  label: '✨ Loved it',   color: '#c8853a' }
 }
-
-const MUG = { BX: 20, BY: 24, BW: 140, BH: 110, IX: 24, IW: 132, IH: 106 }
 
 const HINT_KEY = 'sb_mug_hint_seen'
 function hasSeenHint(): boolean { try { return localStorage.getItem(HINT_KEY) === '1' } catch { return false } }
@@ -45,8 +44,6 @@ export default function QuickSip({ onClose, onComplete }: Props) {
   const [showHint, setShowHint] = useState(!hasSeenHint())
 
   const s = getMugStyle(fill)
-  const { BX, BY, BW, BH, IX, IW, IH } = MUG
-  const fillY = BY + BH - Math.round((fill / 100) * IH)
   const showSteam = fill >= 60
 
   // Auto-load last visited shop
@@ -151,6 +148,11 @@ export default function QuickSip({ onClose, onComplete }: Props) {
         shopId = ins?.id
       }
       if (!shopId) throw new Error('No shop id')
+
+      if (isAffiliatedWithShop(profile, shopId)) {
+        setStep('done')
+        return
+      }
 
       const priceValue = drinkPrice ? parseFloat(drinkPrice) : null
 
@@ -336,62 +338,85 @@ export default function QuickSip({ onClose, onComplete }: Props) {
               <div
                 ref={mugRef}
                 className="relative mx-auto cursor-grab active:cursor-grabbing select-none"
-                style={{ width: 180, height: 165, touchAction: 'none' }}
+                style={{ width: 200, height: 210, touchAction: 'none' }}
                 onMouseDown={onMD}
                 onTouchStart={onTS}
                 onTouchEnd={onTEnd}
               >
-                <svg width="180" height="165" viewBox="0 0 180 165">
+                <svg width="200" height="210" viewBox="0 0 200 210">
                   <defs>
-                    <linearGradient id="qsMugBody" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#c4a882" />
-                      <stop offset="100%" stopColor="#e8d4b8" />
+                    <linearGradient id="qsCeramicGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#e8d8bc" />
+                      <stop offset="50%" stopColor="#f0e4cc" />
+                      <stop offset="100%" stopColor="#dcc8a8" />
                     </linearGradient>
-                    <linearGradient id="qsShine" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="white" stopOpacity="0.3" />
+                    <linearGradient id="qsLiquidGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={s.crema} />
+                      <stop offset="20%" stopColor={s.liquid} />
+                      <stop offset="100%" stopColor={s.liquid} />
+                    </linearGradient>
+                    <linearGradient id="qsShineGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="white" stopOpacity="0.4" />
                       <stop offset="100%" stopColor="white" stopOpacity="0" />
                     </linearGradient>
-                    <clipPath id="qsMugClip">
-                      <rect x={IX} y={BY} width={IW} height={IH} rx="4" />
+                    <clipPath id="qsMugBodyClip">
+                      <rect x="27" y="35" width="130" height="130" rx="8" />
                     </clipPath>
                   </defs>
 
-                  <rect x={BX} y={BY} width={BW} height={BH} rx="10" fill="url(#qsMugBody)" stroke="#a07840" strokeWidth="1.5" />
-                  <path d={`M ${BX+BW} ${BY+16} Q ${BX+BW+28} ${BY+24} ${BX+BW+28} ${BY+BH/2} Q ${BX+BW+28} ${BY+BH-24} ${BX+BW} ${BY+BH-16}`}
-                    fill="none" stroke="#a07840" strokeWidth="10" strokeLinecap="round" />
+                  <rect x="22" y="30" width="140" height="140" rx="12"
+                    fill="url(#qsCeramicGrad)" stroke="#c8a878" strokeWidth="1.5" />
+
+                  <path d="M162 60 Q195 75 195 100 Q195 125 162 140"
+                    fill="none" stroke="#c8a878" strokeWidth="14" strokeLinecap="round" />
+                  <path d="M162 62 Q188 76 188 100 Q188 124 162 138"
+                    fill="none" stroke="#e8d4b0" strokeWidth="7" strokeLinecap="round" />
 
                   {fill > 0 && (
-                    <g clipPath="url(#qsMugClip)">
-                      <defs>
-                        <linearGradient id="qsLiquid" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={s.crema} />
-                          <stop offset="30%" stopColor={s.liquid} />
-                          <stop offset="100%" stopColor={s.liquid} stopOpacity="0.85" />
-                        </linearGradient>
-                      </defs>
-                      <rect x={IX} y={fillY} width={IW} height={IH-(fillY-BY)}
-                        fill="url(#qsLiquid)"
-                        style={{ transition: isDragging ? 'none' : 'y 0.18s ease-out, height 0.18s ease-out' }} />
-                      <ellipse cx={IX+IW/2} cy={fillY} rx={IW/2} ry="3.5"
-                        fill={s.crema} opacity="0.7"
-                        style={{ transition: isDragging ? 'none' : 'cy 0.18s ease-out' }} />
+                    <g clipPath="url(#qsMugBodyClip)">
+                      <rect
+                        x="27"
+                        y={35 + 130 - Math.round((fill / 100) * 130)}
+                        width="130"
+                        height={Math.round((fill / 100) * 130)}
+                        fill="url(#qsLiquidGrad)"
+                        style={{ transition: isDragging ? 'none' : 'y 0.15s ease-out, height 0.15s ease-out' }}
+                      />
+                      <ellipse
+                        cx="92"
+                        cy={35 + 130 - Math.round((fill / 100) * 130)}
+                        rx="65" ry="5"
+                        fill={s.crema}
+                        opacity="0.8"
+                        style={{ transition: isDragging ? 'none' : 'cy 0.15s ease-out' }}
+                      />
                     </g>
                   )}
 
-                  <rect x={BX-3} y={BY-5} width={BW+6} height={11} rx={6} fill="#8a6232" stroke="#a07848" strokeWidth="1" />
-                  <rect x={BX+8} y={BY+6} width={12} height={BH-16} rx={6} fill="url(#qsShine)" />
-                  <rect x={BX+5} y={BY+BH-5} width={BW-10} height={9} rx={4} fill="#5a3818" />
+                  <rect x="18" y="24" width="148" height="16" rx="8"
+                    fill="#8a6840" stroke="#a07848" strokeWidth="1" />
 
-                  {showSteam && [
-                    { x: BX+24, delay: '0s', dur: '1.6s' },
-                    { x: BX+46, delay: '0.4s', dur: '1.9s' },
-                    { x: BX+68, delay: '0.2s', dur: '1.7s' },
-                  ].map((steam, i) => (
-                    <path key={i}
-                      d={`M ${steam.x} ${BY-6} Q ${steam.x-6} ${BY-18} ${steam.x+4} ${BY-30}`}
-                      stroke="rgba(200,180,160,0.45)" strokeWidth="2" fill="none" strokeLinecap="round"
-                      style={{ animation: `steamRise ${steam.dur} ease-in-out infinite`, animationDelay: steam.delay }} />
-                  ))}
+                  <rect x="32" y="36" width="18" height="118" rx="9"
+                    fill="url(#qsShineGrad)" />
+
+                  <rect x="30" y="164" width="124" height="12" rx="6"
+                    fill="#6a4828" stroke="#4a3018" strokeWidth="1" />
+
+                  {showSteam && (
+                    <>
+                      {[
+                        { x1: 65, y1: 22, x2: 58, y2: 2, x3: 68, y3: -12, delay: '0s', dur: '1.8s' },
+                        { x1: 92, y1: 22, x2: 85, y2: 2, x3: 95, y3: -12, delay: '0.5s', dur: '2.1s' },
+                        { x1: 119, y1: 22, x2: 112, y2: 2, x3: 122, y3: -12, delay: '0.25s', dur: '1.9s' },
+                      ].map((st, i) => (
+                        <path key={i}
+                          d={`M${st.x1},${st.y1} Q${st.x2},${st.y2} ${st.x3},${st.y3}`}
+                          stroke="rgba(200,180,160,0.5)" strokeWidth="2.5" fill="none" strokeLinecap="round"
+                          style={{ animation: `steamRise ${st.dur} ease-in-out infinite`, animationDelay: st.delay }}
+                        />
+                      ))}
+                    </>
+                  )}
                 </svg>
 
               {/* Swipe hint — first use only */}
