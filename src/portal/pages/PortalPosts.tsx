@@ -15,7 +15,12 @@ interface Post {
   rejection_reason: string | null
 }
 
-const CATEGORIES = ['Update', 'Promotion', 'Event', 'New menu item', 'Community']
+const CATEGORIES: { value: string; label: string }[] = [
+  { value: 'update', label: 'Update' },
+  { value: 'event', label: 'Event' },
+  { value: 'menu', label: 'New menu item' },
+  { value: 'special', label: 'Special' },
+]
 const MAX_TITLE = 80
 const MAX_BODY = 600
 
@@ -143,7 +148,7 @@ export default function PortalPosts({ shop }: Props) {
             <select value={category} onChange={e => setCategory(e.target.value)}
               className="w-full text-sm border border-cream-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-caramel/30 bg-cream-50">
               <option value="">Select...</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
             {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
           </div>
@@ -217,7 +222,7 @@ export default function PortalPosts({ shop }: Props) {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-coffee-800 leading-tight">{p.title}</p>
-                  <p className="text-xs text-coffee-400 mt-0.5">{p.category} · {new Date(p.created_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-coffee-400 mt-0.5">{CATEGORIES.find(c => c.value === p.category)?.label ?? p.category} · {new Date(p.created_at).toLocaleDateString()}</p>
                 </div>
                 <span className={`flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${statusColors[p.status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                   {p.status}
