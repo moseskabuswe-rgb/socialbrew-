@@ -95,6 +95,7 @@ export default function UserProfilePage({ userId, onBack }: Props) {
   const [selectedShop, setSelectedShop] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showBadgeExplainer, setShowBadgeExplainer] = useState(false)
+  const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -245,13 +246,17 @@ export default function UserProfilePage({ userId, onBack }: Props) {
         {/* Profile Card */}
         <div className="bg-white mx-4 mt-4 rounded-2xl p-5 shadow-sm border border-cream-200">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0" style={{ border: '1px solid rgba(200,180,150,0.3)' }}>
+            <button
+              onClick={() => user?.avatar_url && setZoomedAvatar(cachedUrl(user.avatar_url))}
+              className="w-20 h-20 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 active:scale-95 transition-transform"
+              style={{ border: '1px solid rgba(200,180,150,0.3)' }}
+            >
               {user?.avatar_url
                 ? <img src={cachedUrl(user.avatar_url)} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)', willChange: 'transform' }} />
                 : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-caramel to-coffee-500">
                     <span className="text-white font-bold text-3xl">{user?.username?.[0]?.toUpperCase()}</span>
                   </div>}
-            </div>
+            </button>
             <div className="flex-1 min-w-0">
               <p className="text-coffee-800 font-bold text-xl">{user?.username}</p>
               {user?.full_name && <p className="text-coffee-500 text-sm">{user.full_name}</p>}
@@ -460,6 +465,26 @@ export default function UserProfilePage({ userId, onBack }: Props) {
           badge={badge}
           onClose={() => setShowBadgeExplainer(false)}
         />
+      )}
+
+      {/* Avatar fullscreen zoom */}
+      {zoomedAvatar && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center"
+          onClick={() => setZoomedAvatar(null)}
+        >
+          <img
+            src={zoomedAvatar}
+            alt="Profile picture"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '92vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 12 }}
+          />
+          <button
+            onClick={() => setZoomedAvatar(null)}
+            style={{ position: 'absolute', top: 'max(16px, env(safe-area-inset-top, 16px))', right: 16, width: 44, height: 44, background: 'rgba(0,0,0,0.7)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 20, border: 'none', cursor: 'pointer', zIndex: 10 }}>
+            ✕
+          </button>
+        </div>
       )}
     </div>
   )

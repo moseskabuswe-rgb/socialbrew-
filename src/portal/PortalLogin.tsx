@@ -152,49 +152,28 @@ export default function PortalLogin({ onSuccess }: Props) {
     setSubmitting(true)
     setFormError('')
 
-    // Check if shop already exists
-    const { data: existing } = await supabase
-      .from('coffee_shops')
-      .select('id,name')
-      .ilike('name', shopName.trim())
-      .ilike('city', shopCity.trim())
-      .maybeSingle()
-
-    if (existing) {
-      setFormError(`"${existing.name}" is already in Social Brew — search for it instead.`)
-      setSubmitting(false)
-      return
-    }
-
-    // Create unverified shop
-    const { data: newShop, error: shopErr } = await supabase
-      .from('coffee_shops')
-      .insert({
+    // Do NOT create the shop yet — just submit a claim request with the shop details.
+    // Admin will review and create the shop when they approve.
+    const { error: claimErr } = await supabase.from('shop_claims').insert({
+      shop_id: null,
+      user_id: null,
+      claimant_name: claimName.trim(),
+      claimant_email: claimEmail.trim(),
+      claimant_role: claimRole,
+      message: claimMessage.trim() || null,
+      status: 'pending',
+      new_shop_data: {
         name: shopName.trim(),
         city: shopCity.trim(),
         state: shopState.trim() || null,
         address: shopAddress.trim() || null,
         website: shopWebsite.trim() || null,
-        is_verified: false,
-        is_active: false,
-        avg_rating: 0,
-        total_ratings: 0,
-        weekly_visits: 0,
-        vibes: [],
-      })
-      .select()
-      .single()
+      },
+    })
 
-    if (shopErr || !newShop) {
-      setFormError('Failed to add shop. Please try again.')
-      setSubmitting(false)
-      return
-    }
-
-    const claimErr = await insertClaim(newShop.id)
     setSubmitting(false)
     if (claimErr) {
-      setFormError('Shop added but claim failed. Please try again.')
+      setFormError('Something went wrong. Please try again.')
     } else {
       setStep('done')
     }

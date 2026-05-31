@@ -229,6 +229,7 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
   const [showShareCard, setShowShareCard] = useState(false)
   const swipeBack = useSwipeBack(() => onClose(comments.length, likesCount))
   const [zoomedPhoto, setZoomedPhoto] = useState<number | null>(null)
+  const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null)
   const mentionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const user = rating.profiles as any
@@ -404,7 +405,11 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
       <div className="bg-white border-b border-cream-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
         <button onClick={() => onClose(comments.length, likesCount)} className="text-coffee-500"><ArrowLeft size={22} /></button>
         <div className="flex items-center gap-2 flex-1">
-          <button onClick={() => onUserClick?.(user?.id)} className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+          {/* Tap avatar → full-screen zoom; tap username → profile */}
+          <button
+            onClick={() => user?.avatar_url ? setZoomedAvatar(cachedUrl(user.avatar_url)) : onUserClick?.(user?.id)}
+            className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0 active:scale-95 transition-transform"
+          >
             {user?.avatar_url
               ? <img src={cachedUrl(user.avatar_url)} alt="" className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center bg-caramel"><span className="text-white text-xs font-bold">{user?.username?.[0]?.toUpperCase()}</span></div>}
@@ -718,6 +723,11 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
           onClose={() => setShowShareCard(false)}
         />
       )}
+      {/* Avatar full-screen viewer */}
+      {zoomedAvatar && (
+        <PinchZoomPhoto src={zoomedAvatar} onClose={() => setZoomedAvatar(null)} />
+      )}
+
       {showEditPost && (
         <EditPostModal
           rating={rating}

@@ -26,10 +26,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(userId: string, userEmail?: string) {
     try {
-      const [{ data: authData }, { data }] = await Promise.all([
+      // Race against a 7s timeout so a hung network request never blocks the app
+      const fetcher = Promise.all([
         supabase.auth.getUser(),
         supabase.from('profiles').select('*').eq('id', userId).single(),
       ])
+      const timer = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('profile_timeout')), 7000)
+      )
+      const [{ data: authData }, { data }] = await Promise.race([fetcher, timer])
       if (data) {
         const isVerified = !!authData?.user?.email_confirmed_at
         if (data.email_verified !== isVerified) {
@@ -54,22 +59,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // Get session synchronously from localStorage first to avoid auth flash
-    // Supabase stores session in localStorage — we can read it immediately
-    // before the async getSession() call completes
-    const stored = Object.entries(localStorage)
-      .find(([k]) => k.includes('-auth-token'))
-    if (!stored) {
-      // No stored session — show auth immediately, no need to wait
+    // Hard safety net — never show the loading spinner for more than 10s on any device
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
+
+    // Check localStorage for a stored session.
+    // Wrapped in try/catch: some Android browsers (restrictive WebViews, Samsung Internet
+    // in certain modes) throw a SecurityError on localStorage access.
+    let hasStoredSession = false
+    try {
+      hasStoredSession = Object.keys(localStorage).some(k => k.includes('-auth-token'))
+    } catch {}
+
+    if (!hasStoredSession) {
+      // No stored session — no point waiting, show auth form immediately
       setLoading(false)
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) await loadProfile(session.user.id, session.user.email ?? undefined)
-      setLoading(false)
-    })
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session)
+        setUser(session?.user ?? null)
+        // loadProfile has its own 7s internal timeout, but we keep safetyTimer alive
+        // until the ENTIRE flow finishes — clearing it early was the bug causing
+        // infinite loading when loadProfile hung on slow/Samsung Internet connections
+        if (session?.user) await loadProfile(session.user.id, session.user.email ?? undefined)
+        clearTimeout(safetyTimer)
+        setLoading(false)
+      })
+      .catch(() => {
+        // Network failure — clear spinner and show auth form
+        clearTimeout(safetyTimer)
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
@@ -79,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => { subscription.unsubscribe(); clearTimeout(safetyTimer) }
   }, [])
 
   async function signUp(email: string, password: string, username: string, fullName: string) {

@@ -1027,7 +1027,6 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [shareRating, setShareRating] = useState<any>(null)
   const [fullscreenIndex, setFullscreenIndex] = useState(0)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth())
-  const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [loading, setLoading] = useState(true)
   const [activeComments, setActiveComments] = useState<string | null>(null)
   const [selectedShop, setSelectedShop] = useState<any>(null)
@@ -1049,6 +1048,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [feedTab, setFeedTab] = useState<'people' | 'shops'>('people')
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([])
   const [followedSuggestions, setFollowedSuggestions] = useState<Set<string>>(new Set())
+  // Inline comment previews: rating_id → first 2 comments
+  const [commentPreviews, setCommentPreviews] = useState<Record<string, any[]>>({})
 
   const loadFeed = useCallback(async (reset = true) => {
     if (reset) setLoading(true)
@@ -1080,7 +1081,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         if (data.length < PAGE_SIZE) setHasMore(false)
         else setHasMore(true)
 
-        // Load reaction counts for new batch
+        // Load reaction counts + first 2 comments per post for inline preview
         if (data.length > 0) {
           const ratingIds = data.map((r: any) => r.id)
           const { data: rxData } = await supabase.from('reactions').select('rating_id, type, user_id').in('rating_id', ratingIds)
@@ -1092,6 +1093,21 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             })
             setReactionCounts(prev => ({ ...prev, ...counts }))
           }
+          // Fire-and-forget: fetch first 2 comments per post for inline preview
+          supabase.from('comments')
+            .select('id, rating_id, content, profiles(username)')
+            .in('rating_id', ratingIds)
+            .order('created_at', { ascending: true })
+            .limit(200)
+            .then(({ data: previewData }) => {
+              if (!previewData) return
+              const previews: Record<string, any[]> = {}
+              previewData.forEach((c: any) => {
+                if (!previews[c.rating_id]) previews[c.rating_id] = []
+                if (previews[c.rating_id].length < 2) previews[c.rating_id].push(c)
+              })
+              setCommentPreviews(prev => ({ ...prev, ...previews }))
+            })
         }
       }
     } finally {
@@ -1316,16 +1332,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     }
   }
 
-  // Load unread notification count for logo badge
-  useEffect(() => {
-    if (!profile) return
-    supabase.from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', profile.id)
-      .eq('read', false)
-      .then(({ count }) => setUnreadNotifs(count || 0))
-    // Piggyback on existing feed-realtime channel instead of new subscription
-  }, [profile])
+  // (unread count is now managed internally by NotificationBell)
 
   const visibleRatings = ratings.filter(r => !blockedUsers.has(r.profiles?.id))
 
@@ -1335,12 +1342,6 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         <div className="px-5 py-4 flex items-center justify-between">
           <div className="relative inline-flex items-center" onClick={onLogoTap} style={{ userSelect: 'none', cursor: 'pointer' }}>
             <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
-            {unreadNotifs > 0 && (
-              <span className="absolute -top-1.5 -right-5 min-w-[18px] h-[18px] rounded-full bg-red-500 flex items-center justify-center px-1"
-                style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>
-                {unreadNotifs > 99 ? '99+' : unreadNotifs}
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => setShowNewInbox(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
@@ -1352,7 +1353,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               )}
             </button>
             <NotificationBell
-              onOpen={() => setUnreadNotifs(0)}
+              onOpen={() => {}}
               onNavigate={async (type, id) => {
               if (type === 'profile') {
                 setActiveUserProfile(id)
@@ -1624,13 +1625,23 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   </button>
                   <p className="text-coffee-300 text-xs mt-2">{formatDate(rating.created_at)}</p>
                 </div>
-                {/* Comment count tap-to-view */}
+                {/* Inline comment preview */}
                 {rating.comments_count > 0 && (
-                  <div className="px-4 pb-3 border-t border-cream-50 pt-2">
-                    <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
-                      View {rating.comments_count} comment{rating.comments_count !== 1 ? 's' : ''} →
-                    </button>
-                  </div>
+                  <button onClick={() => setActivePost(rating)} className="w-full px-4 pb-3 border-t border-cream-50 pt-2 text-left">
+                    {(commentPreviews[rating.id] || []).slice(0, 2).map((c: any) => (
+                      <p key={c.id} className="text-xs text-coffee-600 mb-0.5 truncate">
+                        <span className="font-semibold">{c.profiles?.username}</span>{' '}
+                        {c.content.length > 80 ? c.content.slice(0, 80) + '…' : c.content}
+                      </p>
+                    ))}
+                    {(!commentPreviews[rating.id] || rating.comments_count > 2) && (
+                      <p className="text-coffee-400 text-xs mt-0.5">
+                        {commentPreviews[rating.id]
+                          ? `View all ${rating.comments_count} comments →`
+                          : `View ${rating.comments_count} comment${rating.comments_count !== 1 ? 's' : ''} →`}
+                      </p>
+                    )}
+                  </button>
                 )}
               </div>
             )
@@ -1829,13 +1840,23 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   )
                 })}
               </div>
-              {/* Comment count tap-to-view */}
+              {/* Inline comment preview */}
               {rating.comments_count > 0 && (
-                <div className="px-4 pb-1">
-                  <button onClick={() => setActivePost(rating)} className="text-coffee-400 text-xs">
-                    View {rating.comments_count} comment{rating.comments_count !== 1 ? 's' : ''} →
-                  </button>
-                </div>
+                <button onClick={() => setActivePost(rating)} className="w-full px-4 pb-1 text-left">
+                  {(commentPreviews[rating.id] || []).slice(0, 2).map((c: any) => (
+                    <p key={c.id} className="text-xs text-coffee-600 mb-0.5 truncate">
+                      <span className="font-semibold">{c.profiles?.username}</span>{' '}
+                      {c.content.length > 80 ? c.content.slice(0, 80) + '…' : c.content}
+                    </p>
+                  ))}
+                  {(!commentPreviews[rating.id] || rating.comments_count > 2) && (
+                    <p className="text-coffee-400 text-xs mt-0.5">
+                      {commentPreviews[rating.id]
+                        ? `View all ${rating.comments_count} comments →`
+                        : `View ${rating.comments_count} comment${rating.comments_count !== 1 ? 's' : ''} →`}
+                    </p>
+                  )}
+                </button>
               )}
               <div className="px-4 pb-3">
                 <p className="text-coffee-300 text-xs">{formatDate(rating.created_at)}</p>

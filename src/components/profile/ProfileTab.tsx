@@ -1003,13 +1003,20 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         )}
         {/* Punch Cards */}
         {activeSection === 'cards' && (
-          <div className="px-4 mt-3">
+          <div className="px-4 mt-3 space-y-3">
+            {/* Permanent stamp QR — always visible so user can show any shop */}
+            <div className="bg-white rounded-2xl p-4 border border-cream-200 shadow-sm flex flex-col items-center gap-2">
+              <p className="text-coffee-700 font-semibold text-sm self-start">My Stamp QR</p>
+              <p className="text-coffee-400 text-xs self-start">Show this to any participating shop to get stamped</p>
+              <div className="bg-cream-50 rounded-xl p-3 border border-cream-200 mt-1">
+                <QRCodeSVG value={`punch:${profile.id}`} size={150} level="M" />
+              </div>
+            </div>
+
             {loading && <div className="flex justify-center py-8"><div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
             {!loading && punchCards.length === 0 && (
-              <div className="text-center py-10">
-                <p className="text-4xl mb-2">🎫</p>
-                <p className="text-coffee-600 font-display">No punch cards yet</p>
-                <p className="text-coffee-400 text-sm mt-1">Rate a visit at a participating shop to earn punches</p>
+              <div className="text-center py-6">
+                <p className="text-coffee-400 text-sm">No stamps yet — visit a participating shop to get started</p>
               </div>
             )}
             <div className="space-y-3">
@@ -1049,14 +1056,6 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                         </button>
                       )}
                     </div>
-                    {!earned && (
-                      <div className="mt-3 pt-3 border-t border-cream-200 flex flex-col items-center gap-1.5">
-                        <p className="text-coffee-400 text-xs">Show this to get stamped</p>
-                        <div className="bg-white rounded-xl p-2.5 border border-cream-200 shadow-sm">
-                          <QRCodeSVG value={`punch:${profile.id}`} size={120} level="M" />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )
               })}

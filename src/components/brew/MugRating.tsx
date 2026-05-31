@@ -270,10 +270,12 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
     setStep('done')
     setTimeout(() => {
-      onComplete()
+      // onComplete() must come LAST — it triggers setActiveTab('home') in the parent,
+      // which unmounts BrewTab (and this component) before story/feedback can render.
+      // Each branch below calls onComplete() + onClose() once its own flow is done.
       if (fill <= 50) setShowFeedback(true)
       else if (addToStory && newRatingForStory?.id) setShowStoryCreate(true)
-      else onClose()
+      else { onComplete(); onClose() }
     }, 1600)
   }
 
@@ -310,8 +312,16 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
             shopId={String(shop?.id || '')}
             shopName={shop?.name || 'this shop'}
             fillLevel={fill}
-            onSkip={onClose}
-            onSent={onClose}
+            onSkip={() => { onComplete(); onClose() }}
+            onSent={() => { onComplete(); onClose() }}
+          />
+        )}
+        {showStoryCreate && createdRatingId && (
+          <CreateStory
+            prefillRatingId={createdRatingId}
+            prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
+            onClose={() => { setShowStoryCreate(false); onComplete(); onClose() }}
+            onCreated={() => { setShowStoryCreate(false); onComplete(); onClose() }}
           />
         )}
       </>
