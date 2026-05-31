@@ -45,6 +45,7 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [loading, setLoading] = useState(true)
   const [followedShops, setFollowedShops] = useState<any[]>([])
+  const [shopStoryGroups, setShopStoryGroups] = useState<Record<string, StoryGroup>>({})
 
   useEffect(() => {
     if (!profile) return
@@ -60,16 +61,42 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
       .select('shop_id, coffee_shops(id, name, photo_url, city, state)')
       .eq('user_id', profile.id)
       .limit(20)
-    if (shopFollows && shopFollows.length > 0) {
-      setFollowedShops(shopFollows.map((sf: any) => sf.coffee_shops).filter(Boolean))
-    } else {
-      const { data: active } = await supabase
-        .from('coffee_shops')
-        .select('id, name, photo_url, city, state')
-        .eq('is_active', true)
-        .order('total_ratings', { ascending: false })
-        .limit(12)
-      setFollowedShops(active || [])
+    const shops = shopFollows?.length
+      ? shopFollows.map((sf: any) => sf.coffee_shops).filter(Boolean)
+      : (await supabase.from('coffee_shops').select('id, name, photo_url, city, state').eq('is_active', true).order('total_ratings', { ascending: false }).limit(12)).data || []
+    setFollowedShops(shops)
+
+    // Load active stories for these shops
+    if (shops.length > 0) {
+      const shopIds = shops.map((s: any) => s.id)
+      const now = new Date().toISOString()
+      const [storiesRes, viewsRes] = await Promise.all([
+        supabase.from('stories')
+          .select('id, user_id, shop_id, photo_url, caption, story_type, created_at, expires_at, view_count')
+          .in('shop_id', shopIds)
+          .gt('expires_at', now)
+          .order('created_at', { ascending: false }),
+        supabase.from('story_views').select('story_id').eq('viewer_id', profile.id),
+      ])
+      const viewedIds = new Set((viewsRes.data || []).map((v: any) => v.story_id))
+      const groups: Record<string, StoryGroup> = {}
+      for (const s of storiesRes.data || []) {
+        if (!s.shop_id) continue
+        const shop = shops.find((sh: any) => sh.id === s.shop_id)
+        if (!groups[s.shop_id]) {
+          groups[s.shop_id] = {
+            user_id: s.user_id,
+            username: shop?.name || 'Shop',
+            avatar_url: shop?.photo_url || null,
+            stories: [],
+            hasUnviewed: false,
+          }
+        }
+        const story: Story = { ...s, profiles: { username: shop?.name || 'Shop', avatar_url: shop?.photo_url || null }, viewed: viewedIds.has(s.id) }
+        groups[s.shop_id].stories.push(story)
+        if (!story.viewed) groups[s.shop_id].hasUnviewed = true
+      }
+      setShopStoryGroups(groups)
     }
     setLoading(false)
   }
@@ -159,23 +186,43 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
 
   if (mode === 'shops') {
     return (
-      <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-cream-200">
-        {followedShops.length === 0 ? (
-          <p className="text-coffee-400 text-sm py-2">Explore shops in Discover to follow them</p>
-        ) : followedShops.map(shop => (
-          <button key={shop.id} onClick={() => onShopSelect?.(shop)}
-            className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <div className="w-14 h-14 rounded-full overflow-hidden bg-coffee-200 border-2 border-cream-200">
-              {shop.photo_url
-                ? <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center bg-caramel">
-                    <span className="text-white text-xl">☕</span>
-                  </div>}
-            </div>
-            <span className="text-coffee-500 text-xs font-medium max-w-[56px] truncate">{shop.name}</span>
-          </button>
-        ))}
-      </div>
+      <>
+        <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-cream-200">
+          {followedShops.length === 0 ? (
+            <p className="text-coffee-400 text-sm py-2">Explore shops in Discover to follow them</p>
+          ) : followedShops.map(shop => {
+            const storyGroup = shopStoryGroups[shop.id]
+            const hasStories = !!storyGroup
+            const hasUnviewed = storyGroup?.hasUnviewed
+            return (
+              <button
+                key={shop.id}
+                onClick={() => hasStories ? setViewingGroup(storyGroup) : onShopSelect?.(shop)}
+                className="flex flex-col items-center gap-1.5 flex-shrink-0"
+              >
+                <div className={`w-14 h-14 rounded-full p-0.5 ${hasUnviewed ? 'bg-gradient-to-tr from-caramel to-amber-300' : hasStories ? 'bg-cream-300' : 'border-2 border-cream-200'}`}>
+                  <div className="w-full h-full rounded-full overflow-hidden bg-cream-100">
+                    {shop.photo_url
+                      ? <img src={shop.photo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-caramel">
+                          <span className="text-white text-xl">☕</span>
+                        </div>}
+                  </div>
+                </div>
+                <span className={`text-xs font-medium max-w-[56px] truncate ${hasUnviewed ? 'text-coffee-700' : 'text-coffee-500'}`}>{shop.name}</span>
+              </button>
+            )
+          })}
+        </div>
+        {viewingGroup && (
+          <StoryViewer
+            group={viewingGroup}
+            onClose={() => { setViewingGroup(null); loadShops() }}
+            onViewed={markViewed}
+            isOwn={false}
+          />
+        )}
+      </>
     )
   }
 

@@ -9,8 +9,9 @@ import PortalSettings from './pages/PortalSettings'
 import PortalMessages from './pages/PortalMessages'
 import PortalPunchCard from './pages/PortalPunchCard'
 import PortalScanner from './pages/PortalScanner'
+import PortalStories from './pages/PortalStories'
 
-export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'messages' | 'punchcard' | 'scanner' | 'settings'
+export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'stories' | 'messages' | 'punchcard' | 'scanner' | 'settings'
 
 interface ShopOwner {
   id: string
@@ -38,6 +39,7 @@ const NAV: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'mentions', label: 'Reviews', icon: '⭐' },
   { id: 'posts', label: 'Posts', icon: '📢' },
+  { id: 'stories', label: 'Stories', icon: '📸' },
   { id: 'messages', label: 'Messages', icon: '💬' },
   { id: 'edit', label: 'Edit Shop', icon: '✏️' },
   { id: 'punchcard', label: 'Punch Card', icon: '🎫' },
@@ -178,6 +180,7 @@ export default function PortalApp() {
           {activeTab === 'mentions' && <PortalMentions shop={shop} />}
           {activeTab === 'edit' && <PortalEditShop shop={shop} onShopUpdate={s => setShop(s)} />}
           {activeTab === 'posts' && <PortalPosts shop={shop} userId={userId} />}
+          {activeTab === 'stories' && <PortalStories shop={shop} userId={userId} />}
           {activeTab === 'messages' && <PortalMessages shop={shop} userId={userId} />}
           {activeTab === 'punchcard' && <PortalPunchCard shop={shop} shopOwner={shopOwner} />}
           {activeTab === 'scanner' && <PortalScanner shop={shop} userId={userId} />}
