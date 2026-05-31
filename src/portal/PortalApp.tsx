@@ -176,7 +176,7 @@ export default function PortalApp() {
         </header>
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          {activeTab === 'dashboard' && <PortalDashboard shop={shop} />}
+          {activeTab === 'dashboard' && <PortalDashboard shop={shop} onNavigate={handleTabChange} />}
           {activeTab === 'mentions' && <PortalMentions shop={shop} />}
           {activeTab === 'edit' && <PortalEditShop shop={shop} onShopUpdate={s => setShop(s)} />}
           {activeTab === 'posts' && <PortalPosts shop={shop} userId={userId} />}
