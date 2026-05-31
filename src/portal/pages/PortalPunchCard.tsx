@@ -60,6 +60,8 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
+  const [quotaRequestSent, setQuotaRequestSent] = useState(false)
+  const [quotaRequesting, setQuotaRequesting] = useState(false)
 
   const isFoundingPartner = shopOwner.founding_partner
   const quotaUsed = isFoundingPartner ? shopOwner.punches_issued_total : shopOwner.punches_issued_this_month
@@ -104,6 +106,24 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
       : !data.approved_by ? 'pending' : 'rejected'
     setCardState(state)
     if (state === 'active') loadCustomers()
+  }
+
+  async function requestMorePunches() {
+    setQuotaRequesting(true)
+    await supabase.functions.invoke('notify-admin', {
+      body: {
+        type: 'quota_request',
+        data: {
+          shop_name: shop.name,
+          shop_id: shop.id,
+          quota_used: quotaUsed,
+          quota_max: quotaMax,
+          is_founding_partner: isFoundingPartner,
+        },
+      },
+    })
+    setQuotaRequesting(false)
+    setQuotaRequestSent(true)
   }
 
   async function togglePause() {
@@ -220,6 +240,63 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
               className="h-full bg-blue-400 rounded-full transition-all"
               style={{ width: `${Math.min(100, (quotaUsed / quotaMax) * 100)}%` }}
             />
+          </div>
+        )}
+
+        {/* Quota exhausted warning + request button */}
+        {quotaRemaining === 0 && (
+          <div className="mt-3 pt-3 border-t border-white/40">
+            <p className="text-xs font-semibold text-red-600 mb-2">
+              You've used all your punches for {isFoundingPartner ? 'this plan' : 'this month'}.
+              {!isFoundingPartner && ' Customers won’t receive new stamps until your quota resets.'}
+            </p>
+            {quotaRequestSent ? (
+              <p className="text-xs text-green-700 font-medium">✓ Request sent — we'll be in touch soon!</p>
+            ) : (
+              <button
+                onClick={requestMorePunches}
+                disabled={quotaRequesting}
+                className="text-xs font-semibold text-white bg-caramel px-3 py-1.5 rounded-lg disabled:opacity-40"
+                style={{ background: '#c8853a' }}
+              >
+                {quotaRequesting ? 'Sending…' : 'Request more punches →'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Subtle upgrade link when quota is low but not zero */}
+        {quotaRemaining > 0 && quotaRemaining <= 3 && (
+          <div className="mt-3 pt-3 border-t border-white/40 flex items-center justify-between">
+            <p className="text-xs text-amber-700">Running low on punches.</p>
+            {quotaRequestSent ? (
+              <p className="text-xs text-green-700 font-medium">✓ Request sent!</p>
+            ) : (
+              <button
+                onClick={requestMorePunches}
+                disabled={quotaRequesting}
+                className="text-xs font-semibold text-amber-700 underline underline-offset-2 disabled:opacity-40"
+              >
+                {quotaRequesting ? 'Sending…' : 'Request an upgrade →'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Always-available upgrade link for founding partners or shops with quota */}
+        {quotaRemaining > 3 && (
+          <div className="mt-3 pt-3 border-t border-white/40">
+            {quotaRequestSent ? (
+              <p className="text-xs text-green-700 font-medium">✓ Request sent — we'll be in touch!</p>
+            ) : (
+              <button
+                onClick={requestMorePunches}
+                disabled={quotaRequesting}
+                className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 disabled:opacity-40"
+              >
+                {quotaRequesting ? 'Sending…' : 'Need more punches? Contact us →'}
+              </button>
+            )}
           </div>
         )}
       </div>
