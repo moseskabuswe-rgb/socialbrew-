@@ -1,52 +1,32 @@
-/**
- * ShopPhotoGallery.tsx
- * 
- * Clean photo grid for a coffee shop — shows photos submitted by users
- * during actual rated visits to this shop.
- * 
- * Photos come from the shop_photos table which is populated by the
- * sync_shop_photo database trigger when a rating with a photo is saved.
- * 
- * Only shows photos from ratings where:
- *   - shop_id matches this shop
- *   - photo_url is not null
- *   - fill_level > 0 (actual visit, not a vibe post)
- * 
- * UI is a clean Instagram-style 3-column grid.
- * Tap any photo for fullscreen with photographer attribution.
- */
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Camera } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 interface Props {
   shopId: string
   shopName: string
+  onUserClick?: (userId: string) => void
 }
 
 interface ShopPhoto {
   id: string
   photo_url: string
   created_at: string
-  profiles: { username: string; avatar_url: string | null }
+  profiles: { id: string; username: string; avatar_url: string | null }
 }
 
-export default function ShopPhotoGallery({ shopId, shopName }: Props) {
+export default function ShopPhotoGallery({ shopId, shopName, onUserClick }: Props) {
   const [photos, setPhotos] = useState<ShopPhoto[]>([])
   const [loading, setLoading] = useState(true)
-  const [fullscreen, setFullscreen] = useState<ShopPhoto | null>(null)
+  const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null)
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
 
   useEffect(() => {
     async function load() {
-      /**
-       * Query shop_photos joined with profiles.
-       * Only show photos from actual rated visits (fill_level > 0).
-       * Limit to 30 most recent for performance.
-       */
       const { data } = await supabase
         .from('shop_photos')
-        .select('id, photo_url, created_at, profiles(username, avatar_url)')
+        .select('id, photo_url, created_at, profiles(id, username, avatar_url)')
         .eq('shop_id', shopId)
         .not('photo_url', 'is', null)
         .order('created_at', { ascending: false })
@@ -57,6 +37,26 @@ export default function ShopPhotoGallery({ shopId, shopName }: Props) {
     }
     load()
   }, [shopId])
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null || fullscreenIndex === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    touchStartX.current = null
+    touchStartY.current = null
+
+    if (Math.abs(dy) > Math.abs(dx)) {
+      if (dy > 80) setFullscreenIndex(null)
+    } else {
+      if (dx < -60 && fullscreenIndex < photos.length - 1) setFullscreenIndex(fullscreenIndex + 1)
+      if (dx > 60 && fullscreenIndex > 0) setFullscreenIndex(fullscreenIndex - 1)
+    }
+  }
 
   if (loading) return (
     <div className="flex justify-center py-8">
@@ -72,14 +72,16 @@ export default function ShopPhotoGallery({ shopId, shopName }: Props) {
     </div>
   )
 
+  const current = fullscreenIndex !== null ? photos[fullscreenIndex] : null
+
   return (
     <>
-      {/* Clean 3-column grid — no text, just photos */}
+      {/* 3-column grid */}
       <div className="grid grid-cols-3 gap-px bg-cream-200">
-        {photos.map(photo => (
+        {photos.map((photo, i) => (
           <button
             key={photo.id}
-            onClick={() => setFullscreen(photo)}
+            onClick={() => setFullscreenIndex(i)}
             className="aspect-square overflow-hidden bg-cream-100 relative group"
           >
             <img
@@ -94,29 +96,41 @@ export default function ShopPhotoGallery({ shopId, shopName }: Props) {
         ))}
       </div>
 
-      {/* Photo count */}
       <p className="text-coffee-400 text-xs text-center py-2">
         {photos.length} photo{photos.length !== 1 ? 's' : ''} from visits
       </p>
 
       {/* Fullscreen viewer */}
-      {fullscreen && (
-        <div className="fixed inset-0 z-[90] bg-black flex flex-col">
-          {/* Minimal header */}
+      {current !== null && fullscreenIndex !== null && (
+        <div
+          className="fixed inset-0 z-[90] bg-black flex flex-col"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchMove={e => e.stopPropagation()}
+        >
+          {/* Header */}
           <div className="flex items-center justify-between px-4 pt-12 pb-3 flex-shrink-0"
             style={{ background: 'linear-gradient(rgba(0,0,0,0.6), transparent)' }}>
-            <div className="flex items-center gap-2">
+            <button
+              className="flex items-center gap-2"
+              onClick={() => {
+                if (onUserClick && current.profiles?.id) {
+                  onUserClick(current.profiles.id)
+                  setFullscreenIndex(null)
+                }
+              }}
+            >
               <div className="w-7 h-7 rounded-full overflow-hidden bg-coffee-300 flex-shrink-0">
-                {fullscreen.profiles?.avatar_url
-                  ? <img src={fullscreen.profiles.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+                {current.profiles?.avatar_url
+                  ? <img src={current.profiles.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
                   : <div className="w-full h-full flex items-center justify-center bg-caramel">
-                      <span className="text-white text-xs font-bold">{fullscreen.profiles?.username?.[0]?.toUpperCase()}</span>
+                      <span className="text-white text-xs font-bold">{current.profiles?.username?.[0]?.toUpperCase()}</span>
                     </div>}
               </div>
-              <p className="text-white text-sm font-semibold">@{fullscreen.profiles?.username}</p>
-            </div>
+              <p className="text-white text-sm font-semibold">@{current.profiles?.username}</p>
+            </button>
             <button
-              onClick={() => setFullscreen(null)}
+              onClick={() => setFullscreenIndex(null)}
               className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
               <X size={16} className="text-white" />
             </button>
@@ -125,15 +139,26 @@ export default function ShopPhotoGallery({ shopId, shopName }: Props) {
           {/* Photo */}
           <div className="flex-1 flex items-center justify-center">
             <img
-              src={fullscreen.photo_url}
+              src={current.photo_url}
               alt=""
               className="max-w-full max-h-full object-contain"
               style={{ transform: 'translateZ(0)' }}
             />
           </div>
 
-          {/* Shop name at bottom */}
-          <div className="pb-10 pt-3 text-center">
+          {/* Bottom: dot indicators + shop name */}
+          <div className="pb-10 pt-3 flex flex-col items-center gap-2">
+            {photos.length > 1 && (
+              <div className="flex gap-1.5">
+                {photos.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setFullscreenIndex(i)}
+                    className={`rounded-full transition-all ${i === fullscreenIndex ? 'bg-white w-2 h-2' : 'bg-white/40 w-1.5 h-1.5'}`}
+                  />
+                ))}
+              </div>
+            )}
             <p className="text-white/50 text-xs">{shopName}</p>
           </div>
         </div>

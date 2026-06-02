@@ -2,6 +2,7 @@ import { useState, useEffect, useId } from 'react'
 import { ArrowLeft, MapPin, Users, Coffee, Heart } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ShopPhotoGallery from './ShopPhotoGallery'
+import UserProfilePage from './UserProfilePage'
 import CoffeeDate from './CoffeeDate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
@@ -145,6 +146,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [showClaim, setShowClaim] = useState(false)
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null)
 
   const isInDb = !String(shop.id).startsWith('osm-') &&
     !String(shop.id).startsWith('fsq-') &&
@@ -404,9 +406,9 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
       {/* Tabs */}
       <div className="flex bg-white border-b border-cream-200 flex-shrink-0">
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
+          <button key={t.key} onClick={() => { setTab(t.key); setActiveTab('ratings') }}
             className={`flex-1 flex items-center justify-center gap-1 py-3 text-xs font-medium transition-colors border-b-2 ${
-              tab === t.key ? 'border-caramel text-caramel' : 'border-transparent text-coffee-400'
+              tab === t.key && activeTab === 'ratings' ? 'border-caramel text-caramel' : 'border-transparent text-coffee-400'
             }`}>
             {t.icon}{t.label}
           </button>
@@ -421,13 +423,13 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto pb-8">
-        {loading && (
+        {loading && activeTab === 'ratings' && (
           <div className="flex justify-center py-12">
             <div className="w-7 h-7 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
           </div>
         )}
 
-        {!loading && (
+        {!loading && activeTab === 'ratings' && (
           <div className="px-4 pt-4 space-y-3">
             {activeList.length === 0 && (
               <div className="text-center py-16">
@@ -455,7 +457,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         )}
         {activeTab === 'photos' && (
           <div className="px-0 pt-0">
-            <ShopPhotoGallery shopId={resolvedShop.id} shopName={resolvedShop.name} />
+            <ShopPhotoGallery shopId={resolvedShop.id} shopName={resolvedShop.name} onUserClick={(id) => setViewingUserId(id)} />
           </div>
         )}
       </div>
@@ -512,6 +514,11 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           shop={{ id: resolvedShop.id, name: resolvedShop.name }}
           onClose={() => setShowClaim(false)}
         />
+      )}
+      {viewingUserId && (
+        <div className="fixed inset-0 z-[60] bg-cream-100 overflow-y-auto">
+          <UserProfilePage userId={viewingUserId} onBack={() => setViewingUserId(null)} />
+        </div>
       )}
     </div>
   )
