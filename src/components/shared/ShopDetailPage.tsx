@@ -1,12 +1,11 @@
-import { useState, useEffect, useId } from 'react'
-import { ArrowLeft, MapPin, Users, Coffee, Heart } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, MapPin, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ShopPhotoGallery from './ShopPhotoGallery'
 import CoffeeDate from './CoffeeDate'
+import UserProfilePage from './UserProfilePage'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
-import ClaimShopModal from '../shops/ClaimShopModal'
-import { isAffiliatedWithShop } from '../../lib/shopAffiliation'
 
 type Props = {
   shop: Partial<CoffeeShop> & { id: string; name: string }
@@ -18,7 +17,6 @@ type Tab = 'overview' | 'my-brews' | 'friends'
 
 function parseOpeningHours(raw: string | null): string | null {
   if (!raw) return null
-  // If already human-readable (contains full words like "Monday"), return as-is
   if (/monday|tuesday|wednesday|thursday|friday|saturday|sunday/i.test(raw)) return raw
   const dayMap: Record<string, string> = {
     'Mo': 'Mon', 'Tu': 'Tue', 'We': 'Wed', 'Th': 'Thu',
@@ -71,27 +69,24 @@ function timeAgo(d: string) {
 
 function MiniMug({ fill, size = 40 }: { fill: number; size?: number }) {
   const color = getMugColor(fill)
-  const uid = useId()
-  const id = `mug-${uid.replace(/:/g, '')}`
+  const fillH = Math.round((fill / 100) * 46)
   return (
-    <svg viewBox="0 0 56 68" width={size} height={size * 1.2} style={{ flexShrink: 0 }}>
-      <defs><clipPath id={id}><rect x="5" y="12" width="38" height="46" rx="5" /></clipPath></defs>
-      <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#c8b090" strokeWidth="1.5" />
-      <g clipPath={`url(#${id})`}>
-        <rect x="5" y={58 - (46 * fill / 100)} width="38" height={46 * fill / 100} fill={color} />
-      </g>
+    <svg width={size} height={size * 1.5} viewBox="0 0 48 72" fill="none">
+      <rect x="3" y="8" width="42" height="54" rx="6" fill="#f0e4cc" />
+      <rect x="3" y={8 + (46 - fillH)} width="42" height={fillH} rx="4" fill={color} />
       <rect x="3" y="8" width="42" height="8" rx="4" fill="#d4b890" />
       <path d="M43 22 Q56 22 56 33 Q56 44 43 44" stroke="#c8b090" strokeWidth="5" fill="none" strokeLinecap="round" />
-      <ellipse cx="24" cy="58" rx="19" ry="5" fill="#e8ddc8" />
+      <ellipse cx="24" cy="62" rx="19" ry="5" fill="#e8ddc8" />
     </svg>
   )
 }
 
 function RatingCard({ r }: { r: any }) {
   const user = r.profiles as any
+  const mugColor = getMugColor(r.fill_level)
   return (
-    <div className="bg-white rounded-2xl p-4 border border-cream-200 shadow-sm">
-      <div className="flex items-center gap-2.5 mb-2">
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200">
+      <div className="flex items-center gap-3 mb-2">
         <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
           {user?.avatar_url
             ? <img src={user.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
@@ -141,92 +136,78 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [wishlisted, setWishlisted] = useState(false)
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [shopStreak, setShopStreak] = useState<number>(0)
-  const [followerCount, setFollowerCount] = useState(0)
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followLoading, setFollowLoading] = useState(false)
-  const [showClaim, setShowClaim] = useState(false)
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null)
 
   const isInDb = !String(shop.id).startsWith('osm-') &&
     !String(shop.id).startsWith('fsq-') &&
     !String(shop.id).startsWith('gpl-')
 
- 
   useEffect(() => {
     if (!profile?.id || !resolvedShop?.id) return
     supabase.from('visit_wishlist')
       .select('id').eq('user_id', profile.id).eq('shop_id', resolvedShop.id).maybeSingle()
       .then(({ data }) => { if (data) setWishlisted(true) })
   }, [profile?.id, resolvedShop?.id])
+
   useEffect(() => {
     async function load() {
-      try {
-        // Resolve shop ID — look up by name if from OSM
-        let shopId = isInDb ? shop.id : null
-        if (!isInDb && shop.name) {
-          const { data: dbMatch } = await supabase
-            .from('coffee_shops').select('*')
-            .ilike('name', shop.name).eq('is_active', true).maybeSingle()
-          if (dbMatch) {
-            shopId = dbMatch.id
-            setResolvedShop(dbMatch)
-          }
-        } else if (isInDb) {
-          const { data: dbShop } = await supabase
-            .from('coffee_shops').select('*').eq('id', shop.id).single()
-          if (dbShop) setResolvedShop(dbShop)
+      // Resolve shop ID — look up by name if from OSM
+      let shopId: string | null = isInDb ? shop.id : null
+      if (!isInDb && shop.name) {
+        const { data: dbMatch } = await supabase
+          .from('coffee_shops').select('*')
+          .ilike('name', shop.name).eq('is_active', true).maybeSingle()
+        if (dbMatch) {
+          shopId = dbMatch.id
+          setResolvedShop(dbMatch)
         }
-
-        if (!shopId) return
-
-        // Fetch ratings, follower count, and user's follow status in parallel
-        const [{ data: ratings }, { count: fCount }, { data: fData }, { data: follows }] = await Promise.all([
-          supabase.from('ratings')
-            .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url)')
-            .eq('shop_id', shopId).order('created_at', { ascending: false }).limit(50),
-          supabase.from('shop_follows').select('user_id', { count: 'exact', head: true }).eq('shop_id', shopId),
-          profile?.id
-            ? supabase.from('shop_follows').select('user_id').eq('shop_id', shopId).eq('user_id', profile.id).maybeSingle()
-            : Promise.resolve({ data: null }),
-          profile?.id
-            ? supabase.from('follows').select('following_id').eq('follower_id', profile.id)
-            : Promise.resolve({ data: [] }),
-        ])
-
-        setFollowerCount(fCount || 0)
-        setIsFollowing(!!fData)
-
-        if (ratings) {
-          setAllRatings(ratings)
-          if (profile?.id) {
-            const mine = ratings.filter((r: any) => r.user_id === profile.id)
-            setMyRatings(mine)
-
-            // Calculate consecutive weekly shop streak
-            if (mine.length > 0) {
-              const weekKeys = Array.from(new Set(mine.map((r: any) => {
-                const d = new Date(r.created_at)
-                const year = d.getFullYear()
-                const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
-                return year + '-' + String(week).padStart(2, '0')
-              }))).sort().reverse()
-              let streak = 1
-              for (let i = 0; i < weekKeys.length - 1; i++) {
-                const [y1, w1] = weekKeys[i].split('-').map(Number)
-                const [y2, w2] = weekKeys[i + 1].split('-').map(Number)
-                if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
-                  streak++
-                } else break
-              }
-              setShopStreak(streak)
-            }
-
-            const followingIds = new Set((follows || []).map((f: any) => f.following_id))
-            setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
-          }
-        }
-      } finally {
-        setLoading(false)
+      } else if (isInDb) {
+        const { data: dbShop } = await supabase
+          .from('coffee_shops').select('*').eq('id', shop.id).single()
+        if (dbShop) setResolvedShop(dbShop)
       }
+
+      if (!shopId) { setLoading(false); return }
+
+      const { data: ratings } = await supabase
+        .from('ratings')
+        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url)')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (ratings) {
+        setAllRatings(ratings)
+        if (profile?.id) {
+          const mine = ratings.filter((r: any) => r.user_id === profile.id)
+          setMyRatings(mine)
+
+          // Calculate consecutive weekly shop streak
+          if (mine.length > 0) {
+            const weekKeys = Array.from(new Set(mine.map((r: any) => {
+              const d = new Date(r.created_at)
+              const year = d.getFullYear()
+              const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + new Date(year, 0, 1).getDay() + 1) / 7)
+              return year + '-' + String(week).padStart(2, '0')
+            }))).sort().reverse()
+            let streak = 1
+            for (let i = 0; i < weekKeys.length - 1; i++) {
+              const [y1, w1] = weekKeys[i].split('-').map(Number)
+              const [y2, w2] = weekKeys[i + 1].split('-').map(Number)
+              if ((y1 === y2 && w1 === w2 + 1) || (y1 === y2 + 1 && w1 === 1 && w2 >= 52)) {
+                streak++
+              } else break
+            }
+            setShopStreak(streak)
+          }
+
+          const { data: follows } = await supabase
+            .from('follows').select('following_id').eq('follower_id', profile.id)
+          const followingIds = new Set((follows || []).map((f: any) => f.following_id))
+          setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
+        }
+      }
+      setLoading(false)
     }
     load()
   }, [shop.id, shop.name, isInDb, profile])
@@ -262,25 +243,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
       setWishlisted(true)
     }
     setWishlistLoading(false)
-  }
-
-  async function toggleFollow() {
-    if (!profile?.id || !resolvedShop?.id || followLoading) return
-    if (isAffiliatedWithShop(profile, resolvedShop.id)) return
-    setFollowLoading(true)
-    if (isFollowing) {
-      await supabase.from('shop_follows').delete().eq('user_id', profile.id).eq('shop_id', resolvedShop.id)
-      setIsFollowing(false)
-      setFollowerCount(c => Math.max(0, c - 1))
-    } else {
-      await supabase.from('shop_follows').upsert(
-        { user_id: profile.id, shop_id: resolvedShop.id },
-        { onConflict: 'user_id,shop_id' }
-      )
-      setIsFollowing(true)
-      setFollowerCount(c => c + 1)
-    }
-    setFollowLoading(false)
   }
 
   return (
@@ -351,33 +313,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         )}
       </div>
 
-      {/* Follower row */}
-      {isInDb && (
-        <div className="bg-white border-b border-cream-200 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-1.5 text-coffee-500 text-xs">
-            <Heart size={13} className="text-caramel" />
-            <span><span className="font-semibold text-coffee-700">{followerCount}</span> follower{followerCount !== 1 ? 's' : ''}</span>
-            {resolvedShop.claimed_by && (
-              <span className="ml-2 bg-caramel/10 text-caramel px-2 py-0.5 rounded-full text-xs font-medium border border-caramel/20">✓ Verified owner</span>
-            )}
-          </div>
-          {profile && (
-            <button
-              onClick={toggleFollow}
-              disabled={followLoading}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all disabled:opacity-50"
-              style={{
-                background: isFollowing ? '#fdf0dc' : 'white',
-                borderColor: isFollowing ? '#c8853a' : '#e0c8a0',
-                color: isFollowing ? '#c8853a' : '#9b7a55',
-              }}>
-              <Heart size={12} fill={isFollowing ? '#c8853a' : 'none'} />
-              {isFollowing ? 'Following' : 'Follow'}
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Hours and website */}
       {((resolvedShop as any).opening_hours || (resolvedShop as any).website) && (
         <div className="bg-white border-b border-cream-200 px-4 py-2.5 flex flex-wrap gap-3 flex-shrink-0">
@@ -427,7 +362,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           </div>
         )}
 
-        {!loading && (
+        {!loading && activeTab === 'ratings' && (
           <div className="px-4 pt-4 space-y-3">
             {activeList.length === 0 && (
               <div className="text-center py-16">
@@ -453,9 +388,14 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             {activeList.map(r => <RatingCard key={r.id} r={r} />)}
           </div>
         )}
-        {activeTab === 'photos' && (
+
+        {!loading && activeTab === 'photos' && (
           <div className="px-0 pt-0">
-            <ShopPhotoGallery shopId={resolvedShop.id} shopName={resolvedShop.name} />
+            <ShopPhotoGallery
+              shopId={resolvedShop.id}
+              shopName={resolvedShop.name}
+              onUserClick={(id) => setViewingUserId(id)}
+            />
           </div>
         )}
       </div>
@@ -493,25 +433,16 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           }}>
           {wishlisted ? '☕ Saved' : '+ Wishlist'}
         </button>
-        {!onNavigateToBrew && (resolvedShop.lat && resolvedShop.lng) && null}
       </div>
-      {isInDb && !resolvedShop.claimed_by && profile && !['business', 'admin', 'moderator'].includes(profile.role) && (
-        <div className="px-4 pb-3 bg-white flex-shrink-0">
-          <button
-            onClick={() => setShowClaim(true)}
-            className="w-full py-2.5 rounded-xl text-xs font-medium border border-cream-300 text-coffee-500 bg-cream-50">
-            Own this shop? Claim it free ☕
-          </button>
-        </div>
-      )}
+
       {showCoffeeDate && (
         <CoffeeDate onClose={() => setShowCoffeeDate(false)} preselectedShop={resolvedShop} />
       )}
-      {showClaim && (
-        <ClaimShopModal
-          shop={{ id: resolvedShop.id, name: resolvedShop.name }}
-          onClose={() => setShowClaim(false)}
-        />
+
+      {viewingUserId && (
+        <div className="fixed inset-0 z-[60] bg-cream-100 overflow-y-auto">
+          <UserProfilePage userId={viewingUserId} onBack={() => setViewingUserId(null)} />
+        </div>
       )}
     </div>
   )
