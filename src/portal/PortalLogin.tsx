@@ -20,7 +20,8 @@ interface ShopResult {
 }
 
 export default function PortalLogin({ onSuccess }: Props) {
-  const [mode, setMode] = useState<Mode>('signin')
+  const claimParam = new URLSearchParams(window.location.search).get('claim')
+  const [mode, setMode] = useState<Mode>(claimParam === '1' ? 'request' : 'signin')
 
   // Sign-in
   const [email, setEmail] = useState('')

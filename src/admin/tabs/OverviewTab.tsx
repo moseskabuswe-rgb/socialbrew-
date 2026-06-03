@@ -63,6 +63,9 @@ const STATE_AS_COUNTRY: Record<string, string> = {
   Japan: 'Japan',
   India: 'India',
   Brazil: 'Brazil',
+  Thailand: 'Thailand',
+  'Udon Thani': 'Thailand',
+  Sonora: 'Mexico',
 }
 
 const COUNTRY_TO_CONTINENT: Record<string, string> = {
@@ -79,6 +82,7 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   Indonesia: 'Asia',
   Japan: 'Asia',
   India: 'Asia',
+  Thailand: 'Asia',
   China: 'Asia',
   'South Korea': 'Asia',
   'Saudi Arabia': 'Asia',

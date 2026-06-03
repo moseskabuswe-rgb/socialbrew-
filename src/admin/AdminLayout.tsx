@@ -32,20 +32,9 @@ function Badge({ n }: { n: number }) {
 
 function MugLogo() {
   return (
-    <svg viewBox="0 0 56 68" width={28} height={34} style={{ flexShrink: 0 }}>
-      <defs>
-        <clipPath id="admin-mug-clip">
-          <rect x="5" y="12" width="38" height="46" rx="5" />
-        </clipPath>
-      </defs>
-      <rect x="5" y="12" width="38" height="46" rx="5" fill="#f7f0e4" stroke="#c8b090" strokeWidth="1.5" />
-      <g clipPath="url(#admin-mug-clip)">
-        <rect x="5" y="35" width="38" height="23" fill="#c8853a" />
-      </g>
-      <rect x="3" y="8" width="42" height="8" rx="4" fill="#d4b890" />
-      <path d="M43 22 Q56 22 56 33 Q56 44 43 44" stroke="#c8b090" strokeWidth="5" fill="none" strokeLinecap="round" />
-      <ellipse cx="24" cy="58" rx="19" ry="5" fill="#e8ddc8" />
-    </svg>
+    <div style={{ width: 34, height: 34, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}>
+      <img src="/icon-192.png" alt="Social Brew" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    </div>
   )
 }
 

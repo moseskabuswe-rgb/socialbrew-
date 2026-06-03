@@ -164,7 +164,7 @@ function AppContent() {
   }
 
   // Portal routing — standalone pages, not part of main app auth flow
-  const pathname = window.location.pathname
+  const pathname = window.location.pathname.replace(/\/$/, '') || '/'
   if (pathname === '/portal/invite') return <Suspense fallback={null}><PortalInviteAccept /></Suspense>
   if (pathname === '/portal') return <Suspense fallback={null}><PortalApp /></Suspense>
 
