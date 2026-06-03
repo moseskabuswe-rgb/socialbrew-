@@ -71,7 +71,7 @@ export default function AuthForm() {
     if (!email.trim()) { setError('Please enter your email address'); return }
     setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: 'https://socialbrewapp.com',
+      redirectTo: 'https://socialbrewapp.com/reset-password.html',
     })
     setLoading(false)
     if (error) setError(friendlyError(error.message))
