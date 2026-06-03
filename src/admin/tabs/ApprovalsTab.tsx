@@ -143,8 +143,18 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       shopId = newShop.id
     }
 
+    // Count how many claims have already been approved/invited/accepted
+    const { count: approvedCount } = await supabase
+      .from('shop_claims')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['invited', 'accepted'])
+
+    const claimNumber = (approvedCount || 0) + 1
+    const initialPunchQuota = claimNumber <= 10 ? 25 : 0
+
     const inviteToken = crypto.randomUUID()
     const expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const inviteLink = `${window.location.origin}/portal/invite?token=${inviteToken}`
 
     await supabase.from('shop_claims').update({
       shop_id: shopId,
@@ -153,6 +163,7 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       reviewed_at: new Date().toISOString(),
       invite_token: inviteToken,
       invite_expires_at: expiry,
+      initial_punch_quota: initialPunchQuota,
     }).eq('id', claim.id)
 
     // If claiming an existing shop that's inactive/unverified, activate it
@@ -165,6 +176,20 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
         await supabase.from('coffee_shops').update(shopUpdates).eq('id', claim.shop_id)
       }
     }
+
+    // Email the shop owner with the invite link and quota info
+    const shopName = claim.new_shop_data?.name || (claim.coffee_shops as any)?.name || 'your shop'
+    supabase.functions.invoke('notify-admin', {
+      body: {
+        type: 'claim_approved',
+        data: {
+          claimant_email: claim.claimant_email,
+          shop_name: shopName,
+          invite_link: inviteLink,
+          punch_quota: initialPunchQuota,
+        },
+      },
+    })
 
     setApprovedToken(inviteToken)
     setWorking(false)

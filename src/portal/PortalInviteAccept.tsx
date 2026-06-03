@@ -10,6 +10,7 @@ interface OwnerClaim {
   shopName: string
   email: string
   displayName: string
+  initialPunchQuota: number
 }
 
 interface TeamInvite {
@@ -50,7 +51,7 @@ export default function PortalInviteAccept() {
     // Check owner claims first
     const { data: claim } = await supabase
       .from('shop_claims')
-      .select('id,shop_id,claimant_name,claimant_email,status,invite_expires_at,coffee_shops(name)')
+      .select('id,shop_id,claimant_name,claimant_email,status,invite_expires_at,initial_punch_quota,coffee_shops(name)')
       .eq('invite_token', token)
       .maybeSingle()
 
@@ -77,6 +78,7 @@ export default function PortalInviteAccept() {
         shopName: (claim.coffee_shops as any)?.name || 'your shop',
         email: claim.claimant_email,
         displayName: claim.claimant_name || '',
+        initialPunchQuota: (claim as any).initial_punch_quota ?? 0,
       })
       setFullName(claim.claimant_name || '')
       setScreen('form')
@@ -219,9 +221,11 @@ export default function PortalInviteAccept() {
 
   async function finaliseInvite(userId: string, inv: Invite) {
     if (inv.kind === 'owner') {
+      const shopOwnerPayload: Record<string, unknown> = { profile_id: userId, shop_id: inv.shopId }
+      if (inv.initialPunchQuota > 0) shopOwnerPayload.punch_card_quota = inv.initialPunchQuota
       await Promise.all([
         supabase.from('profiles').update({ role: 'business', portal_role: 'owner', shop_id: inv.shopId }).eq('id', userId),
-        supabase.from('shop_owners').upsert({ profile_id: userId, shop_id: inv.shopId }, { onConflict: 'profile_id,shop_id' }),
+        supabase.from('shop_owners').upsert(shopOwnerPayload, { onConflict: 'profile_id,shop_id' }),
         supabase.from('shop_claims').update({ status: 'accepted' }).eq('id', inv.claimId),
         supabase.from('coffee_shops').update({ claimed_by: userId, claimed_at: new Date().toISOString() }).eq('id', inv.shopId),
       ])

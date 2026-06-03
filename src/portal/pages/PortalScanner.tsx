@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase } from '../../lib/supabase'
+import { sendPushToUser } from '../../lib/push'
 import { X, Check, Camera } from 'lucide-react'
 
 interface Props {
@@ -77,6 +78,10 @@ export default function PortalScanner({ shop, userId }: Props) {
       } else {
         setPunchResult({ newCount: data.new_count, required: data.required, rewardEarned: data.reward_earned })
         setScanState('punched')
+        const msg = data.reward_earned
+          ? `${data.new_count}/${data.required} stamps — reward unlocked! 🎉`
+          : `${data.new_count}/${data.required} stamps collected`
+        sendPushToUser(userId, `☕ Stamp added at ${shop.name}!`, msg, { type: 'stamp', tag: 'stamp', shop_id: shop.id })
       }
       return
     }

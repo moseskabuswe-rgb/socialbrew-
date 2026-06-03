@@ -24,6 +24,7 @@ interface ShopOwner {
   punches_issued_total: number
   punches_issued_this_month: number
   punch_quota_reset_at: string | null
+  punch_card_quota: number
 }
 
 interface Shop {
@@ -110,7 +111,7 @@ export default function PortalApp() {
       // Owner path: load via shop_owners
       const { data: owner } = await supabase
         .from('shop_owners')
-        .select('id,profile_id,shop_id,notification_prefs,founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at')
+        .select('id,profile_id,shop_id,notification_prefs,founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at,punch_card_quota')
         .eq('profile_id', user.id)
         .maybeSingle()
 

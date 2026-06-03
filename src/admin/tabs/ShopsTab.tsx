@@ -12,6 +12,7 @@ interface ShopOwner {
   punches_issued_total: number
   punches_issued_this_month: number
   punch_quota_reset_at: string | null
+  punch_card_quota: number | null
 }
 
 interface Shop {
@@ -76,13 +77,15 @@ export default function ShopsTab({ isAdmin }: Props) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [revokeConfirm, setRevokeConfirm] = useState<TeamMember | null>(null)
+  const [quotaInput, setQuotaInput] = useState<string>('')
+  const [savingQuota, setSavingQuota] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   async function fetchShops(q: string, p: number) {
     setLoading(true)
     let query = supabase
       .from('coffee_shops')
-      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at)', { count: 'exact' })
+      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at,punch_card_quota)', { count: 'exact' })
       .order('name')
       .range(p * PAGE, p * PAGE + PAGE - 1)
     if (q) query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,address.ilike.%${q}%`)
@@ -130,9 +133,30 @@ export default function ShopsTab({ isAdmin }: Props) {
     if (editTarget) loadTeamMembers(editTarget.id)
   }
 
+  async function saveQuota() {
+    if (!editTarget) return
+    const newQuota = parseInt(quotaInput, 10)
+    if (isNaN(newQuota) || newQuota < 0) return
+    setSavingQuota(true)
+    if (editTarget.shop_owners) {
+      await supabase.from('shop_owners').update({ punch_card_quota: newQuota }).eq('shop_id', editTarget.id)
+    } else {
+      await supabase.from('shop_owners').insert({ shop_id: editTarget.id, punch_card_quota: newQuota })
+    }
+    setSavingQuota(false)
+    const { data } = await supabase
+      .from('coffee_shops')
+      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at,punch_card_quota)')
+      .eq('id', editTarget.id)
+      .single()
+    if (data) setEditTarget(data as any)
+    fetchShops(search, page)
+  }
+
   function openEdit(shop: Shop) {
     setSaveError(null)
     setEditTarget(shop)
+    setQuotaInput(String(shop.shop_owners?.punch_card_quota ?? 0))
     setTeamMembers([])
     loadTeamMembers(shop.id)
     setDraft({
@@ -243,7 +267,7 @@ export default function ShopsTab({ isAdmin }: Props) {
     setFoundingConfirm(null)
     const { data } = await supabase
       .from('coffee_shops')
-      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at)')
+      .select('id,name,city,state,address,website,phone,zip,lat,lng,country,status,claimed_by,created_at,shop_owners(founding_partner,punches_issued_total,punches_issued_this_month,punch_quota_reset_at,punch_card_quota)')
       .eq('id', shopId)
       .single()
     if (data && editTarget?.id === shopId) setEditTarget(data as any)
@@ -394,6 +418,40 @@ export default function ShopsTab({ isAdmin }: Props) {
                     </div>
                   </div>
                 )}
+                {/* Punch card quota */}
+                {isAdmin && editTarget.claimed_by && (
+                  <div className="border border-blue-200 rounded-xl p-3 bg-blue-50/40 space-y-2">
+                    <p className="text-xs font-semibold text-gray-700">Punch Card Quota</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>Used: <span className="font-semibold text-gray-800">{editTarget.shop_owners?.punches_issued_total ?? 0}</span></span>
+                      <span>·</span>
+                      <span>Current quota: <span className="font-semibold text-gray-800">{editTarget.shop_owners?.punch_card_quota ?? 0}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setQuotaInput(v => String(Math.max(0, parseInt(v || '0', 10) - 5)))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 font-bold hover:bg-gray-50 flex items-center justify-center text-sm"
+                      >−</button>
+                      <input
+                        type="number"
+                        min={0}
+                        value={quotaInput}
+                        onChange={e => setQuotaInput(e.target.value)}
+                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-caramel/30"
+                      />
+                      <button
+                        onClick={() => setQuotaInput(v => String(parseInt(v || '0', 10) + 5))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 font-bold hover:bg-gray-50 flex items-center justify-center text-sm"
+                      >+</button>
+                      <button
+                        onClick={saveQuota}
+                        disabled={savingQuota || quotaInput === String(editTarget.shop_owners?.punch_card_quota ?? 0)}
+                        className="px-3 py-1.5 text-xs font-semibold text-white bg-caramel rounded-lg hover:bg-caramel/90 disabled:opacity-40"
+                      >{savingQuota ? '…' : 'Set'}</button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Team members */}
                 <div className="border border-gray-200 rounded-xl p-3 space-y-2">
                   <p className="text-xs font-semibold text-gray-700">Team members</p>

@@ -17,6 +17,7 @@ interface Props {
     punches_issued_total: number
     punches_issued_this_month: number
     punch_quota_reset_at: string | null
+    punch_card_quota: number
   }
 }
 
@@ -64,8 +65,11 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
   const [quotaRequesting, setQuotaRequesting] = useState(false)
 
   const isFoundingPartner = shopOwner.founding_partner
-  const quotaUsed = isFoundingPartner ? shopOwner.punches_issued_total : shopOwner.punches_issued_this_month
-  const quotaMax = isFoundingPartner ? 50 : 10
+  const hasPaidQuota = !isFoundingPartner && (shopOwner.punch_card_quota || 0) > 0
+  const quotaUsed = isFoundingPartner || hasPaidQuota
+    ? shopOwner.punches_issued_total
+    : shopOwner.punches_issued_this_month
+  const quotaMax = isFoundingPartner ? 50 : hasPaidQuota ? (shopOwner.punch_card_quota || 0) : 10
   const quotaRemaining = Math.max(0, quotaMax - quotaUsed)
 
   const resetDate = shopOwner.punch_quota_reset_at
@@ -212,14 +216,14 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
       </div>
 
       {/* Quota banner */}
-      <div className={`rounded-xl p-4 border ${isFoundingPartner ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-100'}`}>
+      <div className={`rounded-xl p-4 border ${isFoundingPartner ? 'bg-amber-50 border-amber-200' : hasPaidQuota ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-100'}`}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-gray-700">
-              {isFoundingPartner ? '⭐ Founding Partner' : 'Monthly Punch Quota'}
+              {isFoundingPartner ? '⭐ Founding Partner' : hasPaidQuota ? '🎁 Punch Card Quota' : 'Monthly Punch Quota'}
             </p>
             <p className="text-sm font-bold text-gray-900 mt-0.5">
-              {quotaUsed} / {quotaMax} {isFoundingPartner ? 'lifetime punches used' : 'punches this month'}
+              {quotaUsed} / {quotaMax} {isFoundingPartner || hasPaidQuota ? 'lifetime punches used' : 'punches this month'}
             </p>
           </div>
           <div className="text-right">
@@ -230,11 +234,11 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
               {quotaRemaining}
             </p>
             <p className="text-xs text-gray-400">
-              {isFoundingPartner ? 'remaining total' : `resets ${resetDate || 'next month'}`}
+              {isFoundingPartner || hasPaidQuota ? 'remaining total' : `resets ${resetDate || 'next month'}`}
             </p>
           </div>
         </div>
-        {!isFoundingPartner && (
+        {!isFoundingPartner && !hasPaidQuota && (
           <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-400 rounded-full transition-all"
