@@ -2,7 +2,7 @@
 // Hidden admin panel — only visible to Moses
 
 import { useState, useEffect } from 'react'
-import { Send, X, CreditCard } from 'lucide-react'
+import { Send, X, CreditCard, Store } from 'lucide-react'
 import { sendBroadcastNotification, sendPushToUser } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 
@@ -24,8 +24,48 @@ interface ShopOwnerRow {
   coffee_shops: { name: string; city: string | null }
 }
 
+interface SubData {
+  id?: string
+  tier: string
+  is_founding: boolean
+  founding_started_at: string | null
+  founding_expires_at: string | null
+  punch_card_limit: number | null
+  addon_punch_cards: number
+  billing_cycle: string
+}
+
+interface SubShop {
+  id: string
+  name: string
+  city: string | null
+  shop_subscriptions: SubData | null
+}
+
+interface AddonRequest {
+  id: string
+  shop_id: string
+  request_type: string
+  message: string | null
+  status: string
+  quantity: number | null
+  created_at: string
+  coffee_shops: { name: string; city: string | null } | null
+}
+
+const TIER_PUNCH_DEFAULTS: Record<string, number> = { basic: 5, middle: 25, premium: 50, founding: 25 }
+
+function requestTypeLabel(type: string): string {
+  if (type === 'punch_cards') return 'Extra Punch Cards'
+  if (type === 'report_weekly') return 'Weekly Report Access'
+  if (type === 'report_consistency') return 'Consistency Report Access'
+  if (type === 'report_custom') return 'Custom Report Access'
+  if (type === 'report_monthly') return 'Monthly Report Access'
+  return type
+}
+
 export default function AdminBroadcast({ currentUserId, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'punch-cards'>('notifications')
+  const [activeTab, setActiveTab] = useState<'notifications' | 'punch-cards' | 'subscriptions'>('notifications')
 
   // Notifications state
   const [title, setTitle] = useState('')
@@ -43,6 +83,16 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [saveResults, setSaveResults] = useState<Record<string, string>>({})
 
+  // Subscriptions state
+  const [subShops, setSubShops] = useState<SubShop[]>([])
+  const [addonRequests, setAddonRequests] = useState<AddonRequest[]>([])
+  const [subLoading, setSubLoading] = useState(false)
+  const [subSearch, setSubSearch] = useState('')
+  const [subEdits, setSubEdits] = useState<Record<string, Partial<SubData>>>({})
+  const [subSavingId, setSubSavingId] = useState<string | null>(null)
+  const [subSaveResults, setSubSaveResults] = useState<Record<string, string>>({})
+  const [reqActionLoading, setReqActionLoading] = useState<string | null>(null)
+
   useEffect(() => {
     if (currentUserId !== ADMIN_USER_ID || activeTab !== 'punch-cards') return
     setPcLoading(true)
@@ -57,6 +107,32 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
         setQuotaInputs(inputs)
         setPcLoading(false)
       })
+  }, [activeTab, currentUserId])
+
+  useEffect(() => {
+    if (currentUserId !== ADMIN_USER_ID || activeTab !== 'subscriptions') return
+    setSubLoading(true)
+    Promise.all([
+      supabase
+        .from('coffee_shops')
+        .select('id, name, city, shop_subscriptions(id, tier, is_founding, founding_started_at, founding_expires_at, punch_card_limit, addon_punch_cards, billing_cycle)')
+        .order('name'),
+      supabase
+        .from('shop_addon_requests')
+        .select('id, shop_id, request_type, message, status, quantity, created_at, coffee_shops(name, city)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false }),
+    ]).then(([{ data: shops }, { data: reqs }]) => {
+      const mapped = (shops || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        city: s.city,
+        shop_subscriptions: Array.isArray(s.shop_subscriptions) ? (s.shop_subscriptions[0] ?? null) : (s.shop_subscriptions ?? null),
+      })) as SubShop[]
+      setSubShops(mapped)
+      setAddonRequests((reqs || []) as unknown as AddonRequest[])
+      setSubLoading(false)
+    })
   }, [activeTab, currentUserId])
 
   if (currentUserId !== ADMIN_USER_ID) return null
@@ -94,6 +170,75 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
     }
   }
 
+  async function saveSubscription(shop: SubShop) {
+    const edit = subEdits[shop.id] || {}
+    const tier = edit.tier ?? shop.shop_subscriptions?.tier ?? 'basic'
+    const isFounding = tier === 'founding'
+    const nowIso = new Date().toISOString()
+    const sixMonths = new Date(Date.now() + 180 * 86400000).toISOString()
+
+    const payload: Record<string, unknown> = {
+      shop_id: shop.id,
+      tier,
+      is_founding: isFounding,
+      founding_started_at: isFounding
+        ? (shop.shop_subscriptions?.founding_started_at ?? nowIso)
+        : null,
+      founding_expires_at: isFounding ? sixMonths : null,
+      punch_card_limit: edit.punch_card_limit !== undefined
+        ? edit.punch_card_limit
+        : shop.shop_subscriptions?.punch_card_limit ?? null,
+      addon_punch_cards: edit.addon_punch_cards !== undefined
+        ? edit.addon_punch_cards
+        : (shop.shop_subscriptions?.addon_punch_cards ?? 0),
+      billing_cycle: edit.billing_cycle ?? shop.shop_subscriptions?.billing_cycle ?? 'monthly',
+      set_by: currentUserId,
+    }
+
+    setSubSavingId(shop.id)
+    const { error } = await supabase
+      .from('shop_subscriptions')
+      .upsert(payload, { onConflict: 'shop_id' })
+    setSubSavingId(null)
+    setSubSaveResults(r => ({ ...r, [shop.id]: error ? '✗ Error' : '✓ Saved' }))
+    setTimeout(() => setSubSaveResults(r => { const n = { ...r }; delete n[shop.id]; return n }), 2500)
+    if (!error) {
+      setSubShops(prev =>
+        prev.map(s =>
+          s.id === shop.id
+            ? { ...s, shop_subscriptions: { ...(s.shop_subscriptions ?? {}), ...payload, id: s.shop_subscriptions?.id } as SubData }
+            : s
+        )
+      )
+      setSubEdits(e => { const n = { ...e }; delete n[shop.id]; return n })
+    }
+  }
+
+  async function handleAddonRequest(req: AddonRequest, action: 'contacted' | 'approved' | 'declined') {
+    setReqActionLoading(req.id)
+    const update: Record<string, unknown> = {
+      status: action,
+      reviewed_by: action !== 'contacted' ? currentUserId : undefined,
+      reviewed_at: action !== 'contacted' ? new Date().toISOString() : undefined,
+    }
+    await supabase.from('shop_addon_requests').update(update).eq('id', req.id)
+
+    if (action === 'approved' && req.request_type === 'punch_cards' && req.quantity) {
+      const { data: sub } = await supabase
+        .from('shop_subscriptions')
+        .select('addon_punch_cards')
+        .eq('shop_id', req.shop_id)
+        .maybeSingle()
+      const current = (sub as any)?.addon_punch_cards ?? 0
+      await supabase
+        .from('shop_subscriptions')
+        .upsert({ shop_id: req.shop_id, addon_punch_cards: current + req.quantity }, { onConflict: 'shop_id' })
+    }
+
+    setAddonRequests(prev => prev.filter(r => r.id !== req.id))
+    setReqActionLoading(null)
+  }
+
   const filteredOwners = shopOwners.filter(o => {
     if (!pcSearch.trim()) return true
     const q = pcSearch.toLowerCase()
@@ -102,6 +247,18 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
       o.profiles?.username?.toLowerCase().includes(q) ||
       (o.coffee_shops?.city ?? '').toLowerCase().includes(q)
     )
+  })
+
+  const filteredSubShops = subShops.filter(s => {
+    if (!subSearch.trim()) return true
+    const q = subSearch.toLowerCase()
+    return s.name.toLowerCase().includes(q) || (s.city ?? '').toLowerCase().includes(q)
+  })
+
+  const filteredRequests = addonRequests.filter(r => {
+    if (!subSearch.trim()) return true
+    const q = subSearch.toLowerCase()
+    return (r.coffee_shops?.name ?? '').toLowerCase().includes(q) || (r.coffee_shops?.city ?? '').toLowerCase().includes(q)
   })
 
   return (
@@ -129,12 +286,17 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
           >
             <CreditCard size={13} /> Punch Cards
           </button>
+          <button
+            onClick={() => setActiveTab('subscriptions')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'subscriptions' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
+          >
+            <Store size={13} /> Subscriptions
+          </button>
         </div>
 
-        {/* Notifications tab */}
+        {/* ── Notifications tab ──────────────────────────────────────── */}
         {activeTab === 'notifications' && (
           <>
-            {/* Mode toggle */}
             <div className="flex rounded-xl bg-cream-100 p-1 mb-4">
               {(['broadcast', 'single'] as const).map(m => (
                 <button
@@ -180,7 +342,6 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
               />
             </div>
 
-            {/* Quick fill buttons */}
             <div className="flex gap-2 mb-4">
               <button
                 onClick={fillApology}
@@ -212,7 +373,7 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
           </>
         )}
 
-        {/* Punch Cards tab */}
+        {/* ── Punch Cards tab ────────────────────────────────────────── */}
         {activeTab === 'punch-cards' && (
           <>
             <input
@@ -291,6 +452,181 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
                   </div>
                 ))}
               </div>
+            )}
+          </>
+        )}
+
+        {/* ── Subscriptions tab ──────────────────────────────────────── */}
+        {activeTab === 'subscriptions' && (
+          <>
+            <input
+              value={subSearch}
+              onChange={e => setSubSearch(e.target.value)}
+              placeholder="Search by shop or city..."
+              className="w-full border border-cream-200 rounded-xl px-3 py-2.5 text-sm text-coffee-800 focus:outline-none focus:border-caramel mb-5"
+            />
+
+            {subLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Pending addon requests */}
+                {filteredRequests.length > 0 && (
+                  <div className="mb-6">
+                    <p className="text-coffee-500 text-xs font-semibold mb-3 uppercase tracking-wide">Pending Requests</p>
+                    <div className="space-y-3">
+                      {filteredRequests.map(req => (
+                        <div key={req.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <p className="text-coffee-800 font-semibold text-sm">{req.coffee_shops?.name ?? 'Unknown shop'}</p>
+                              {req.coffee_shops?.city && <p className="text-coffee-400 text-xs">{req.coffee_shops.city}</p>}
+                            </div>
+                            <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap">
+                              {requestTypeLabel(req.request_type)}
+                            </span>
+                          </div>
+                          {req.quantity && <p className="text-coffee-500 text-xs mb-1">Quantity: {req.quantity}</p>}
+                          {req.message && (
+                            <p className="text-coffee-600 text-xs italic bg-white/60 rounded-xl px-3 py-2 mb-3">"{req.message}"</p>
+                          )}
+                          <p className="text-coffee-400 text-xs mb-3">
+                            {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={reqActionLoading === req.id}
+                              onClick={() => handleAddonRequest(req, 'contacted')}
+                              className="flex-1 border border-cream-300 bg-white text-coffee-600 rounded-xl py-1.5 text-xs font-medium disabled:opacity-50"
+                            >
+                              Mark Contacted
+                            </button>
+                            <button
+                              disabled={reqActionLoading === req.id}
+                              onClick={() => handleAddonRequest(req, 'approved')}
+                              className="flex-1 bg-green-500 text-white rounded-xl py-1.5 text-xs font-medium disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              disabled={reqActionLoading === req.id}
+                              onClick={() => handleAddonRequest(req, 'declined')}
+                              className="flex-1 bg-red-100 text-red-600 rounded-xl py-1.5 text-xs font-medium disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Shop subscription list */}
+                <p className="text-coffee-500 text-xs font-semibold mb-3 uppercase tracking-wide">Shop Plans</p>
+                <div className="space-y-3">
+                  {filteredSubShops.map(shop => {
+                    const edit = subEdits[shop.id] || {}
+                    const tier = edit.tier ?? shop.shop_subscriptions?.tier ?? 'basic'
+                    const punchLimit = edit.punch_card_limit !== undefined
+                      ? edit.punch_card_limit
+                      : shop.shop_subscriptions?.punch_card_limit ?? null
+                    const addonPunches = edit.addon_punch_cards !== undefined
+                      ? edit.addon_punch_cards
+                      : (shop.shop_subscriptions?.addon_punch_cards ?? 0)
+                    const billingCycle = edit.billing_cycle ?? shop.shop_subscriptions?.billing_cycle ?? 'monthly'
+                    const effectiveBase = punchLimit ?? TIER_PUNCH_DEFAULTS[tier] ?? 5
+                    const effectiveTotal = effectiveBase + addonPunches
+
+                    function setEdit(patch: Partial<SubData>) {
+                      setSubEdits(e => ({ ...e, [shop.id]: { ...(e[shop.id] || {}), ...patch } }))
+                    }
+
+                    return (
+                      <div key={shop.id} className="bg-cream-50 border border-cream-200 rounded-2xl p-4">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div>
+                            <p className="text-coffee-800 font-semibold text-sm">{shop.name}</p>
+                            {shop.city && <p className="text-coffee-400 text-xs">{shop.city}</p>}
+                          </div>
+                          {tier === 'founding' && (
+                            <span className="bg-caramel/10 text-caramel text-xs font-bold px-2 py-0.5 rounded-full border border-caramel/20">⭐ Founding</span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div>
+                            <label className="text-coffee-500 text-xs font-medium block mb-1">Tier</label>
+                            <select
+                              value={tier}
+                              onChange={e => {
+                                const t = e.target.value
+                                setEdit({ tier: t, is_founding: t === 'founding' })
+                              }}
+                              className="w-full border border-cream-200 rounded-xl px-3 py-2 text-sm text-coffee-800 focus:outline-none focus:border-caramel bg-white"
+                            >
+                              <option value="basic">Basic</option>
+                              <option value="middle">Middle</option>
+                              <option value="premium">Premium</option>
+                              <option value="founding">Founding</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-coffee-500 text-xs font-medium block mb-1">Billing</label>
+                            <select
+                              value={billingCycle}
+                              onChange={e => setEdit({ billing_cycle: e.target.value })}
+                              className="w-full border border-cream-200 rounded-xl px-3 py-2 text-sm text-coffee-800 focus:outline-none focus:border-caramel bg-white"
+                            >
+                              <option value="monthly">Monthly</option>
+                              <option value="annual">Annual</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <label className="text-coffee-500 text-xs font-medium block mb-1">Punch limit override</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={punchLimit ?? ''}
+                              placeholder={`Default (${TIER_PUNCH_DEFAULTS[tier] ?? 5})`}
+                              onChange={e => setEdit({ punch_card_limit: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-full border border-cream-200 rounded-xl px-3 py-2 text-sm text-coffee-800 focus:outline-none focus:border-caramel"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-coffee-500 text-xs font-medium block mb-1">Addon punch cards</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={addonPunches}
+                              onChange={e => setEdit({ addon_punch_cards: Number(e.target.value) })}
+                              className="w-full border border-cream-200 rounded-xl px-3 py-2 text-sm text-coffee-800 focus:outline-none focus:border-caramel"
+                            />
+                          </div>
+                        </div>
+
+                        <p className="text-coffee-400 text-xs mb-3">Effective limit: <span className="font-semibold text-coffee-600">{effectiveTotal}/month</span></p>
+
+                        <button
+                          disabled={subSavingId === shop.id}
+                          onClick={() => saveSubscription(shop)}
+                          className="w-full bg-caramel text-white rounded-xl py-2 text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                        >
+                          {subSavingId === shop.id ? 'Saving...' : subSaveResults[shop.id] || 'Save'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                  {filteredSubShops.length === 0 && (
+                    <p className="text-coffee-400 text-sm text-center py-8">No shops found</p>
+                  )}
+                </div>
+              </>
             )}
           </>
         )}

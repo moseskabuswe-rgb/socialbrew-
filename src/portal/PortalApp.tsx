@@ -11,8 +11,9 @@ import PortalPunchCard from './pages/PortalPunchCard'
 import PortalScanner from './pages/PortalScanner'
 import PortalStories from './pages/PortalStories'
 import PortalTeam from './pages/PortalTeam'
+import PortalReports from './pages/PortalReports'
 
-export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'stories' | 'messages' | 'punchcard' | 'scanner' | 'settings' | 'team'
+export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'stories' | 'messages' | 'punchcard' | 'scanner' | 'settings' | 'team' | 'reports'
 export type PortalRole = 'owner' | 'manager' | 'barista'
 
 interface ShopOwner {
@@ -42,6 +43,7 @@ interface Shop {
 const NAV_OWNER: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'mentions', label: 'Reviews', icon: '⭐' },
+  { id: 'reports', label: 'Reports', icon: '📈' },
   { id: 'posts', label: 'Posts', icon: '📢' },
   { id: 'stories', label: 'Stories', icon: '📸' },
   { id: 'messages', label: 'Messages', icon: '💬' },
@@ -55,6 +57,7 @@ const NAV_OWNER: { id: PortalTab; label: string; icon: string }[] = [
 const NAV_MANAGER: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'mentions', label: 'Reviews', icon: '⭐' },
+  { id: 'reports', label: 'Reports', icon: '📈' },
   { id: 'posts', label: 'Posts', icon: '📢' },
   { id: 'punchcard', label: 'Punch Card', icon: '🎫' },
   { id: 'scanner', label: 'Scan QR', icon: '📷' },
@@ -247,6 +250,7 @@ export default function PortalApp() {
             <div className="max-w-sm mx-auto py-12 text-center text-coffee-400 text-sm">Punch card stats are available to shop owners.</div>
           )}
           {activeTab === 'scanner' && <PortalScanner shop={shop} userId={userId} />}
+          {activeTab === 'reports' && <PortalReports shop={shop} userId={userId!} />}
           {activeTab === 'team' && portalRole === 'owner' && <PortalTeam shop={shop} userId={userId} />}
           {activeTab === 'settings' && (
             <PortalSettings
