@@ -30,7 +30,7 @@ interface SubData {
   is_founding: boolean
   founding_started_at: string | null
   founding_expires_at: string | null
-  punch_card_limit: number | null
+  punch_card_limit_override: number | null
   addon_punch_cards: number
   billing_cycle: string
 }
@@ -115,7 +115,7 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
     Promise.all([
       supabase
         .from('coffee_shops')
-        .select('id, name, city, shop_subscriptions(id, tier, is_founding, founding_started_at, founding_expires_at, punch_card_limit, addon_punch_cards, billing_cycle)')
+        .select('id, name, city, shop_subscriptions(id, tier, is_founding, founding_started_at, founding_expires_at, punch_card_limit_override, addon_punch_cards, billing_cycle)')
         .order('name'),
       supabase
         .from('shop_addon_requests')
@@ -185,9 +185,9 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
         ? (shop.shop_subscriptions?.founding_started_at ?? nowIso)
         : null,
       founding_expires_at: isFounding ? sixMonths : null,
-      punch_card_limit: edit.punch_card_limit !== undefined
-        ? edit.punch_card_limit
-        : shop.shop_subscriptions?.punch_card_limit ?? null,
+      punch_card_limit_override: edit.punch_card_limit_override !== undefined
+        ? edit.punch_card_limit_override
+        : shop.shop_subscriptions?.punch_card_limit_override ?? null,
       addon_punch_cards: edit.addon_punch_cards !== undefined
         ? edit.addon_punch_cards
         : (shop.shop_subscriptions?.addon_punch_cards ?? 0),
@@ -530,9 +530,9 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
                   {filteredSubShops.map(shop => {
                     const edit = subEdits[shop.id] || {}
                     const tier = edit.tier ?? shop.shop_subscriptions?.tier ?? 'basic'
-                    const punchLimit = edit.punch_card_limit !== undefined
-                      ? edit.punch_card_limit
-                      : shop.shop_subscriptions?.punch_card_limit ?? null
+                    const punchLimit = edit.punch_card_limit_override !== undefined
+                      ? edit.punch_card_limit_override
+                      : shop.shop_subscriptions?.punch_card_limit_override ?? null
                     const addonPunches = edit.addon_punch_cards !== undefined
                       ? edit.addon_punch_cards
                       : (shop.shop_subscriptions?.addon_punch_cards ?? 0)
@@ -594,7 +594,7 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
                               min={0}
                               value={punchLimit ?? ''}
                               placeholder={`Default (${TIER_PUNCH_DEFAULTS[tier] ?? 5})`}
-                              onChange={e => setEdit({ punch_card_limit: e.target.value === '' ? null : Number(e.target.value) })}
+                              onChange={e => setEdit({ punch_card_limit_override: e.target.value === '' ? null : Number(e.target.value) })}
                               className="w-full border border-cream-200 rounded-xl px-3 py-2 text-sm text-coffee-800 focus:outline-none focus:border-caramel"
                             />
                           </div>

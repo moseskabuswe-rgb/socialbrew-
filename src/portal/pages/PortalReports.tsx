@@ -39,7 +39,7 @@ export default function PortalReports({ shop, userId }: Props) {
   const [requestDone, setRequestDone] = useState<Set<ReportType>>(new Set())
 
   useEffect(() => {
-    supabase.rpc('get_shop_tier_features', { shop_id: shop.id }).then(({ data }) => {
+    supabase.rpc('get_shop_tier_features', { p_shop_id: shop.id }).then(({ data }) => {
       setFeatures(data as TierFeatures)
       setLoading(false)
     })
@@ -65,9 +65,11 @@ export default function PortalReports({ shop, userId }: Props) {
   }
 
   function FoundingBanner() {
-    if (!features || features.tier !== 'founding' || !features.founding_expires_at) return null
+    if (!features || !features.founding_expires_at) return null
     const expires = new Date(features.founding_expires_at)
     const daysLeft = Math.ceil((expires.getTime() - Date.now()) / 86400000)
+
+    // Expired founding — function returns tier:'basic' but founding_expires_at is still set and in the past
     if (daysLeft <= 0) {
       return (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-sm text-red-700">
@@ -75,7 +77,8 @@ export default function PortalReports({ shop, userId }: Props) {
         </div>
       )
     }
-    if (daysLeft <= 30) {
+    // Active founding, expiring within 30 days
+    if (features.tier === 'founding' && daysLeft <= 30) {
       return (
         <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm text-amber-700">
           Your Founding Partner period ends {expires.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Choose a plan to keep full access.

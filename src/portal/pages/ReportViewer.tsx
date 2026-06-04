@@ -16,7 +16,7 @@ interface Rating {
   visit_time: string | null
   vibe_tags: string[] | null
   caption: string | null
-  drink_price: number | null
+  drink_price: string | number | null
   visited_at: string | null
   created_at: string
   user_id: string
@@ -202,8 +202,8 @@ export default function ReportViewer({
   const earlyAvg = earlyRatings.length ? Math.round(earlyRatings.reduce((s, r) => s + r.fill_level, 0) / earlyRatings.length) : null
   const lateAvg = lateRatings.length ? Math.round(lateRatings.reduce((s, r) => s + r.fill_level, 0) / lateRatings.length) : null
 
-  // Price
-  const prices = ratings.filter(r => r.drink_price && r.drink_price > 0).map(r => r.drink_price!)
+  // Price — drink_price is numeric in Postgres, returned as string by Supabase
+  const prices = ratings.filter(r => r.drink_price && Number(r.drink_price) > 0).map(r => Number(r.drink_price))
   const avgPrice = prices.length ? (prices.reduce((s, p) => s + p, 0) / prices.length).toFixed(2) : null
 
   // Narrative
