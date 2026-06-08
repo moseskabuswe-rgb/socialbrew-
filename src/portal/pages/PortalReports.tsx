@@ -97,6 +97,17 @@ export default function PortalReports({ shop, userId }: Props) {
       message: requestMessage,
       status: 'pending',
     })
+    // Notify admin about the new request (fire-and-forget)
+    supabase.functions.invoke('notify-admin', {
+      body: {
+        type: 'new_addon_request',
+        data: {
+          shop_name: shop.name,
+          request_type: `report_${type}`,
+          message: requestMessage || null,
+        },
+      },
+    })
     setRequestSubmitting(false)
     setRequestDone(s => new Set([...s, type]))
     setRequestModal(null)

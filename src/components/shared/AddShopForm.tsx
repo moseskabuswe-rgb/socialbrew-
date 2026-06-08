@@ -136,6 +136,19 @@ export default function AddShopForm({ initialName = '', onClose, onShopCreated }
       if (insertErr) throw insertErr
       if (!newShop) throw new Error('No data returned from insert')
 
+      // Notify admin about the new community shop (fire-and-forget)
+      supabase.functions.invoke('notify-admin', {
+        body: {
+          type: 'new_shop',
+          data: {
+            shop_name: name.trim(),
+            city: city.trim(),
+            state: state.trim() || null,
+            added_by_username: profile.username,
+          },
+        },
+      })
+
       onShopCreated(newShop)
     } catch (err: any) {
       const msg = err?.message || err?.details || JSON.stringify(err)

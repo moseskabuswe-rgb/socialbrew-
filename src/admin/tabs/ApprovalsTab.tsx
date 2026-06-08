@@ -204,6 +204,23 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       reviewed_by: currentUserId,
       reviewed_at: new Date().toISOString(),
     }).eq('id', id)
+
+    // Email the claimant about the rejection
+    const claim = claims.find(c => c.id === id)
+    if (claim?.claimant_email) {
+      const shopName = claim.new_shop_data?.name || (claim.coffee_shops as any)?.name || 'your shop'
+      supabase.functions.invoke('notify-admin', {
+        body: {
+          type: 'claim_rejected',
+          data: {
+            claimant_email: claim.claimant_email,
+            shop_name: shopName,
+            reason: rejectReason || null,
+          },
+        },
+      })
+    }
+
     setWorking(false)
     setRejectTarget(null)
     setRejectReason('')

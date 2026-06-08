@@ -12,8 +12,9 @@ import PortalScanner from './pages/PortalScanner'
 import PortalStories from './pages/PortalStories'
 import PortalTeam from './pages/PortalTeam'
 import PortalReports from './pages/PortalReports'
+import PortalRoastProfile from './pages/PortalRoastProfile'
 
-export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'stories' | 'messages' | 'punchcard' | 'scanner' | 'settings' | 'team' | 'reports'
+export type PortalTab = 'dashboard' | 'mentions' | 'edit' | 'posts' | 'stories' | 'messages' | 'punchcard' | 'scanner' | 'settings' | 'team' | 'reports' | 'roast'
 export type PortalRole = 'owner' | 'manager' | 'barista'
 
 interface ShopOwner {
@@ -50,6 +51,7 @@ const NAV_OWNER: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'edit', label: 'Edit Shop', icon: '✏️' },
   { id: 'punchcard', label: 'Punch Card', icon: '🎫' },
   { id: 'scanner', label: 'Scan QR', icon: '📷' },
+  { id: 'roast', label: 'Roast Profile', icon: '☕' },
   { id: 'team', label: 'Team', icon: '👥' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
@@ -251,6 +253,7 @@ export default function PortalApp() {
           )}
           {activeTab === 'scanner' && <PortalScanner shop={shop} userId={userId} />}
           {activeTab === 'reports' && <PortalReports shop={shop} userId={userId!} />}
+          {activeTab === 'roast' && portalRole === 'owner' && <PortalRoastProfile shop={shop} />}
           {activeTab === 'team' && portalRole === 'owner' && <PortalTeam shop={shop} userId={userId} />}
           {activeTab === 'settings' && (
             <PortalSettings

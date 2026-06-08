@@ -147,6 +147,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [followLoading, setFollowLoading] = useState(false)
   const [showClaim, setShowClaim] = useState(false)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+  const [shopPosts, setShopPosts] = useState<any[]>([])
 
   const isInDb = !String(shop.id).startsWith('osm-') &&
     !String(shop.id).startsWith('fsq-') &&
@@ -226,6 +227,16 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             setFriendRatings(ratings.filter((r: any) => followingIds.has(r.user_id)))
           }
         }
+
+        // Fetch approved shop posts
+        const { data: posts } = await supabase
+          .from('shop_posts')
+          .select('id,title,body,photo_url,category,created_at')
+          .eq('shop_id', shopId)
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        setShopPosts(posts || [])
       } finally {
         setLoading(false)
       }
@@ -403,6 +414,35 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         </div>
       )}
 
+      {/* Roast Profile */}
+      {(() => {
+        const rp = (resolvedShop as any).roast_profile
+        if (!rp) return null
+        const hasContent = rp.roaster || rp.roast_levels?.length || rp.origins?.length || rp.brew_methods?.length || rp.notes
+        if (!hasContent) return null
+        return (
+          <div className="bg-white border-b border-cream-200 px-4 py-3 flex-shrink-0 space-y-2">
+            {rp.roaster && (
+              <p className="text-coffee-700 text-xs font-semibold">☕ {rp.roaster}</p>
+            )}
+            <div className="flex flex-wrap gap-1">
+              {(rp.roast_levels || []).map((l: string) => (
+                <span key={l} className="bg-coffee-100 text-coffee-600 px-2 py-0.5 rounded-full text-xs border border-coffee-200">{l}</span>
+              ))}
+              {(rp.origins || []).map((o: string) => (
+                <span key={o} className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-xs border border-green-100">{o}</span>
+              ))}
+              {(rp.brew_methods || []).map((m: string) => (
+                <span key={m} className="bg-caramel/10 text-caramel px-2 py-0.5 rounded-full text-xs border border-caramel/20">{m}</span>
+              ))}
+            </div>
+            {rp.notes && (
+              <p className="text-coffee-500 text-xs italic border-l-2 border-caramel/30 pl-2">"{rp.notes}"</p>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Tabs */}
       <div className="flex bg-white border-b border-cream-200 flex-shrink-0">
         {tabs.map(t => (
@@ -426,6 +466,28 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         {loading && activeTab === 'ratings' && (
           <div className="flex justify-center py-12">
             <div className="w-7 h-7 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+          </div>
+        )}
+
+        {!loading && activeTab === 'ratings' && shopPosts.length > 0 && tab === 'overview' && (
+          <div className="px-4 pt-4 space-y-2">
+            <p className="text-xs font-semibold text-coffee-500 uppercase tracking-wide">From the shop</p>
+            <div className="space-y-2 mb-4">
+              {shopPosts.map(post => (
+                <div key={post.id} className="bg-white rounded-2xl border border-cream-200 p-3 shadow-sm">
+                  {post.photo_url && (
+                    <div className="w-full aspect-video overflow-hidden rounded-xl mb-2">
+                      <img src={post.photo_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                  )}
+                  <p className="text-coffee-700 font-semibold text-sm leading-tight">{post.title}</p>
+                  {post.body && (
+                    <p className="text-coffee-500 text-xs mt-1 leading-relaxed line-clamp-3">{post.body}</p>
+                  )}
+                  <p className="text-coffee-300 text-xs mt-1.5">{new Date(post.created_at).toLocaleDateString()}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
