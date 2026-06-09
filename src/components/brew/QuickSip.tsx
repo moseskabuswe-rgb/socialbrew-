@@ -10,11 +10,13 @@ import { tryAwardPunch, type PunchAwardResult } from '../../lib/punchCard'
 type Props = { onClose: () => void; onComplete: () => void }
 
 function getMugStyle(fill: number) {
-  if (fill === 0)  return { liquid: 'transparent', crema: 'transparent', glow: 'none',                  label: 'Slide to rate', color: '#c4b090' }
-  if (fill <= 25)  return { liquid: '#b0c4d4',     crema: '#ccdde8',     glow: 'rgba(176,196,212,0.3)', label: 'Just a Sip',    color: '#7a9aac' }
-  if (fill <= 50)  return { liquid: '#c8924a',     crema: '#dba96a',     glow: 'rgba(200,146,74,0.35)', label: 'Getting There', color: '#c8924a' }
-  if (fill <= 75)  return { liquid: '#a06428',     crema: '#c07c38',     glow: 'rgba(160,100,40,0.4)',  label: 'Good Pour',     color: '#a06428' }
-  return             { liquid: '#4e2008',     crema: '#7a3a12',     glow: 'rgba(210,140,60,0.6)',  label: '✨ Loved it',   color: '#c8853a' }
+  if (fill === 0)  return { liquid: 'transparent', crema: 'transparent', glow: 'none',                    label: 'Slide to rate',   color: '#c4b090' }
+  if (fill <= 20)  return { liquid: '#b0c4d4',     crema: '#ccdde8',     glow: 'rgba(176,196,212,0.25)',  label: 'Just a Sip',      color: '#7a9aac' }
+  if (fill <= 40)  return { liquid: '#c8924a',     crema: '#dba96a',     glow: 'rgba(200,146,74,0.3)',    label: 'Getting There',   color: '#c8924a' }
+  if (fill <= 60)  return { liquid: '#a06428',     crema: '#c07c38',     glow: 'rgba(160,100,40,0.38)',   label: 'Half Cup',        color: '#a06428' }
+  if (fill <= 80)  return { liquid: '#7a3e10',     crema: '#9a5420',     glow: 'rgba(122,62,16,0.45)',    label: 'Good Pour',       color: '#a06428' }
+  if (fill <= 95)  return { liquid: '#4e2008',     crema: '#6e3410',     glow: 'rgba(210,140,60,0.6)',    label: 'Almost Perfect',  color: '#c8853a' }
+  return             { liquid: '#2e1004',     crema: '#4e2008',     glow: 'rgba(230,160,60,0.8)',    label: '✨ Perfect Brew',  color: '#c8853a' }
 }
 
 const HINT_KEY = 'sb_mug_hint_seen'

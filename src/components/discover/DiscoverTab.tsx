@@ -630,13 +630,19 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
                   <div className="relative h-44 bg-coffee-100 overflow-hidden">
                     <img src={photo} alt={shop.name} loading="lazy" className="w-full h-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).src = FALLBACK_PHOTOS[0] }} />
-                    {isInDb && shop.is_certified && (
+                    {isInDb && (shop as any).claimed_by && (
+                      <div className="absolute top-3 right-3 bg-white/90 rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
+                        <CheckCircle size={11} className="text-caramel" />
+                        <span className="text-coffee-700 text-xs font-semibold">Claimed</span>
+                      </div>
+                    )}
+                    {isInDb && !(shop as any).claimed_by && shop.is_certified && (
                       <div className="absolute top-3 right-3 bg-white/90 rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
                         <CheckCircle size={11} className="text-caramel" />
                         <span className="text-coffee-700 text-xs font-semibold">Verified</span>
                       </div>
                     )}
-                    {isInDb && !shop.is_certified && !(shop as any).is_verified && (
+                    {isInDb && !shop.is_certified && !(shop as any).is_verified && !(shop as any).claimed_by && (
                       <div className="absolute top-3 right-3 bg-white/90 rounded-full px-2.5 py-1 flex items-center gap-1 shadow">
                         <span className="text-xs">🌱</span>
                         <span className="text-coffee-500 text-xs font-medium">Community</span>

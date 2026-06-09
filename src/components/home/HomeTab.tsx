@@ -1162,6 +1162,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
           const { data: profiles } = await supabase.from('profiles')
             .select('id, username, full_name, avatar_url, badge')
             .neq('id', profile.id)
+            .eq('is_portal_only', false)
             .limit(30)
           const suggestions = (profiles || []).filter(p => !followedIds.has(p.id)).slice(0, 8)
           setSuggestedUsers(suggestions)

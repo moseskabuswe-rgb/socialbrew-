@@ -55,6 +55,12 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [drinkPrice, setDrinkPrice] = useState('')
   const [pricePerception, setPricePerception] = useState('')
   const [showPriceOnPost, setShowPriceOnPost] = useState(true)
+  // Analytics-only fields (not shown on posts)
+  const [waitTime, setWaitTime] = useState('')
+  const [seating, setSeating] = useState('')
+  const [wifi, setWifi] = useState('')
+  const [plugs, setPlugs] = useState('')
+  const [music, setMusic] = useState('')
   const [addToStory, setAddToStory] = useState(false)
   const [createdRatingId, setCreatedRatingId] = useState<string | null>(null)
   const [showStoryCreate, setShowStoryCreate] = useState(false)
@@ -209,6 +215,11 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       drink_price: priceValue,
       price_perception: pricePerception || null,
       show_price: showPriceOnPost,
+      wait_time: waitTime || null,
+      seating: seating || null,
+      wifi: wifi || null,
+      plugs: plugs || null,
+      music: music || null,
     })
 
     if (insertError) {
@@ -714,6 +725,96 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
                 </div>
               )}
             </div>
+            {/* Analytics-only questions — not shown on posts */}
+            <div className="mb-5 pt-4 border-t border-stone-100">
+              <p className="text-stone-400 text-xs uppercase tracking-wider mb-4">Help shops improve <span className="normal-case text-stone-300">(not on post)</span></p>
+
+              {/* Wait time */}
+              <div className="mb-4">
+                <p className="text-stone-600 text-xs font-semibold mb-2">⏱ Wait time</p>
+                <div className="flex gap-2">
+                  {[{ key: 'short', label: 'Short (<5 min)' }, { key: 'medium', label: '5–10 min' }, { key: 'long', label: 'Long (10+)' }].map(opt => (
+                    <button key={opt.key}
+                      onClick={() => setWaitTime(waitTime === opt.key ? '' : opt.key)}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all"
+                      style={waitTime === opt.key
+                        ? { background: '#c8853a', color: '#fff', borderColor: '#c8853a' }
+                        : { background: '#f5ead8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Seating */}
+              <div className="mb-4">
+                <p className="text-stone-600 text-xs font-semibold mb-2">🪑 Seating</p>
+                <div className="flex gap-2">
+                  {[{ key: 'plenty', label: 'Plenty' }, { key: 'limited', label: 'Limited' }, { key: 'packed', label: 'Packed' }].map(opt => (
+                    <button key={opt.key}
+                      onClick={() => setSeating(seating === opt.key ? '' : opt.key)}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all"
+                      style={seating === opt.key
+                        ? { background: '#c8853a', color: '#fff', borderColor: '#c8853a' }
+                        : { background: '#f5ead8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Wifi */}
+              <div className="mb-4">
+                <p className="text-stone-600 text-xs font-semibold mb-2">📶 Wifi</p>
+                <div className="flex gap-2">
+                  {[{ key: 'fast', label: 'Fast' }, { key: 'slow', label: 'Slow' }, { key: 'none', label: 'None' }].map(opt => (
+                    <button key={opt.key}
+                      onClick={() => setWifi(wifi === opt.key ? '' : opt.key)}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all"
+                      style={wifi === opt.key
+                        ? { background: '#c8853a', color: '#fff', borderColor: '#c8853a' }
+                        : { background: '#f5ead8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Plugs */}
+              <div className="mb-4">
+                <p className="text-stone-600 text-xs font-semibold mb-2">🔌 Outlets</p>
+                <div className="flex gap-2">
+                  {[{ key: 'lots', label: 'Lots' }, { key: 'some', label: 'Some' }, { key: 'none', label: 'None' }].map(opt => (
+                    <button key={opt.key}
+                      onClick={() => setPlugs(plugs === opt.key ? '' : opt.key)}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all"
+                      style={plugs === opt.key
+                        ? { background: '#c8853a', color: '#fff', borderColor: '#c8853a' }
+                        : { background: '#f5ead8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Music loudness */}
+              <div className="mb-1">
+                <p className="text-stone-600 text-xs font-semibold mb-2">🎵 Music</p>
+                <div className="flex gap-2">
+                  {[{ key: 'silent', label: 'Silent' }, { key: 'soft', label: 'Soft' }, { key: 'moderate', label: 'Moderate' }, { key: 'loud', label: 'Loud' }].map(opt => (
+                    <button key={opt.key}
+                      onClick={() => setMusic(music === opt.key ? '' : opt.key)}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all"
+                      style={music === opt.key
+                        ? { background: '#c8853a', color: '#fff', borderColor: '#c8853a' }
+                        : { background: '#f5ead8', color: '#7a5030', borderColor: '#e5d5c0' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <button onClick={handleSubmit}
               className="w-full py-3.5 rounded-2xl font-semibold text-white mt-4 flex items-center justify-center gap-2"
               style={{ background: `linear-gradient(135deg, ${s.liquid}, #9b5e1a)`, boxShadow: `0 8px 30px ${s.glow}` }}>
