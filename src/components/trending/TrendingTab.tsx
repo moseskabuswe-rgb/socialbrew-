@@ -3,7 +3,6 @@ import { TrendingUp, Zap, Crown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { CoffeeShop } from '../../lib/supabase'
 import ShopDetailPage from '../shared/ShopDetailPage'
-import VerifiedBadge from '../shared/VerifiedBadge'
 
 export default function TrendingTab() {
   const [shops, setShops] = useState<CoffeeShop[]>([])
@@ -83,7 +82,6 @@ export default function TrendingTab() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <p className="text-white font-display font-bold text-xl">{spotlight.name}</p>
-                  {spotlight.verified && <VerifiedBadge size={16} />}
                 </div>
                 <p className="text-cream-300 text-xs mt-0.5">{spotlight.city}, {spotlight.state}</p>
                 <div className="flex items-center gap-2 mt-2">
@@ -125,7 +123,6 @@ export default function TrendingTab() {
                   <div className="p-2.5">
                     <div className="flex items-center gap-1">
                       <p className="text-coffee-800 font-semibold text-xs leading-tight line-clamp-2">{shop.name}</p>
-                      {shop.verified && <VerifiedBadge size={12} />}
                     </div>
                     <p className="text-coffee-400 text-xs mt-0.5">{shop.city}</p>
                     <p className="text-caramel text-xs font-semibold mt-1 flex items-center gap-0.5">
@@ -157,7 +154,6 @@ export default function TrendingTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-coffee-800 font-semibold text-sm truncate">{shop.name}</p>
-                      {shop.verified && <VerifiedBadge size={14} />}
                     </div>
                     <p className="text-coffee-400 text-xs">{shop.city}</p>
                   </div>
