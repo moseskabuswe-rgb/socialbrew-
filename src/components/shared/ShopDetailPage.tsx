@@ -371,7 +371,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             <Heart size={13} className="text-caramel" />
             <span><span className="font-semibold text-coffee-700">{followerCount}</span> follower{followerCount !== 1 ? 's' : ''}</span>
             {resolvedShop.claimed_by && (
-              <span className="ml-2 bg-caramel/10 text-caramel px-2 py-0.5 rounded-full text-xs font-medium border border-caramel/20">✓ Verified owner</span>
+              <span className="ml-2 bg-caramel/10 text-caramel px-2 py-0.5 rounded-full text-xs font-medium border border-caramel/20">✓ Claimed</span>
             )}
           </div>
           {profile && (
