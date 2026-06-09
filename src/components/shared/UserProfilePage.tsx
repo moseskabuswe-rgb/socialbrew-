@@ -8,6 +8,7 @@ import { notifyFollow } from '../../lib/push'
 import BadgeExplainerModal from './BadgeExplainerModal'
 import { useAuth } from '../../contexts/AuthContext'
 import { cachedUrl } from '../../lib/storageUrl'
+import VerifiedBadge from './VerifiedBadge'
 
 const CoffeeMap = lazy(() => import('../profile/CoffeeMap'))
 
@@ -258,7 +259,10 @@ export default function UserProfilePage({ userId, onBack }: Props) {
                   </div>}
             </button>
             <div className="flex-1 min-w-0">
-              <p className="text-coffee-800 font-bold text-xl">{user?.username}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-coffee-800 font-bold text-xl">{user?.username}</p>
+                {user?.verified && <VerifiedBadge size={18} />}
+              </div>
               {user?.full_name && <p className="text-coffee-500 text-sm">{user.full_name}</p>}
               {user?.bio && <p className="text-coffee-400 text-xs mt-1 line-clamp-2">{user.bio}</p>}
               <button

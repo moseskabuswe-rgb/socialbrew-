@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head><title>Push Token Test</title></head>
+<body>
+<h2>Social Brew Push Token Test</h2>
+<button id="btn" style="padding:16px;font-size:16px;background:#c8853a;color:white;border:none;border-radius:8px;cursor:pointer">
+  Get Push Token
+</button>
+<pre id="log" style="background:#f5f5f5;padding:16px;margin-top:16px;white-space:pre-wrap;word-break:break-all"></pre>
+
+<script type="module">
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAyo_95tISPnqA1U8Q53JaFaomGc7meWYk",
+  authDomain: "social-brew-206d3.firebaseapp.com",
+  projectId: "social-brew-206d3",
+  storageBucket: "social-brew-206d3.firebasestorage.app",
+  messagingSenderId: "783967513849",
+  appId: "1:783967513849:web:668f29777b863a8e8cc628"
+}
+const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
+
+const log = document.getElementById('log')
+function print(msg) {
+  log.textContent += msg + '\n'
+  console.log(msg)
+}
+
+document.getElementById('btn').onclick = async () => {
+  log.textContent = ''
+  
+  try {
+    print('1. Checking Notification API...')
+    if (!('Notification' in window)) { print('❌ Notifications not supported'); return }
+    print('✓ Notification API available')
+
+    print('2. Checking ServiceWorker API...')
+    if (!('serviceWorker' in navigator)) { print('❌ ServiceWorker not supported'); return }
+    print('✓ ServiceWorker API available')
+
+    print('3. Requesting permission...')
+    const permission = await Notification.requestPermission()
+    print(`Permission result: ${permission}`)
+    if (permission !== 'granted') { print('❌ Permission denied'); return }
+
+    print('4. Registering service worker...')
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+    print(`✓ SW registered: ${swReg.scope}`)
+
+    print('5. Waiting for SW ready...')
+    await navigator.serviceWorker.ready
+    print('✓ SW ready')
+
+    print('6. Importing Firebase...')
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js')
+    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js')
+    print('✓ Firebase imported')
+
+    print('7. Initializing Firebase app...')
+    const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
+    print('✓ Firebase app initialized')
+
+    print('8. Getting messaging instance...')
+    const messaging = getMessaging(app)
+    print('✓ Messaging instance created')
+
+    print('9. Getting FCM token (this may take a moment)...')
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg
+    })
+    
+    if (token) {
+      print(`✅ SUCCESS! Token:\n${token}`)
+      print('\nCopy this token and paste it into Supabase profiles table manually to test push sending.')
+    } else {
+      print('❌ No token returned')
+    }
+  } catch (err) {
+    print(`❌ ERROR at step above:\n${err.message}\n${err.stack}`)
+  }
+}
+</script>
+</body>
+</html>

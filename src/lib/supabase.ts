@@ -17,6 +17,7 @@ export type Profile = {
   badge: string
   is_private: boolean
   created_at: string
+  verified: boolean
 }
 
 export type CoffeeShop = {
@@ -38,6 +39,7 @@ export type CoffeeShop = {
   is_certified: boolean
   website: string | null
   opening_hours: string | null
+  verified: boolean
 }
 
 export type Rating = {

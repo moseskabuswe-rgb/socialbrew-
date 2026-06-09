@@ -8,6 +8,7 @@ import { notifyFollow, unregisterPushNotifications } from '../../lib/push'
 import BadgeCelebration from '../shared/BadgeCelebration'
 import UserProfilePage from '../shared/UserProfilePage'
 import AvatarCropper from '../shared/AvatarCropper'
+import VerifiedBadge from '../shared/VerifiedBadge'
 import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
@@ -781,7 +782,10 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
               </button>
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-coffee-800 font-display text-xl font-bold truncate">{profile.username}</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-coffee-800 font-display text-xl font-bold truncate">{profile.username}</h2>
+                {profile.verified && <VerifiedBadge size={18} />}
+              </div>
               {profile.full_name && <p className="text-coffee-500 text-sm truncate">{profile.full_name}</p>}
               {profile.bio && <p className="text-coffee-400 text-xs mt-1 line-clamp-2">{profile.bio}</p>}
               <button

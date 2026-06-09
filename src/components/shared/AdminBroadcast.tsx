@@ -1,8 +1,8 @@
 // src/components/shared/AdminBroadcast.tsx
 // Hidden admin panel — only visible to Moses
 
-import { useState, useEffect } from 'react'
-import { Send, X, CreditCard, Store } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Send, X, CreditCard, Store, BadgeCheck } from 'lucide-react'
 import { sendBroadcastNotification, sendPushToUser } from '../../lib/push'
 import { supabase } from '../../lib/supabase'
 
@@ -64,8 +64,11 @@ function requestTypeLabel(type: string): string {
   return type
 }
 
+interface VerUser { id: string; username: string; avatar_url: string | null; verified: boolean }
+interface VerShop { id: string; name: string; city: string | null; verified: boolean }
+
 export default function AdminBroadcast({ currentUserId, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'punch-cards' | 'subscriptions'>('notifications')
+  const [activeTab, setActiveTab] = useState<'notifications' | 'punch-cards' | 'subscriptions' | 'verified'>('notifications')
 
   // Notifications state
   const [title, setTitle] = useState('')
@@ -92,6 +95,16 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
   const [subSavingId, setSubSavingId] = useState<string | null>(null)
   const [subSaveResults, setSubSaveResults] = useState<Record<string, string>>({})
   const [reqActionLoading, setReqActionLoading] = useState<string | null>(null)
+
+  // Verified tab state
+  const [verTabMode, setVerTabMode] = useState<'users' | 'shops'>('users')
+  const [verUserSearch, setVerUserSearch] = useState('')
+  const [verUserResults, setVerUserResults] = useState<VerUser[]>([])
+  const [verShopSearch, setVerShopSearch] = useState('')
+  const [verShopResults, setVerShopResults] = useState<VerShop[]>([])
+  const [verLoading, setVerLoading] = useState<string | null>(null)
+  const verUserDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const verShopDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (currentUserId !== ADMIN_USER_ID || activeTab !== 'punch-cards') return
@@ -132,6 +145,17 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
       setSubShops(mapped)
       setAddonRequests((reqs || []) as unknown as AddonRequest[])
       setSubLoading(false)
+    })
+  }, [activeTab, currentUserId])
+
+  useEffect(() => {
+    if (currentUserId !== ADMIN_USER_ID || activeTab !== 'verified') return
+    Promise.all([
+      supabase.from('profiles').select('id, username, avatar_url, verified').eq('verified', true).limit(50),
+      supabase.from('coffee_shops').select('id, name, city, verified').eq('verified', true).limit(50),
+    ]).then(([{ data: u }, { data: s }]) => {
+      setVerUserResults((u || []) as VerUser[])
+      setVerShopResults((s || []) as VerShop[])
     })
   }, [activeTab, currentUserId])
 
@@ -239,6 +263,54 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
     setReqActionLoading(null)
   }
 
+  function searchVerUsers(q: string) {
+    setVerUserSearch(q)
+    if (verUserDebounce.current) clearTimeout(verUserDebounce.current)
+    if (!q.trim()) {
+      supabase.from('profiles').select('id, username, avatar_url, verified').eq('verified', true).limit(50)
+        .then(({ data }) => setVerUserResults((data || []) as VerUser[]))
+      return
+    }
+    if (q.trim().length < 2) { setVerUserResults([]); return }
+    verUserDebounce.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles').select('id, username, avatar_url, verified')
+        .ilike('username', `%${q.trim()}%`).limit(10)
+      setVerUserResults((data || []) as VerUser[])
+    }, 300)
+  }
+
+  function searchVerShops(q: string) {
+    setVerShopSearch(q)
+    if (verShopDebounce.current) clearTimeout(verShopDebounce.current)
+    if (!q.trim()) {
+      supabase.from('coffee_shops').select('id, name, city, verified').eq('verified', true).limit(50)
+        .then(({ data }) => setVerShopResults((data || []) as VerShop[]))
+      return
+    }
+    if (q.trim().length < 2) { setVerShopResults([]); return }
+    verShopDebounce.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('coffee_shops').select('id, name, city, verified')
+        .ilike('name', `%${q.trim()}%`).limit(10)
+      setVerShopResults((data || []) as VerShop[])
+    }, 300)
+  }
+
+  async function toggleVerifiedUser(u: VerUser) {
+    setVerLoading(u.id)
+    const { error } = await supabase.from('profiles').update({ verified: !u.verified }).eq('id', u.id)
+    setVerLoading(null)
+    if (!error) setVerUserResults(prev => prev.map(r => r.id === u.id ? { ...r, verified: !r.verified } : r))
+  }
+
+  async function toggleVerifiedShop(s: VerShop) {
+    setVerLoading(s.id)
+    const { error } = await supabase.from('coffee_shops').update({ verified: !s.verified }).eq('id', s.id)
+    setVerLoading(null)
+    if (!error) setVerShopResults(prev => prev.map(r => r.id === s.id ? { ...r, verified: !r.verified } : r))
+  }
+
   const filteredOwners = shopOwners.filter(o => {
     if (!pcSearch.trim()) return true
     const q = pcSearch.toLowerCase()
@@ -273,24 +345,30 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
         </div>
 
         {/* Tab bar */}
-        <div className="flex rounded-xl bg-cream-100 p-1 mb-5">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-cream-100 p-1 mb-5">
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'notifications' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'notifications' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
           >
             <Send size={13} /> Notifications
           </button>
           <button
             onClick={() => setActiveTab('punch-cards')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'punch-cards' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'punch-cards' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
           >
             <CreditCard size={13} /> Punch Cards
           </button>
           <button
             onClick={() => setActiveTab('subscriptions')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'subscriptions' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'subscriptions' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
           >
             <Store size={13} /> Subscriptions
+          </button>
+          <button
+            onClick={() => setActiveTab('verified')}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'verified' ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
+          >
+            <BadgeCheck size={13} /> Verified
           </button>
         </div>
 
@@ -625,6 +703,91 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
                   {filteredSubShops.length === 0 && (
                     <p className="text-coffee-400 text-sm text-center py-8">No shops found</p>
                   )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+        {/* ── Verified tab ───────────────────────────────────────────── */}
+        {activeTab === 'verified' && (
+          <>
+            {/* Users / Shops sub-tabs */}
+            <div className="flex rounded-xl bg-cream-100 p-1 mb-4">
+              {(['users', 'shops'] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setVerTabMode(m)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all capitalize ${verTabMode === m ? 'bg-white shadow text-coffee-800' : 'text-coffee-400'}`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+
+            {verTabMode === 'users' && (
+              <>
+                <input
+                  value={verUserSearch}
+                  onChange={e => searchVerUsers(e.target.value)}
+                  placeholder="Search by username..."
+                  className="w-full border border-cream-200 rounded-xl px-3 py-2.5 text-sm text-coffee-800 focus:outline-none focus:border-caramel mb-3"
+                />
+                {!verUserSearch && verUserResults.length === 0 && (
+                  <p className="text-coffee-400 text-sm text-center py-8">No verified users yet</p>
+                )}
+                <div className="space-y-2">
+                  {verUserResults.map(u => (
+                    <div key={u.id} className="flex items-center gap-3 bg-cream-50 border border-cream-200 rounded-2xl px-4 py-3">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-coffee-200 flex-shrink-0">
+                        {u.avatar_url
+                          ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center bg-caramel">
+                              <span className="text-white text-xs font-bold">{u.username[0].toUpperCase()}</span>
+                            </div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-coffee-800 font-semibold text-sm">@{u.username}</p>
+                      </div>
+                      <button
+                        disabled={verLoading === u.id}
+                        onClick={() => toggleVerifiedUser(u)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-50 transition-all active:scale-95 ${u.verified ? 'bg-caramel/10 text-caramel border border-caramel/30' : 'bg-cream-200 text-coffee-500 border border-cream-300'}`}
+                      >
+                        {verLoading === u.id ? '...' : u.verified ? '✓ Verified' : 'Verify'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {verTabMode === 'shops' && (
+              <>
+                <input
+                  value={verShopSearch}
+                  onChange={e => searchVerShops(e.target.value)}
+                  placeholder="Search by shop name..."
+                  className="w-full border border-cream-200 rounded-xl px-3 py-2.5 text-sm text-coffee-800 focus:outline-none focus:border-caramel mb-3"
+                />
+                {!verShopSearch && verShopResults.length === 0 && (
+                  <p className="text-coffee-400 text-sm text-center py-8">No verified shops yet</p>
+                )}
+                <div className="space-y-2">
+                  {verShopResults.map(s => (
+                    <div key={s.id} className="flex items-center gap-3 bg-cream-50 border border-cream-200 rounded-2xl px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-coffee-800 font-semibold text-sm">{s.name}</p>
+                        {s.city && <p className="text-coffee-400 text-xs">{s.city}</p>}
+                      </div>
+                      <button
+                        disabled={verLoading === s.id}
+                        onClick={() => toggleVerifiedShop(s)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-50 transition-all active:scale-95 ${s.verified ? 'bg-caramel/10 text-caramel border border-caramel/30' : 'bg-cream-200 text-coffee-500 border border-cream-300'}`}
+                      >
+                        {verLoading === s.id ? '...' : s.verified ? '✓ Verified' : 'Verify'}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </>
             )}

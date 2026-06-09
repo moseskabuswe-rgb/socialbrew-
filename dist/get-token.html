@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAyo_95tISPnqA1U8Q53JaFaomGc7meWYk",
+  authDomain: "social-brew-206d3.firebaseapp.com",
+  projectId: "social-brew-206d3",
+  storageBucket: "social-brew-206d3.firebasestorage.app",
+  messagingSenderId: "783967513849",
+  appId: "1:783967513849:web:668f29777b863a8e8cc628"
+}
+const VAPID_KEY = "BA1W2abkOqr3ozttsf6gx31wNsrYZOeIkKIbiQ76eNzlINmsmxaJw2r4RZU-PG_7r3Bg7gH3pcVUdB-zIFAJcEs"
+
+async function getToken() {
+  try {
+    const swReg = await navigator.serviceWorker.getRegistration('/')
+    if (!swReg) { window.parent.postMessage({ type: 'fcm-token', token: null, error: 'No SW' }, '*'); return }
+
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js')
+    const { getMessaging, getToken, deleteToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js')
+
+    const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG)
+    const messaging = getMessaging(app)
+    // Force fresh token by deleting stale one first
+    try { await deleteToken(messaging) } catch(e) {}
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg })
+    
+    window.parent.postMessage({ type: 'fcm-token', token }, '*')
+  } catch (err) {
+    window.parent.postMessage({ type: 'fcm-token', token: null, error: err.message }, '*')
+  }
+}
+
+getToken()
+</script>
+</body>
+</html>

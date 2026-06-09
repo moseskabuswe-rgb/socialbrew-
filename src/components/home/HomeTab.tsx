@@ -17,6 +17,7 @@ import MessagingInbox from '../messaging/MessagingInbox'
 import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 import { cachedUrl } from '../../lib/storageUrl'
+import VerifiedBadge from '../shared/VerifiedBadge'
 
 function getMugColor(fill: number) {
   if (fill === 0)  return 'transparent'
@@ -1062,7 +1063,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
       const { data } = await supabase
         .from('ratings')
-        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified, lat, lng)')
+        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge, verified), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified, lat, lng)')
         .order('visited_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false, nullsFirst: false })
         .range(from, to)
@@ -1121,7 +1122,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     if (!deepLink) return
     if (deepLink.open === 'post' && deepLink.id) {
       supabase.from('ratings')
-        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
+        .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge, verified), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
         .eq('id', deepLink.id).single()
         .then(({ data }) => { if (data) setActivePost(data) })
     } else if (deepLink.open === 'profile' && deepLink.id) {
@@ -1174,7 +1175,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         // Fetch the new rating with full joins so manual shops appear immediately
         const { data: newRating } = await supabase
           .from('ratings')
-          .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
+          .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge, verified), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
           .eq('id', payload.new.id)
           .single()
         if (newRating) {
@@ -1297,7 +1298,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     setShowSaved(true)
     const { data } = await supabase
       .from('saved_posts')
-      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating))')
+      .select('rating_id, ratings(*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge, verified), coffee_shops(id, name, city, state, country, photo_url, avg_rating))')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
     if (data) setSavedPostsList(data.map((s: any) => s.ratings).filter(Boolean))
@@ -1360,7 +1361,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
               } else if (type === 'post') {
                 const { data } = await supabase
                   .from('ratings')
-                  .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
+                  .select('*, profiles!ratings_user_id_fkey(id, username, avatar_url, badge, verified), coffee_shops(id, name, city, state, country, photo_url, avg_rating, is_verified)')
                   .eq('id', id)
                   .single()
                 if (data) setActivePost(data)
@@ -1486,6 +1487,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-700 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
+                      {user?.verified && <VerifiedBadge size={14} />}
                       <span className="text-coffee-400 text-xs">posted a vibe</span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -1568,6 +1570,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-700 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
+                      {user?.verified && <VerifiedBadge size={14} />}
                       {rating.is_first_rating && (
                         <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full border border-amber-200 font-medium flex items-center gap-0.5">
                           ⭐ First Brew
@@ -1660,6 +1663,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={() => user?.id && setActiveUserProfile(user.id)} className="text-coffee-800 font-semibold text-sm hover:text-caramel transition-colors">{user?.username}</button>
+                      {user?.verified && <VerifiedBadge size={14} />}
                       {rating.is_first_rating && (
                         <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full border border-amber-200 font-medium flex items-center gap-0.5">
                           ⭐ First Brew
