@@ -9,7 +9,7 @@ import BroadcastTab from './tabs/BroadcastTab'
 import SubscriptionsTab from './tabs/SubscriptionsTab'
 import VerifiedTab from './tabs/VerifiedTab'
 
-export type AdminTab = 'overview' | 'users' | 'shops' | 'approvals' | 'reports' | 'broadcast' | 'subscriptions'
+export type AdminTab = 'overview' | 'users' | 'shops' | 'approvals' | 'reports' | 'broadcast' | 'subscriptions' | 'verified'
 
 interface Props {
   profile: { id: string; username: string; role: string }
