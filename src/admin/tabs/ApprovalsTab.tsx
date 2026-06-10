@@ -276,14 +276,21 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
 
   async function approvePunchCard(card: PunchCard) {
     setWorking(true)
+    const shopName = (card.coffee_shops as any)?.name
     await supabase.from('punch_cards').update({
       is_active: true,
       approved_by: currentUserId,
       approved_at: new Date().toISOString(),
     }).eq('id', card.id)
     await notifyShopOwner(card.shop_id, 'punch_card_approved', {
-      shop_name: (card.coffee_shops as any)?.name,
+      shop_name: shopName,
       reward_description: card.reward_description,
+    })
+    supabase.functions.invoke('notify-admin', {
+      body: {
+        type: 'punch_card_approved',
+        data: { shop_id: card.shop_id, shop_name: shopName, reward_description: card.reward_description },
+      },
     })
     setWorking(false)
     fetchAll()
@@ -293,6 +300,7 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
   async function rejectPunchCard(id: string) {
     const card = punchCards.find(c => c.id === id)
     setWorking(true)
+    const shopName = (card?.coffee_shops as any)?.name
     await supabase.from('punch_cards').update({
       is_active: false,
       rejection_reason: rejectReason,
@@ -301,8 +309,14 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
     }).eq('id', id)
     if (card) {
       await notifyShopOwner(card.shop_id, 'punch_card_rejected', {
-        shop_name: (card.coffee_shops as any)?.name,
+        shop_name: shopName,
         rejection_reason: rejectReason || null,
+      })
+      supabase.functions.invoke('notify-admin', {
+        body: {
+          type: 'punch_card_rejected',
+          data: { shop_id: card.shop_id, shop_name: shopName, rejection_reason: rejectReason || null },
+        },
       })
     }
     setWorking(false)
