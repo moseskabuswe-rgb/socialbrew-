@@ -13,7 +13,7 @@ import PostDetailModal from '../shared/PostDetailModal'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import BrewWrapped from '../shared/BrewWrapped'
 import PunchCardRedemption from '../shops/PunchCardRedemption'
-import { QRCodeSVG } from 'qrcode.react'
+import QRScannerModal from '../shared/QRScannerModal'
 import PrivacyPolicyPage from '../shared/PrivacyPolicyPage'
 import TermsPage from '../shared/TermsPage'
 import { compressAvatar } from '../../lib/compressImage'
@@ -626,10 +626,17 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [showWrapped, setShowWrapped] = useState(false)
   const [punchCards, setPunchCards] = useState<any[]>([])
   const [showRedemptionFor, setShowRedemptionFor] = useState<{ shopId: string; shopName: string; punchCardId: string } | null>(null)
+  const [showQRScanner, setShowQRScanner] = useState(false)
+  const [stampToast, setStampToast] = useState<{ shopName: string; rewardEarned: boolean; newCount: number; required: number } | null>(null)
   const isWrappedSeason = [11, 0].includes(new Date().getMonth()) // December or January
   const [newDrink, setNewDrink] = useState('')
   const [newShop, setNewShop] = useState('')
   const [addingWishlist, setAddingWishlist] = useState(false)
+  useEffect(() => {
+    if (!stampToast) return
+    const t = setTimeout(() => setStampToast(null), 4000)
+    return () => clearTimeout(t)
+  }, [stampToast])
   useEffect(() => {
     if (!profile) return
     async function load() {
@@ -1008,14 +1015,14 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         {/* Punch Cards */}
         {activeSection === 'cards' && (
           <div className="px-4 mt-3 space-y-3">
-            {/* Permanent stamp QR — always visible so user can show any shop */}
-            <div className="bg-white rounded-2xl p-4 border border-cream-200 shadow-sm flex flex-col items-center gap-2">
-              <p className="text-coffee-700 font-semibold text-sm self-start">My Stamp QR</p>
-              <p className="text-coffee-400 text-xs self-start">Show this to any participating shop to get stamped</p>
-              <div className="bg-cream-50 rounded-xl p-3 border border-cream-200 mt-1">
-                <QRCodeSVG value={`punch:${profile.id}`} size={150} level="M" />
-              </div>
-            </div>
+            {/* Scan to earn a stamp */}
+            <button
+              onClick={() => setShowQRScanner(true)}
+              className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 text-white font-bold text-sm shadow-sm active:scale-95 transition-all"
+              style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)', boxShadow: '0 4px 16px rgba(200,133,58,0.3)' }}
+            >
+              <span className="text-xl">📷</span> Scan Shop QR to Earn a Stamp
+            </button>
 
             {loading && <div className="flex justify-center py-8"><div className="w-6 h-6 rounded-full border-2 border-caramel border-t-transparent animate-spin" /></div>}
             {!loading && punchCards.length === 0 && (
@@ -1131,6 +1138,57 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
       )}
       {showPrivacyPage && <PrivacyPolicyPage onBack={() => setShowPrivacyPage(false)} />}
       {showTermsPage && <TermsPage onBack={() => setShowTermsPage(false)} />}
+      {showQRScanner && (
+        <QRScannerModal
+          onClose={() => setShowQRScanner(false)}
+          onStampEarned={(shopName, rewardEarned, newCount, required) => {
+            setShowQRScanner(false)
+            setStampToast({ shopName, rewardEarned, newCount, required })
+            supabase
+              .from('user_punches')
+              .select('shop_id, current_count, total_earned, coffee_shops(id, name, city)')
+              .eq('user_id', profile.id)
+              .gt('current_count', 0)
+              .then(({ data: punchesData }) => {
+                if (!punchesData || punchesData.length === 0) return
+                const shopIds = punchesData.map((p: any) => p.shop_id)
+                supabase
+                  .from('punch_cards')
+                  .select('id, shop_id, punches_required, reward_description')
+                  .in('shop_id', shopIds)
+                  .eq('is_active', true)
+                  .then(({ data: cards }) => {
+                    if (!cards) return
+                    const cardMap = Object.fromEntries(cards.map((c: any) => [c.shop_id, c]))
+                    setPunchCards(
+                      punchesData
+                        .map((p: any) => ({ ...p, punch_card: cardMap[p.shop_id] }))
+                        .filter((p: any) => p.punch_card)
+                    )
+                  })
+              })
+          }}
+        />
+      )}
+      {stampToast && (
+        <div
+          className="fixed bottom-24 left-4 right-4 z-[90] rounded-2xl p-4 shadow-xl flex items-center gap-3"
+          style={{ background: 'linear-gradient(135deg, #1a0f0a, #2a1a10)', border: '1px solid rgba(212,169,106,0.3)' }}
+        >
+          <span className="text-2xl">☕</span>
+          <div className="flex-1">
+            <p className="text-white font-semibold text-sm">Stamp earned at {stampToast.shopName}!</p>
+            <p className="text-cream-400 text-xs mt-0.5">
+              {stampToast.rewardEarned
+                ? "🎉 You've earned a reward — tap Redeem!"
+                : `${stampToast.newCount} / ${stampToast.required} stamps`}
+            </p>
+          </div>
+          <button onClick={() => setStampToast(null)} className="text-cream-400 p-1">
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

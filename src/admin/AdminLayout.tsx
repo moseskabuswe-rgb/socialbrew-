@@ -7,8 +7,9 @@ import ApprovalsTab from './tabs/ApprovalsTab'
 import ReportsTab from './tabs/ReportsTab'
 import BroadcastTab from './tabs/BroadcastTab'
 import SubscriptionsTab from './tabs/SubscriptionsTab'
+import VerifiedTab from './tabs/VerifiedTab'
 
-export type AdminTab = 'overview' | 'users' | 'shops' | 'approvals' | 'reports' | 'broadcast' | 'subscriptions'
+export type AdminTab = 'overview' | 'users' | 'shops' | 'approvals' | 'reports' | 'broadcast' | 'subscriptions' | 'verified'
 
 interface Props {
   profile: { id: string; username: string; role: string }
@@ -45,6 +46,7 @@ const NAV_ITEMS: { id: AdminTab; label: string; icon: string; adminOnly?: boolea
   { id: 'shops',     label: 'Shops',      icon: '☕' },
   { id: 'approvals', label: 'Approvals',  icon: '✅' },
   { id: 'reports',   label: 'Reports',    icon: '🚨' },
+  { id: 'verified',        label: 'Verified',        icon: '✅', adminOnly: true },
   { id: 'broadcast',      label: 'Broadcast',      icon: '📣', adminOnly: true },
   { id: 'subscriptions',  label: 'Subscriptions',  icon: '💳', adminOnly: true },
 ]
@@ -206,6 +208,7 @@ export default function AdminLayout({ profile, onClose }: Props) {
           {activeTab === 'shops' && <ShopsTab isAdmin={isAdmin} />}
           {activeTab === 'approvals' && <ApprovalsTab isAdmin={isAdmin} currentUserId={profile.id} onPendingChange={fetchPending} />}
           {activeTab === 'reports' && <ReportsTab currentUserId={profile.id} onPendingChange={fetchPending} />}
+          {activeTab === 'verified' && isAdmin && <VerifiedTab />}
           {activeTab === 'broadcast' && isAdmin && <BroadcastTab currentUserId={profile.id} />}
           {activeTab === 'subscriptions' && isAdmin && <SubscriptionsTab currentUserId={profile.id} />}
         </main>

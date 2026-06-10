@@ -422,6 +422,7 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
         if (!hasContent) return null
         return (
           <div className="bg-white border-b border-cream-200 px-4 py-3 flex-shrink-0 space-y-2">
+            <p className="text-[11px] font-semibold text-coffee-400 uppercase tracking-wide">Roast Profile</p>
             {rp.roaster && (
               <p className="text-coffee-700 text-xs font-semibold">☕ {rp.roaster}</p>
             )}

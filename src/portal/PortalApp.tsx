@@ -50,7 +50,7 @@ const NAV_OWNER: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'messages', label: 'Messages', icon: '💬' },
   { id: 'edit', label: 'Edit Shop', icon: '✏️' },
   { id: 'punchcard', label: 'Punch Card', icon: '🎫' },
-  { id: 'scanner', label: 'Scan QR', icon: '📷' },
+  { id: 'scanner', label: 'Stamp QR', icon: '📷' },
   { id: 'roast', label: 'Roast Profile', icon: '☕' },
   { id: 'team', label: 'Team', icon: '👥' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
@@ -62,12 +62,12 @@ const NAV_MANAGER: { id: PortalTab; label: string; icon: string }[] = [
   { id: 'reports', label: 'Reports', icon: '📈' },
   { id: 'posts', label: 'Posts', icon: '📢' },
   { id: 'punchcard', label: 'Punch Card', icon: '🎫' },
-  { id: 'scanner', label: 'Scan QR', icon: '📷' },
+  { id: 'scanner', label: 'Stamp QR', icon: '📷' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 
 const NAV_BARISTA: { id: PortalTab; label: string; icon: string }[] = [
-  { id: 'scanner', label: 'Scan QR', icon: '📷' },
+  { id: 'scanner', label: 'Stamp QR', icon: '📷' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 
