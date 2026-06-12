@@ -97,12 +97,10 @@ export default function VerifiedTab() {
     const table = m === 'users' ? 'profiles' : 'coffee_shops'
     await supabase.from(table).update({ verified: grant }).eq('id', id)
 
-    // Update both lists
     const patch = (row: UserRow | ShopRow) => row.id === id ? { ...row, verified: grant } : row
     setVerified(prev => grant ? prev : prev.filter(r => r.id !== id))
     setSearchResults(prev => prev.map(patch))
 
-    // If granting, refresh verified list to include the new entry
     if (grant) fetchVerified(m)
     setWorking(null)
   }

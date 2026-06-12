@@ -9,7 +9,6 @@ import { useAuth } from '../../contexts/AuthContext'
 import { isAffiliatedWithShop } from '../../lib/shopAffiliation'
 import ShopDetailPage from '../shared/ShopDetailPage'
 import UserProfilePage from '../shared/UserProfilePage'
-import VerifiedBadge from '../shared/VerifiedBadge'
 
 const VIBES = ['All', 'Cozy', 'Social', 'Quiet', 'Date Night', 'Work-friendly']
 
@@ -679,7 +678,6 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
                   <div className="p-4">
                     <div className="flex items-center gap-1.5 mb-1">
                       <h3 className="text-coffee-800 font-display font-bold text-lg leading-tight">{shop.name}</h3>
-                      {(shop as any).verified && <VerifiedBadge size={16} />}
                     </div>
                     {(shop.address || shop.city) && (
                       <div className="flex items-center gap-1 mb-2">

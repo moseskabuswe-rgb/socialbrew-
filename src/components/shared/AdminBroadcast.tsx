@@ -151,8 +151,8 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
   useEffect(() => {
     if (currentUserId !== ADMIN_USER_ID || activeTab !== 'verified') return
     Promise.all([
-      supabase.from('profiles').select('id, username, avatar_url, verified').eq('verified', true).limit(50),
-      supabase.from('coffee_shops').select('id, name, city, verified').eq('verified', true).limit(50),
+      supabase.from('profiles').select('id, username, avatar_url, verified').order('username').limit(50),
+      supabase.from('coffee_shops').select('id, name, city, verified').order('name').limit(50),
     ]).then(([{ data: u }, { data: s }]) => {
       setVerUserResults((u || []) as VerUser[])
       setVerShopResults((s || []) as VerShop[])
@@ -267,7 +267,7 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
     setVerUserSearch(q)
     if (verUserDebounce.current) clearTimeout(verUserDebounce.current)
     if (!q.trim()) {
-      supabase.from('profiles').select('id, username, avatar_url, verified').eq('verified', true).limit(50)
+      supabase.from('profiles').select('id, username, avatar_url, verified').order('username').limit(50)
         .then(({ data }) => setVerUserResults((data || []) as VerUser[]))
       return
     }
@@ -284,7 +284,7 @@ export default function AdminBroadcast({ currentUserId, onClose }: Props) {
     setVerShopSearch(q)
     if (verShopDebounce.current) clearTimeout(verShopDebounce.current)
     if (!q.trim()) {
-      supabase.from('coffee_shops').select('id, name, city, verified').eq('verified', true).limit(50)
+      supabase.from('coffee_shops').select('id, name, city, verified').order('name').limit(50)
         .then(({ data }) => setVerShopResults((data || []) as VerShop[]))
       return
     }
