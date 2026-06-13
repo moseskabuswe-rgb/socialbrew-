@@ -10,6 +10,15 @@ interface CustomerPunch {
   profiles: { username: string; avatar_url: string | null } | null
 }
 
+interface RedemptionRow {
+  id: string
+  user_id: string
+  redeemed_at: string
+  punches_at_redemption: number | null
+  reward_description: string | null
+  profiles: { username: string; avatar_url: string | null } | null
+}
+
 interface Props {
   shop: { id: string; name: string }
   shopOwner: {
@@ -54,6 +63,8 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
   const [editing, setEditing] = useState(false)
   const [customers, setCustomers] = useState<CustomerPunch[]>([])
   const [loadingCustomers, setLoadingCustomers] = useState(false)
+  const [redemptions, setRedemptions] = useState<RedemptionRow[]>([])
+  const [loadingRedemptions, setLoadingRedemptions] = useState(false)
 
   const [punches, setPunches] = useState(10)
   const [reward, setReward] = useState('')
@@ -90,6 +101,19 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
     setLoadingCustomers(false)
   }
 
+  async function loadRedemptions() {
+    setLoadingRedemptions(true)
+    const { data } = await supabase
+      .from('punch_redemptions')
+      .select('id, user_id, redeemed_at, punches_at_redemption, reward_description, profiles:user_id(username, avatar_url)')
+      .eq('shop_id', shop.id)
+      .not('redeemed_at', 'is', null)
+      .order('redeemed_at', { ascending: false })
+      .limit(50)
+    setRedemptions((data as any) || [])
+    setLoadingRedemptions(false)
+  }
+
   async function loadCard() {
     setCardState('loading')
     const { data } = await supabase
@@ -109,7 +133,7 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
       ? data.paused ? 'paused' : 'active'
       : !data.approved_by ? 'pending' : 'rejected'
     setCardState(state)
-    if (state === 'active') loadCustomers()
+    if (state === 'active') { loadCustomers(); loadRedemptions() }
   }
 
   async function requestMorePunches() {
@@ -521,7 +545,7 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
       {cardState === 'active' && !editing && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-800">Punch card holders</h2>
+            <h2 className="text-sm font-semibold text-gray-800">Active stamp holders</h2>
             <button onClick={loadCustomers} className="text-xs text-caramel hover:underline">Refresh</button>
           </div>
           {loadingCustomers ? (
@@ -564,6 +588,56 @@ export default function PortalPunchCard({ shop, shopOwner }: Props) {
                         }}
                       />
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Redemption history */}
+      {cardState === 'active' && !editing && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-800">Redemption history</h2>
+            <button onClick={loadRedemptions} className="text-xs text-caramel hover:underline">Refresh</button>
+          </div>
+
+          {loadingRedemptions ? (
+            <div className="flex justify-center py-6">
+              <div className="w-5 h-5 rounded-full border-2 border-caramel border-t-transparent animate-spin" />
+            </div>
+          ) : redemptions.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 p-6 text-center">
+              <p className="text-sm text-gray-400">No redemptions yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {redemptions.map(r => (
+                <div key={r.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
+                  {r.profiles?.avatar_url ? (
+                    <img src={r.profiles.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-amber-700">
+                      {r.profiles?.username?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {r.profiles?.username ?? 'Unknown'}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {r.reward_description ?? 'Reward'}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-semibold text-coffee-700">
+                      {r.punches_at_redemption ?? '—'} stamps
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(r.redeemed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
                   </div>
                 </div>
               ))}

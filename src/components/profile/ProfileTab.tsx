@@ -625,6 +625,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   const [showAddWishlist, setShowAddWishlist] = useState(false)
   const [showWrapped, setShowWrapped] = useState(false)
   const [punchCards, setPunchCards] = useState<any[]>([])
+  const [pendingRedemptionShopIds, setPendingRedemptionShopIds] = useState<Set<string>>(new Set())
   const [showRedemptionFor, setShowRedemptionFor] = useState<{ shopId: string; shopName: string; punchCardId: string } | null>(null)
   const [showQRScanner, setShowQRScanner] = useState(false)
   const [stampToast, setStampToast] = useState<{ shopName: string; rewardEarned: boolean; newCount: number; required: number } | null>(null)
@@ -722,10 +723,43 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
         }
       }
 
+      // Track shops where an unconfirmed redemption QR is already open
+      const { data: openRedemptions } = await supabase
+        .from('punch_redemptions')
+        .select('shop_id')
+        .eq('user_id', profile!.id)
+        .is('redeemed_at', null)
+        .gt('expires_at', new Date().toISOString())
+      if (openRedemptions) {
+        setPendingRedemptionShopIds(new Set(openRedemptions.map((r: any) => r.shop_id)))
+      }
+
       setLoading(false)
     }
     load()
   }, [profile])
+  // Realtime: when barista resets current_count to 0, remove the card from the list
+  useEffect(() => {
+    if (!profile) return
+    const channel = supabase
+      .channel(`user-punches-${profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'user_punches', filter: `user_id=eq.${profile.id}` },
+        (payload: any) => {
+          const { shop_id, current_count } = payload.new
+          if (current_count === 0) {
+            setPunchCards(prev => prev.filter(p => p.shop_id !== shop_id))
+            setPendingRedemptionShopIds(prev => { const n = new Set(prev); n.delete(shop_id); return n })
+          } else {
+            setPunchCards(prev => prev.map(p => p.shop_id === shop_id ? { ...p, current_count } : p))
+          }
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [profile])
+
   if (!profile) return null
   async function addToWishlist() {
     if (!profile || !newDrink.trim() || addingWishlist) return
@@ -1057,14 +1091,22 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-coffee-500 text-xs flex-1">{card.reward_description}</p>
-                      {earned && (
+                      {earned && !pendingRedemptionShopIds.has(shop.id) && (
                         <button
-                          onClick={() => setShowRedemptionFor({ shopId: shop.id, shopName: shop.name, punchCardId: card.id })}
+                          onClick={() => {
+                            setPendingRedemptionShopIds(prev => new Set([...prev, shop.id]))
+                            setShowRedemptionFor({ shopId: shop.id, shopName: shop.name, punchCardId: card.id })
+                          }}
                           className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold text-white"
                           style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
                         >
                           Redeem →
                         </button>
+                      )}
+                      {earned && pendingRedemptionShopIds.has(shop.id) && (
+                        <span className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium text-coffee-400 bg-cream-100 border border-cream-200">
+                          QR Open
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1133,7 +1175,19 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           shop={{ id: showRedemptionFor.shopId, name: showRedemptionFor.shopName }}
           punchCardId={showRedemptionFor.punchCardId}
           userId={profile.id}
-          onClose={() => setShowRedemptionFor(null)}
+          onClose={() => {
+            setShowRedemptionFor(null)
+            // Re-check which shops still have an open QR (handles expiry)
+            supabase
+              .from('punch_redemptions')
+              .select('shop_id')
+              .eq('user_id', profile.id)
+              .is('redeemed_at', null)
+              .gt('expires_at', new Date().toISOString())
+              .then(({ data }) => {
+                setPendingRedemptionShopIds(new Set((data || []).map((r: any) => r.shop_id)))
+              })
+          }}
         />
       )}
       {showPrivacyPage && <PrivacyPolicyPage onBack={() => setShowPrivacyPage(false)} />}
