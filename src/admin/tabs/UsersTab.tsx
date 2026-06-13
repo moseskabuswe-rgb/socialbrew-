@@ -43,7 +43,7 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
   const [suspendReason, setSuspendReason] = useState('')
   const [targetRole, setTargetRole] = useState('')
   const [working, setWorking] = useState(false)
-  const [roleFilter, setRoleFilter] = useState<'all' | 'consumer' | 'business' | 'team' | 'portal_only'>('all')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'consumer' | 'business' | 'team' | 'portal_only' | 'brewers' | 'never_brewed'>('all')
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   async function fetchUsers(q: string, p: number, rf = roleFilter) {
@@ -58,6 +58,23 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
     else if (rf === 'business') query = query.eq('role', 'business')
     else if (rf === 'team') query = query.not('team_shop_id', 'is', null)
     else if (rf === 'portal_only') query = query.eq('is_portal_only', true)
+    else if (rf === 'brewers' || rf === 'never_brewed') {
+      const { data: brewerData } = await supabase.from('ratings').select('user_id').limit(10000)
+      const brewerIds = [...new Set((brewerData || []).map(r => r.user_id as string))]
+      if (rf === 'brewers') {
+        if (brewerIds.length === 0) {
+          setUsers([])
+          setTotal(0)
+          setLoading(false)
+          return
+        }
+        query = query.in('id', brewerIds)
+      } else {
+        if (brewerIds.length > 0) {
+          query = query.not('id', 'in', `(${brewerIds.join(',')})`)
+        }
+      }
+    }
     const { data, count } = await query
     setUsers(data || [])
     setTotal(count || 0)
@@ -156,13 +173,19 @@ export default function UsersTab({ isAdmin, currentUserId }: Props) {
       </div>
 
       <div className="flex gap-2 mb-3 flex-wrap">
-        {(['all','consumer','business','team','portal_only'] as const).map(f => (
+        {(['all','consumer','business','team','portal_only','brewers','never_brewed'] as const).map(f => (
           <button
             key={f}
             onClick={() => handleRoleFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${roleFilter === f ? 'bg-caramel text-white border-caramel' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
           >
-            {f === 'all' ? 'All users' : f === 'consumer' ? 'Consumers' : f === 'business' ? 'Business owners' : f === 'team' ? 'Team members' : 'Portal only'}
+            {f === 'all' ? 'All users'
+              : f === 'consumer' ? 'Consumers'
+              : f === 'business' ? 'Business owners'
+              : f === 'team' ? 'Team members'
+              : f === 'portal_only' ? 'Portal only'
+              : f === 'brewers' ? '☕ Brewers'
+              : '👤 Never brewed'}
           </button>
         ))}
       </div>

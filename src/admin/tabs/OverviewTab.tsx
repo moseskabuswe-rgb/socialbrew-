@@ -25,6 +25,10 @@ interface Stats {
   postsWeek: number
   totalPosts: number
   claimedShops: number
+  activeBrewers: number
+  brewers5plus: number
+  brewers10plus: number
+  brewers25plus: number
 }
 
 interface TopShop { shop_id: string; shop_name: string; count: number }
@@ -174,7 +178,7 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
         weekRatings, monthRatings,
         activePunchCards, punchRedemptions, foundingPartners,
         follows, postsWeek, totalPosts, claimedShops,
-        followsData, allGeoData,
+        followsData, allGeoData, allRatingsData,
       ] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('ratings').select('id', { count: 'exact', head: true }),
@@ -194,7 +198,18 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
         supabase.from('coffee_shops').select('id', { count: 'exact', head: true }).not('claimed_by', 'is', null),
         supabase.from('shop_follows').select('shop_id, coffee_shops(name)').limit(1000),
         supabase.from('coffee_shops').select('state, country, continent'),
+        supabase.from('ratings').select('user_id').limit(10000),
       ])
+
+      const brewCountPerUser: Record<string, number> = {}
+      for (const r of allRatingsData.data || []) {
+        brewCountPerUser[r.user_id] = (brewCountPerUser[r.user_id] || 0) + 1
+      }
+      const brewerCounts = Object.values(brewCountPerUser)
+      const activeBrewers = brewerCounts.length
+      const brewers5plus = brewerCounts.filter(c => c >= 5).length
+      const brewers10plus = brewerCounts.filter(c => c >= 10).length
+      const brewers25plus = brewerCounts.filter(c => c >= 25).length
 
       setStats({
         users: users.count || 0,
@@ -212,6 +227,10 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
         postsWeek: postsWeek.count || 0,
         totalPosts: totalPosts.count || 0,
         claimedShops: claimedShops.count || 0,
+        activeBrewers,
+        brewers5plus,
+        brewers10plus,
+        brewers25plus,
       })
 
       // Top shops this week
@@ -325,11 +344,52 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
       {/* Core metrics */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-coffee-400 mb-3">Core Metrics</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Brewers" value={stats?.users} icon="👤" loading={loading} />
-          <StatCard label="Total Brews" value={stats?.ratings} icon="☕" loading={loading} />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <StatCard label="Sign-ups" value={stats?.users} icon="👤" loading={loading} />
+          <StatCard label="Active Brewers" value={stats?.activeBrewers} icon="☕" loading={loading} />
+          <StatCard label="Total Brews" value={stats?.ratings} icon="🍵" loading={loading} />
           <StatCard label="Shops Listed" value={stats?.shops} icon="🏪" loading={loading} />
           <StatCard label="Open Reports" value={stats?.reports} icon="🚨" loading={loading} accent={(stats?.reports || 0) > 0} />
+        </div>
+      </div>
+
+      {/* Brewer Depth */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-coffee-400 mb-3">Brewer Depth</p>
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e8ddc8' }}>
+          <div className="px-4 py-3" style={{ background: '#f7f0e6', borderBottom: '1px solid #e8ddc8' }}>
+            <p className="text-sm font-semibold text-coffee-800">☕ Sign-ups who have brewed</p>
+          </div>
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[1,2,3,4].map(i => <div key={i} className="h-7 rounded animate-pulse" style={{ background: '#e8ddc8' }} />)}
+            </div>
+          ) : (
+            <div>
+              {([
+                { label: '1+ brews', value: stats?.activeBrewers },
+                { label: '5+ brews', value: stats?.brewers5plus },
+                { label: '10+ brews', value: stats?.brewers10plus },
+                { label: '25+ brews', value: stats?.brewers25plus },
+              ] as { label: string; value: number | undefined }[]).map(row => {
+                const total = stats?.users || 1
+                const pct = Math.round(((row.value ?? 0) / total) * 100)
+                return (
+                  <div key={row.label} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid #f5ead8' }}>
+                    <span className="text-sm text-coffee-700 w-20 shrink-0">{row.label}</span>
+                    <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: '#f0e4d0' }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct > 0 ? Math.max(2, pct) : 0}%`, background: 'linear-gradient(90deg, #c8853a, #9b5e1a)' }}
+                      />
+                    </div>
+                    <span className="text-sm font-bold text-coffee-900 w-12 text-right shrink-0">{row.value?.toLocaleString() ?? '—'}</span>
+                    <span className="text-xs text-coffee-400 w-8 shrink-0 text-right">{pct}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -337,8 +397,8 @@ export default function OverviewTab({ pending, onNavigate, isViewer }: Props) {
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-coffee-400 mb-3">Growth</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <GrowthPill label="brewers this week" value={stats?.newUsersWeek} loading={loading} />
-          <GrowthPill label="brewers this month" value={stats?.newUsersMonth} loading={loading} />
+          <GrowthPill label="sign-ups this week" value={stats?.newUsersWeek} loading={loading} />
+          <GrowthPill label="sign-ups this month" value={stats?.newUsersMonth} loading={loading} />
           <GrowthPill label="brews this week" value={stats?.brewsWeek} loading={loading} />
           <GrowthPill label="brews this month" value={stats?.brewsMonth} loading={loading} />
         </div>
