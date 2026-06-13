@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Backups
+_backups/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Wrangler
+.wrangler/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+*.swo
