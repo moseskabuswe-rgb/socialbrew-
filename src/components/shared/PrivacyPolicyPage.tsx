@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
         <h2 className="font-display text-xl font-bold text-coffee-800">Privacy Policy</h2>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5 pb-20">
-        <p className="text-coffee-400 text-xs">Last updated: May 2026 · Version 1.0</p>
+        <p className="text-coffee-400 text-xs">Last updated: June 2026 · Version 1.1</p>
 
         <section className="space-y-2">
           <h3 className="text-coffee-800 font-semibold text-base">1. Who We Are</h3>

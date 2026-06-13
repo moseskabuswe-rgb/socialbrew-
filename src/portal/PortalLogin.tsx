@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ArrowLeft, Coffee, Search } from 'lucide-react'
+import PortalTermsPage from './pages/PortalTermsPage'
+import PortalPrivacyPage from './pages/PortalPrivacyPage'
 
 interface Props {
   onSuccess: () => void
@@ -52,6 +54,7 @@ export default function PortalLogin({ onSuccess }: Props) {
 
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
+  const [legalView, setLegalView] = useState<'none' | 'terms' | 'privacy'>('none')
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
@@ -190,6 +193,9 @@ export default function PortalLogin({ onSuccess }: Props) {
     setFormError('')
   }
 
+  if (legalView === 'terms') return <PortalTermsPage onBack={() => setLegalView('none')} />
+  if (legalView === 'privacy') return <PortalPrivacyPage onBack={() => setLegalView('none')} />
+
   // ── Sign in ────────────────────────────────────────────────────────────────
   if (mode === 'signin') {
     return (
@@ -245,6 +251,12 @@ export default function PortalLogin({ onSuccess }: Props) {
             >
               Request portal access →
             </button>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-cream-200 flex items-center justify-center gap-4">
+            <button onClick={() => setLegalView('privacy')} className="text-xs text-coffee-400 hover:text-caramel transition-colors">Privacy Policy</button>
+            <span className="text-coffee-200 text-xs">·</span>
+            <button onClick={() => setLegalView('terms')} className="text-xs text-coffee-400 hover:text-caramel transition-colors">Terms of Service</button>
           </div>
         </div>
       </div>

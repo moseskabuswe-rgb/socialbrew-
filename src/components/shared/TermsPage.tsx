@@ -8,7 +8,7 @@ export default function TermsPage({ onBack }: { onBack: () => void }) {
         <h2 className="font-display text-xl font-bold text-coffee-800">Terms of Service</h2>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5 pb-20">
-        <p className="text-coffee-400 text-xs">Last updated: May 2026 · Version 1.0</p>
+        <p className="text-coffee-400 text-xs">Last updated: June 2026 · Version 1.1</p>
 
         <section className="space-y-2">
           <h3 className="text-coffee-800 font-semibold text-base">1. Using Social Brew</h3>
@@ -17,7 +17,7 @@ export default function TermsPage({ onBack }: { onBack: () => void }) {
 
         <section className="space-y-2">
           <h3 className="text-coffee-800 font-semibold text-base">2. Your Content</h3>
-          <p className="text-coffee-600 text-sm leading-relaxed">You own the content you post (ratings, photos, captions). By posting, you grant Social Brew a worldwide, royalty-free license to display and distribute your content within the app. You are responsible for ensuring your content does not infringe third-party rights.</p>
+          <p className="text-coffee-600 text-sm leading-relaxed">You own the content you post (ratings, photos, captions). By posting, you grant Social Brew a worldwide, royalty-free license to display, distribute, and reshare your content — including on Social Brew's social media accounts such as Instagram and TikTok — to celebrate the community and promote the platform. We will always credit you by username when resharing your content. You are responsible for ensuring your content does not infringe third-party rights.</p>
         </section>
 
         <section className="space-y-2">

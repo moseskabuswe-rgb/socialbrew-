@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import PrivacyPolicyPage from './PrivacyPolicyPage'
 import TermsPage from './TermsPage'
 
-export const CURRENT_POLICY_VERSION = '2026-05-27'
+export const CURRENT_POLICY_VERSION = '2026-06-13'
 
 type View = 'modal' | 'privacy' | 'terms'
 

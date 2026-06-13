@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { PortalRole } from '../PortalApp'
+import PortalTermsPage from './PortalTermsPage'
+import PortalPrivacyPage from './PortalPrivacyPage'
 
 interface ShopOwner {
   id: string
@@ -22,6 +24,7 @@ export default function PortalSettings({ shopOwner, userId, onUpdate }: Props) {
   const [newReviews, setNewReviews] = useState(prefs.new_reviews !== false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [legalView, setLegalView] = useState<'none' | 'terms' | 'privacy'>('none')
 
   const [isPortalOnly, setIsPortalOnly] = useState<boolean | null>(null)
   const [username, setUsername] = useState('')
@@ -88,6 +91,9 @@ export default function PortalSettings({ shopOwner, userId, onUpdate }: Props) {
     setJoinedSuccess(true)
     setIsPortalOnly(false)
   }
+
+  if (legalView === 'terms') return <PortalTermsPage onBack={() => setLegalView('none')} />
+  if (legalView === 'privacy') return <PortalPrivacyPage onBack={() => setLegalView('none')} />
 
   return (
     <div className="max-w-sm mx-auto space-y-5">
@@ -176,6 +182,22 @@ export default function PortalSettings({ shopOwner, userId, onUpdate }: Props) {
           </button>
         </div>
       )}
+
+      <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-2">
+        <p className="text-sm font-semibold text-gray-700 mb-3">Legal</p>
+        <button
+          onClick={() => setLegalView('privacy')}
+          className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors text-left px-4"
+        >
+          Privacy Policy
+        </button>
+        <button
+          onClick={() => setLegalView('terms')}
+          className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors text-left px-4"
+        >
+          Terms of Service
+        </button>
+      </div>
 
       <div className="bg-white rounded-xl border border-gray-100 p-5">
         <p className="text-sm font-semibold text-gray-700 mb-3">Account</p>
