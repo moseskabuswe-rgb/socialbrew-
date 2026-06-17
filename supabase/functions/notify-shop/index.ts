@@ -115,6 +115,60 @@ function buildEmail(type: string, data: Record<string, any>): { subject: string;
     }
   }
 
+  if (type === 'verified_revoked') {
+    return {
+      subject: `Verified status update for ${name}`,
+      html: wrap('Verified status update', [
+        p(`The verified badge for <strong>${name}</strong> has been removed from your Social Brew profile.`),
+        p('If you think this is a mistake or have questions, please reply to this email and we\'ll look into it right away.'),
+      ].join('')),
+    }
+  }
+
+  if (type === 'shop_closed') {
+    return {
+      subject: `${name} has been marked as closed on Social Brew`,
+      html: wrap(`${name} is now marked as closed`, [
+        p(`We're reaching out to let you know that <strong>${name}</strong> has been marked as <strong>permanently closed</strong> on Social Brew.`),
+        p('If this is incorrect or you have any questions, please reply to this email and we\'ll sort it out right away.'),
+      ].join('')),
+    }
+  }
+
+  if (type === 'team_member_revoked') {
+    return {
+      subject: `Your Social Brew portal access has been updated`,
+      html: wrap('Portal access update', [
+        p(`Your access to the Social Brew portal for <strong>${name}</strong> has been revoked.`),
+        p('If you think this is a mistake, please reply to this email and we\'ll look into it.'),
+      ].join('')),
+    }
+  }
+
+  if (type === 'edit_approved') {
+    return {
+      subject: `✅ Your edit to ${name} was approved`,
+      html: wrap('Your edit was approved', [
+        p(`Good news — your edit submission for <strong>${name}</strong> has been reviewed and <strong>approved</strong>.`),
+        p('The changes are now live on Social Brew. Thanks for keeping your listing up to date!'),
+      ].join('')),
+    }
+  }
+
+  if (type === 'edit_rejected') {
+    const reasonBlock = data.reason
+      ? `<div style="background:#fdf8f4;border:1px solid #f0e8d8;border-radius:10px;padding:14px 18px;margin:0 0 14px"><p style="font-size:14px;color:#7a5030;line-height:1.6;margin:0;font-style:italic">"${data.reason}"</p></div>`
+      : ''
+    return {
+      subject: `Your edit to ${name} was not approved`,
+      html: wrap('Your edit was not approved', [
+        p(`Your edit submission for <strong>${name}</strong> was reviewed but was not approved at this time.`),
+        reasonBlock,
+        p('If you have questions or\'d like to resubmit, please reply to this email and we\'ll be happy to help.'),
+      ].join('')),
+    }
+  }
+
   return null
 }
 

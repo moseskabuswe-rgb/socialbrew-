@@ -241,6 +241,20 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       reviewed_by: currentUserId,
       reviewed_at: new Date().toISOString(),
     }).eq('id', edit.id)
+    const { data: memberData } = await supabase
+      .from('shop_team_members')
+      .select('email')
+      .eq('shop_id', edit.shop_id)
+      .eq('profile_id', edit.submitted_by)
+      .maybeSingle()
+    if (memberData?.email) {
+      supabase.functions.invoke('notify-shop', {
+        body: {
+          type: 'edit_approved',
+          data: { emails: [memberData.email], shop_name: (edit.coffee_shops as any)?.name || '' },
+        },
+      })
+    }
     setWorking(false)
     fetchAll()
     onPendingChange()
@@ -254,6 +268,23 @@ export default function ApprovalsTab({ currentUserId, onPendingChange }: Props) 
       reviewed_at: new Date().toISOString(),
       rejection_reason: rejectReason,
     }).eq('id', id)
+    const edit = edits.find(e => e.id === id)
+    if (edit) {
+      const { data: memberData } = await supabase
+        .from('shop_team_members')
+        .select('email')
+        .eq('shop_id', edit.shop_id)
+        .eq('profile_id', edit.submitted_by)
+        .maybeSingle()
+      if (memberData?.email) {
+        supabase.functions.invoke('notify-shop', {
+          body: {
+            type: 'edit_rejected',
+            data: { emails: [memberData.email], shop_name: (edit.coffee_shops as any)?.name || '', reason: rejectReason || null },
+          },
+        })
+      }
+    }
     setWorking(false)
     setRejectTarget(null)
     setRejectReason('')

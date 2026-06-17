@@ -117,6 +117,8 @@ export default function ShopsTab({ isAdmin }: Props) {
 
   async function doRevokeTeamMember() {
     if (!revokeConfirm) return
+    const memberEmail = revokeConfirm.email
+    const shopName = editTarget?.name || ''
     setWorking(true)
     await supabase
       .from('shop_team_members')
@@ -131,6 +133,14 @@ export default function ShopsTab({ isAdmin }: Props) {
     setWorking(false)
     setRevokeConfirm(null)
     if (editTarget) loadTeamMembers(editTarget.id)
+    if (memberEmail) {
+      supabase.functions.invoke('notify-shop', {
+        body: {
+          type: 'team_member_revoked',
+          data: { emails: [memberEmail], shop_name: shopName },
+        },
+      })
+    }
   }
 
   async function saveQuota() {
@@ -212,11 +222,26 @@ export default function ShopsTab({ isAdmin }: Props) {
 
   async function markClosed() {
     if (!closeConfirm) return
+    const { id: shopId, name: shopName } = closeConfirm
     setWorking(true)
-    await supabase.from('coffee_shops').update({ status: 'closed' }).eq('id', closeConfirm.id)
+    await supabase.from('coffee_shops').update({ status: 'closed' }).eq('id', shopId)
     setWorking(false)
     setCloseConfirm(null)
     fetchShops(search, page)
+    const { data: teamData } = await supabase
+      .from('shop_team_members')
+      .select('email')
+      .eq('shop_id', shopId)
+      .in('status', ['active', 'invited'])
+    const emails = (teamData || []).map((m: any) => m.email).filter(Boolean)
+    if (emails.length) {
+      supabase.functions.invoke('notify-shop', {
+        body: {
+          type: 'shop_closed',
+          data: { emails, shop_name: shopName },
+        },
+      })
+    }
   }
 
   async function addShop() {
