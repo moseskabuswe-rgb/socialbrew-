@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft, Share2 } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, X, Trash2, Flag, UserX, Plus, Edit2, Check, Send, Gift, ArrowLeft, Share2, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import PricePills from '../shared/PricePills'
 import ShareCard from '../shared/ShareCard'
@@ -821,11 +821,28 @@ function FullscreenCarousel({ photos, initialIndex, onClose }: {
   const [dragX, setDragX] = useState(0)
   const [dragY, setDragY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [scale, setScale] = useState(1)
   const startX = useRef(0)
   const startY = useRef(0)
   const startTime = useRef(0)
+  const pinchStartDist = useRef(0)
+  const pinchStartScale = useRef(1)
+  const isPinching = useRef(false)
+
+  useEffect(() => { setScale(1) }, [index])
 
   function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      isPinching.current = true
+      pinchStartDist.current = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      )
+      pinchStartScale.current = scale
+      setIsDragging(false)
+      return
+    }
+    isPinching.current = false
     startX.current = e.touches[0].clientX
     startY.current = e.touches[0].clientY
     startTime.current = Date.now()
@@ -835,7 +852,15 @@ function FullscreenCarousel({ photos, initialIndex, onClose }: {
   }
 
   function onTouchMove(e: React.TouchEvent) {
-    if (!isDragging) return
+    if (e.touches.length === 2 && isPinching.current) {
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      )
+      setScale(Math.min(4, Math.max(1, pinchStartScale.current * (dist / pinchStartDist.current))))
+      return
+    }
+    if (!isDragging || scale > 1) return
     const dx = e.touches[0].clientX - startX.current
     const dy = e.touches[0].clientY - startY.current
     setDragX(dx)
@@ -843,8 +868,14 @@ function FullscreenCarousel({ photos, initialIndex, onClose }: {
   }
 
   function onTouchEnd() {
+    if (isPinching.current) {
+      isPinching.current = false
+      if (scale < 1.05) setScale(1)
+      return
+    }
     if (!isDragging) return
     setIsDragging(false)
+    if (scale > 1) { setDragX(0); setDragY(0); return }
     const duration = Date.now() - startTime.current
     const isSwipe = duration < 300
 
@@ -887,8 +918,8 @@ function FullscreenCarousel({ photos, initialIndex, onClose }: {
           maxWidth: '100vw',
           maxHeight: '90vh',
           objectFit: 'contain',
-          transform: `translateX(${dragX * 0.3}px) translateY(${imgTranslateY}px)`,
-          transition: isDragging ? 'none' : 'transform 0.25s ease',
+          transform: `translateX(${dragX * 0.3}px) translateY(${imgTranslateY}px) scale(${scale})`,
+          transition: isDragging || isPinching.current ? 'none' : 'transform 0.25s ease',
           userSelect: 'none',
           WebkitUserSelect: 'none',
         }}
@@ -1340,7 +1371,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
 
   return (
     <div className="min-h-screen bg-cream-100">
-      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200">
+      <div className="sticky top-0 z-10 bg-cream-100 border-b border-cream-200" style={{ willChange: 'transform' }}>
         <div className="px-5 py-4 flex items-center justify-between">
           <div className="relative inline-flex items-center" onClick={onLogoTap} style={{ userSelect: 'none', cursor: 'pointer' }}>
             <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
@@ -1377,15 +1408,15 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         <div className="flex gap-2 px-4 pb-3">
           <button
             onClick={() => setFeedTab('people')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'people' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${feedTab === 'people' ? 'border border-coffee-300 text-coffee-700 bg-cream-50' : 'border border-cream-200 text-coffee-400 bg-transparent'}`}
           >
-            👥 People
+            <Users size={14} strokeWidth={1.5} /> People
           </button>
           <button
             onClick={() => setFeedTab('shops')}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${feedTab === 'shops' ? 'bg-coffee-700 text-white shadow-sm' : 'bg-white text-coffee-600 border border-cream-200'}`}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${feedTab === 'shops' ? 'border border-coffee-300 text-coffee-700 bg-cream-50' : 'border border-cream-200 text-coffee-400 bg-transparent'}`}
           >
-            ☕ Shops
+            <Coffee size={14} strokeWidth={1.5} /> Shops
           </button>
         </div>
       </div>
@@ -1511,7 +1542,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   return (
                     <div className={urls.length > 1 ? 'grid gap-0.5' : ''} style={{
                       gridTemplateColumns: urls.length === 2 ? '1fr 1fr' : urls.length === 3 ? '1fr 1fr' : urls.length === 4 ? '1fr 1fr' : '1fr',
-                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? '1fr 1fr' : 'auto',
+                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? 'auto auto' : 'auto',
+                      background: urls.length === 1 ? '#0a0605' : undefined,
                     }}>
                       {urls.map((url: string, i: number) => (
                         <button key={i}
@@ -1519,8 +1551,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                           className="w-full overflow-hidden"
                           style={{ gridColumn: urls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
                           <img src={cachedUrl(url)} alt="" loading="lazy" decoding="async"
-                            className="w-full object-cover"
-                            style={{ height: urls.length === 1 ? 320 : urls.length === 3 && i === 0 ? 200 : 160 }} />
+                            className="w-full"
+                            style={{
+                              objectFit: urls.length === 1 ? 'contain' : 'cover',
+                              height: urls.length === 1 ? 'auto' : urls.length === 3 && i === 0 ? 200 : 160,
+                              maxHeight: urls.length === 1 ? 420 : undefined,
+                            }} />
                         </button>
                       ))}
                     </div>
@@ -1723,7 +1759,8 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   return (
                     <div className={`${urls.length > 1 ? 'grid gap-0.5' : ''} mb-2`} style={{
                       gridTemplateColumns: urls.length >= 2 ? '1fr 1fr' : '1fr',
-                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? '1fr 1fr' : 'auto',
+                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? 'auto auto' : 'auto',
+                      background: urls.length === 1 ? '#0a0605' : undefined,
                     }}>
                       {urls.map((url: string, i: number) => (
                         <button key={i}
@@ -1731,8 +1768,13 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                           className="w-full overflow-hidden rounded-sm"
                           style={{ gridColumn: urls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
                           <img loading="lazy" decoding="async" src={cachedUrl(url)} alt=""
-                            className="w-full object-cover"
-                            style={{ height: urls.length === 1 ? 208 : urls.length === 3 && i === 0 ? 160 : 120, transform: 'translateZ(0)' }} />
+                            className="w-full"
+                            style={{
+                              objectFit: urls.length === 1 ? 'contain' : 'cover',
+                              height: urls.length === 1 ? 'auto' : urls.length === 3 && i === 0 ? 160 : 120,
+                              maxHeight: urls.length === 1 ? 320 : undefined,
+                              transform: 'translateZ(0)',
+                            }} />
                         </button>
                       ))}
                     </div>

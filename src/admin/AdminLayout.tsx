@@ -46,10 +46,9 @@ const NAV_ITEMS: { id: AdminTab; label: string; icon: string; adminOnly?: boolea
   { id: 'shops',     label: 'Shops',      icon: '☕' },
   { id: 'approvals', label: 'Approvals',  icon: '✅' },
   { id: 'reports',   label: 'Reports',    icon: '🚨' },
-  { id: 'verified',        label: 'Verified',        icon: '✅', adminOnly: true },
+  { id: 'verified',        label: 'Verified',        icon: '⭐', adminOnly: true },
   { id: 'broadcast',      label: 'Broadcast',      icon: '📣', adminOnly: true },
   { id: 'subscriptions',  label: 'Subscriptions',  icon: '💳', adminOnly: true },
-  { id: 'verified',       label: 'Verified',        icon: '✅', adminOnly: true },
 ]
 
 export default function AdminLayout({ profile, onClose }: Props) {
@@ -212,7 +211,6 @@ export default function AdminLayout({ profile, onClose }: Props) {
           {activeTab === 'verified' && isAdmin && <VerifiedTab />}
           {activeTab === 'broadcast' && isAdmin && <BroadcastTab currentUserId={profile.id} />}
           {activeTab === 'subscriptions' && isAdmin && <SubscriptionsTab currentUserId={profile.id} />}
-          {activeTab === 'verified' && isAdmin && <VerifiedTab />}
         </main>
       </div>
     </div>
