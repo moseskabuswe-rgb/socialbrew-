@@ -101,6 +101,24 @@ export default function VerifiedTab() {
     setVerified(prev => grant ? prev : prev.filter(r => r.id !== id))
     setSearchResults(prev => prev.map(patch))
 
+    if (grant && m === 'shops') {
+      const shopRow = [...searchResults, ...verified].find(r => r.id === id) as ShopRow | undefined
+      const { data: teamData } = await supabase
+        .from('shop_team_members')
+        .select('email')
+        .eq('shop_id', id)
+        .in('status', ['active', 'invited'])
+      const emails = (teamData || []).map((tm: any) => tm.email).filter(Boolean)
+      if (emails.length) {
+        supabase.functions.invoke('notify-shop', {
+          body: {
+            type: 'verified_granted',
+            data: { emails, shop_name: shopRow?.name || '' },
+          },
+        })
+      }
+    }
+
     if (grant) fetchVerified(m)
     setWorking(null)
   }

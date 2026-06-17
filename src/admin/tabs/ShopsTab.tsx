@@ -256,7 +256,7 @@ export default function ShopsTab({ isAdmin }: Props) {
   async function toggleFoundingPartner() {
     if (!foundingConfirm) return
     setWorking(true)
-    const { shopId, enable } = foundingConfirm
+    const { shopId, shopName, enable } = foundingConfirm
     const existing = shops.find(s => s.id === shopId)
     if (existing?.shop_owners) {
       await supabase.from('shop_owners').update({ founding_partner: enable }).eq('shop_id', shopId)
@@ -272,6 +272,20 @@ export default function ShopsTab({ isAdmin }: Props) {
       .single()
     if (data && editTarget?.id === shopId) setEditTarget(data as any)
     fetchShops(search, page)
+    const { data: teamData } = await supabase
+      .from('shop_team_members')
+      .select('email')
+      .eq('shop_id', shopId)
+      .in('status', ['active', 'invited'])
+    const emails = (teamData || []).map((m: any) => m.email).filter(Boolean)
+    if (emails.length) {
+      supabase.functions.invoke('notify-shop', {
+        body: {
+          type: enable ? 'founding_partner_granted' : 'founding_partner_revoked',
+          data: { emails, shop_name: shopName },
+        },
+      })
+    }
   }
 
   const totalPages = Math.ceil(total / PAGE)

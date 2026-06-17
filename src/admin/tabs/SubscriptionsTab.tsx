@@ -86,7 +86,8 @@ export default function SubscriptionsTab({ currentUserId }: Props) {
 
   async function saveSubscription(shop: SubShop) {
     const edit = subEdits[shop.id] || {}
-    const tier = edit.tier ?? shop.shop_subscriptions?.tier ?? 'basic'
+    const originalTier = shop.shop_subscriptions?.tier ?? 'basic'
+    const tier = edit.tier ?? originalTier
     const isFounding = tier === 'founding'
     const nowIso = new Date().toISOString()
     const sixMonths = new Date(Date.now() + 180 * 86400000).toISOString()
@@ -128,6 +129,22 @@ export default function SubscriptionsTab({ currentUserId }: Props) {
         )
       )
       setSubEdits(e => { const n = { ...e }; delete n[shop.id]; return n })
+      if (tier !== originalTier) {
+        const { data: teamData } = await supabase
+          .from('shop_team_members')
+          .select('email')
+          .eq('shop_id', shop.id)
+          .in('status', ['active', 'invited'])
+        const emails = (teamData || []).map((m: any) => m.email).filter(Boolean)
+        if (emails.length) {
+          supabase.functions.invoke('notify-shop', {
+            body: {
+              type: 'tier_changed',
+              data: { emails, shop_name: shop.name, new_tier: tier, billing_cycle: payload.billing_cycle },
+            },
+          })
+        }
+      }
     }
   }
 
@@ -151,6 +168,27 @@ export default function SubscriptionsTab({ currentUserId }: Props) {
     }
 
     setAddonRequests(prev => prev.filter(r => r.id !== req.id))
+    if (action === 'approved' || action === 'declined') {
+      const { data: teamData } = await supabase
+        .from('shop_team_members')
+        .select('email')
+        .eq('shop_id', req.shop_id)
+        .in('status', ['active', 'invited'])
+      const emails = (teamData || []).map((m: any) => m.email).filter(Boolean)
+      if (emails.length) {
+        supabase.functions.invoke('notify-shop', {
+          body: {
+            type: action === 'approved' ? 'addon_approved' : 'addon_declined',
+            data: {
+              emails,
+              shop_name: req.coffee_shops?.name || '',
+              addon_type: requestTypeLabel(req.request_type),
+              quantity: req.quantity,
+            },
+          },
+        })
+      }
+    }
     setReqLoading(null)
   }
 
