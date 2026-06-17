@@ -64,6 +64,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [addToStory, setAddToStory] = useState(false)
   const [createdRatingId, setCreatedRatingId] = useState<string | null>(null)
   const [showStoryCreate, setShowStoryCreate] = useState(false)
+  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([])
   const [punchResult, setPunchResult] = useState<PunchAwardResult | null>(null)
   // Steps: rate → (feedback if low) → details → price → submitting → done
   const [step, setStep] = useState<'rate' | 'details' | 'price' | 'submitting' | 'done'>('rate')
@@ -94,7 +95,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
   // ── Original touch handlers — unchanged (onTM uses e.preventDefault inline) ──
   const onTS = (e: React.TouchEvent) => { dismissHint(); setIsDragging(true); calculateFill(e.touches[0].clientY) }
-  const onTM = (e: React.TouchEvent) => { e.preventDefault(); if (isDragging) calculateFill(e.touches[0].clientY) }
+  const onTM = (e: React.TouchEvent) => { if (isDragging) { e.preventDefault(); calculateFill(e.touches[0].clientY) } }
   const onTEnd = () => setIsDragging(false)
 
   const toggleVibe = (v: string) =>
@@ -189,6 +190,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       }
     }
     const photoUrl = photoUrls[0] || null
+    setUploadedPhotoUrls(photoUrls)
 
     const shopId = await resolveShopId(shop)
     if (!shopId) { setStep('details'); alert('Something went wrong finding the shop. Please try again.'); return }
@@ -338,6 +340,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           <CreateStory
             prefillRatingId={createdRatingId}
             prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
+            prefillPhoto={uploadedPhotoUrls[0] || null}
             onClose={() => { setShowStoryCreate(false); onComplete(); onClose() }}
             onCreated={() => { setShowStoryCreate(false); onComplete(); onClose() }}
           />
@@ -831,6 +834,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         <CreateStory
           prefillRatingId={createdRatingId}
           prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
+          prefillPhoto={uploadedPhotoUrls[0] || null}
           onClose={() => { setShowStoryCreate(false); onClose() }}
           onCreated={() => { setShowStoryCreate(false); onClose() }}
         />

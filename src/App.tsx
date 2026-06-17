@@ -232,19 +232,20 @@ function AppContent() {
       )}
 
       <div className="pb-20">
-        {activeTab === 'home' && (
-          <>
-            {/* Push prompt shows at top of home feed */}
-            {showPushPrompt && (
-              <PushPrompt
-                userId={profile.id}
-                onDismiss={dismissPushPrompt}
-                onSuccess={dismissPushPrompt}
-              />
-            )}
-            <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} deepLink={deepLink} onDeepLinkHandled={() => setDeepLink(null)} />
-          </>
-        )}
+        <TabErrorBoundary>
+          {activeTab === 'home' && (
+            <>
+              {showPushPrompt && (
+                <PushPrompt
+                  userId={profile.id}
+                  onDismiss={dismissPushPrompt}
+                  onSuccess={dismissPushPrompt}
+                />
+              )}
+              <HomeTab refresh={feedRefresh} onLogoTap={handleLogoTap} deepLink={deepLink} onDeepLinkHandled={() => setDeepLink(null)} />
+            </>
+          )}
+        </TabErrorBoundary>
         <TabErrorBoundary>
           <Suspense fallback={<TabSpinner />}>
             {activeTab === 'discover' && <DiscoverTab key={tabRefresh} />}

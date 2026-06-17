@@ -136,8 +136,9 @@ function PinchZoomPhoto({ src, onClose }: { src: string; onClose: () => void }) 
 
   function onTouchEnd(e: React.TouchEvent) {
     e.preventDefault()
-    // Pinch-to-close: if scale drops below 0.75, close the viewer
-    if (scaleRef.current < 0.75) {
+    // Pinch-to-close: only when the user was at normal zoom — prevents
+    // accidentally closing while zooming back out from a magnified state
+    if (scaleRef.current < 0.75 && startScaleRef.current <= 1.1) {
       onClose()
       return
     }
