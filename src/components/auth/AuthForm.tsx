@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { Coffee, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 function friendlyError(msg: string): string {
@@ -84,9 +84,8 @@ export default function AuthForm() {
 
       {/* Logo */}
       <div className="flex flex-col items-center mb-10 animate-fade-in">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4 shadow-md"
-          style={{ background: 'linear-gradient(135deg, #c8853a, #a06428)' }}>
-          <Coffee size={36} className="text-white" />
+        <div className="mb-4" style={{ width: 80, height: 80 }}>
+          <img src="/icon-512.png" alt="Social Brew" width={80} height={80} style={{ display: 'block', mixBlendMode: 'multiply' }} />
         </div>
         <h1 className="font-display text-4xl font-bold text-coffee-800 tracking-tight">Social Brew</h1>
         <p className="text-coffee-400 text-sm mt-1.5 tracking-widest uppercase">Your Coffee Community</p>
