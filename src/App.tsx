@@ -7,7 +7,6 @@ import AuthForm from './components/auth/AuthForm'
 import HomeTab from './components/home/HomeTab'
 import BottomNav from './components/shared/BottomNav'
 import EmailVerificationBanner from './components/shared/EmailVerificationBanner'
-import FeedbackWidget from './components/shared/FeedbackWidget'
 import ShopToast from './components/shared/ShopToast'
 import BadgeCelebration from './components/shared/BadgeCelebration'
 import PushPrompt from './components/shared/PushPrompt'
@@ -219,11 +218,11 @@ function AppContent() {
     <div className="min-h-screen max-w-lg mx-auto relative bg-cream-100">
       {profile && !profile.email_verified && <EmailVerificationBanner />}
 
-      {/* Pull-to-refresh indicator */}
+      {/* Pull-to-refresh indicator — uses transform (not marginTop) to avoid layout reflow */}
       {(pullProgress > 0.15 || pullRefreshing) && (
         <div
-          className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center pointer-events-none"
-          style={{ marginTop: Math.round((pullRefreshing ? 1 : pullProgress) * 48) }}
+          className="fixed top-0 left-1/2 z-50 flex items-center justify-center pointer-events-none"
+          style={{ transform: `translateX(-50%) translateY(${Math.round((pullRefreshing ? 1 : pullProgress) * 48)}px)` }}
         >
           <div
             className={`w-8 h-8 rounded-full border-2 border-caramel border-t-transparent bg-white shadow-md ${pullRefreshing || pullProgress >= 1 ? 'animate-spin' : ''}`}
@@ -257,7 +256,6 @@ function AppContent() {
       </div>
 
       <BottomNav active={activeTab} onChange={setActiveTab} />
-      <FeedbackWidget />
 
       {shopToast && <ShopToast shopName={shopToast} onDone={() => setShopToast(null)} />}
 

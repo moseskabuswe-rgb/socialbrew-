@@ -18,6 +18,7 @@ import PrivacyPolicyPage from '../shared/PrivacyPolicyPage'
 import TermsPage from '../shared/TermsPage'
 import { compressAvatar } from '../../lib/compressImage'
 import { cachedUrl } from '../../lib/storageUrl'
+import ConversationView from '../messaging/ConversationView'
 const CoffeeMap = lazy(() => import('./CoffeeMap'))
 // getBadgeInfo replaced by getBadge from badges.ts
 // ── FOLLOWERS MODAL ─────────────────────────────────────
@@ -174,6 +175,9 @@ function SettingsModal({ onClose, onShowPrivacy, onShowTerms }: { onClose: () =>
     typeof Notification !== 'undefined' && Notification.permission === 'granted'
   )
   const [togglingPush, setTogglingPush] = useState(false)
+  const [showSupportDM, setShowSupportDM] = useState(false)
+  const [supportConversation, setSupportConversation] = useState<any>(null)
+  const [openingDM, setOpeningDM] = useState(false)
   async function saveSettings() {
     if (!profile || saving) return
     setSaving(true)
@@ -303,6 +307,61 @@ function SettingsModal({ onClose, onShowPrivacy, onShowTerms }: { onClose: () =>
     await supabase.from('blocks').delete().eq('blocker_id', profile.id).eq('blocked_id', blockedId)
     setBlockedProfiles(prev => prev.filter(u => u.id !== blockedId))
     setUnblockingId(null)
+  }
+  async function handleOpenSupportDM() {
+    if (!profile || openingDM) return
+    setOpeningDM(true)
+    try {
+      const { data: support } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('username', 'moses.kabuswe')
+        .maybeSingle()
+      if (!support) { setOpeningDM(false); return }
+
+      const { data: myMemberships } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', profile.id)
+      const myConvIds = (myMemberships || []).map((c: any) => c.conversation_id)
+
+      let conversationId: string | null = null
+      if (myConvIds.length > 0) {
+        const { data: shared } = await supabase
+          .from('conversation_members')
+          .select('conversation_id,conversations!inner(type)')
+          .eq('user_id', support.id)
+          .in('conversation_id', myConvIds)
+        const dm = (shared as any)?.find((c: any) => (c.conversations as any)?.type === 'dm')
+        if (dm) conversationId = dm.conversation_id
+      }
+
+      if (!conversationId) {
+        const { data: conv } = await supabase
+          .from('conversations')
+          .insert({ type: 'dm', name: null, created_by: profile.id })
+          .select('id')
+          .single()
+        if (!conv) { setOpeningDM(false); return }
+        await supabase.from('conversation_members').insert([
+          { conversation_id: conv.id, user_id: profile.id },
+          { conversation_id: conv.id, user_id: support.id },
+        ])
+        conversationId = conv.id
+      }
+
+      setSupportConversation({
+        id: conversationId,
+        type: 'dm',
+        name: null,
+        photo_url: null,
+        created_by: profile.id,
+        other_username: support.username,
+        other_avatar: support.avatar_url,
+      })
+      setShowSupportDM(true)
+    } catch {}
+    setOpeningDM(false)
   }
   async function handleTogglePush() {
     if (!profile) return
@@ -523,6 +582,23 @@ function SettingsModal({ onClose, onShowPrivacy, onShowTerms }: { onClose: () =>
               <ChevronRight size={16} className="text-coffee-400" />
             </button>
           </div>
+          {/* Feedback & Support */}
+          <div className="bg-white mx-4 mt-3 rounded-2xl border border-cream-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-cream-100">
+              <p className="text-coffee-600 font-semibold text-sm">Feedback & Support</p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-coffee-400 text-xs mb-3">Have a question, found a bug, or want to share feedback? Message us directly.</p>
+              <button
+                onClick={handleOpenSupportDM}
+                disabled={openingDM}
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+              >
+                {openingDM ? 'Opening...' : '💬 Message Us'}
+              </button>
+            </div>
+          </div>
           {/* Delete Account */}
           <div className="bg-white mx-4 mt-3 rounded-2xl border border-red-100 shadow-sm overflow-hidden mb-4">
             <button
@@ -593,6 +669,15 @@ function SettingsModal({ onClose, onShowPrivacy, onShowTerms }: { onClose: () =>
           </div>
         </div>
       </div>
+      {showSupportDM && supportConversation && profile && (
+        <div className="fixed inset-0 z-[200]">
+          <ConversationView
+            conversation={supportConversation}
+            currentUserId={profile.id}
+            onBack={() => { setShowSupportDM(false); setSupportConversation(null) }}
+          />
+        </div>
+      )}
     </>
   )
 }
