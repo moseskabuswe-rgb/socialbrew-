@@ -72,7 +72,7 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
       const now = new Date().toISOString()
       const [storiesRes, viewsRes] = await Promise.all([
         supabase.from('stories')
-          .select('id, user_id, shop_id, photo_url, caption, story_type, created_at, expires_at, view_count')
+          .select('id, user_id, shop_id, photo_url, photo_urls, caption, story_type, created_at, expires_at, view_count')
           .in('shop_id', shopIds)
           .gt('expires_at', now)
           .order('created_at', { ascending: false }),

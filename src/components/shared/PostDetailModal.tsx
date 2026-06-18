@@ -449,17 +449,15 @@ export default function PostDetailModal({ rating, onClose, onUserClick, onShopCl
             return (
               <div className="relative">
                 <div className={photoUrls.length > 1 ? 'grid gap-0.5' : ''} style={{
-                  gridTemplateColumns: photoUrls.length >= 2 ? '1fr 1fr' : '1fr',
-                  gridTemplateRows: photoUrls.length === 4 ? '1fr 1fr' : 'auto',
+                  gridTemplateColumns: photoUrls.length === 3 ? '1fr 1fr 1fr' : photoUrls.length >= 2 ? '1fr 1fr' : '1fr',
                 }}>
                   {photoUrls.map((url: string, i: number) => (
                     <button key={i}
                       onClick={() => setZoomedPhoto(i)}
-                      className="w-full overflow-hidden"
-                      style={{ gridColumn: photoUrls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
+                      className="w-full overflow-hidden">
                       <img src={cachedUrl(url)} alt=""
                         className="w-full object-cover"
-                        style={{ height: photoUrls.length === 1 ? 256 : photoUrls.length === 3 && i === 0 ? 200 : 160 }} />
+                        style={{ height: photoUrls.length === 1 ? 256 : 160 }} />
                     </button>
                   ))}
                 </div>

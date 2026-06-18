@@ -13,22 +13,30 @@ interface Props {
   onCreated: () => void
   // Optional: pre-fill from a rating post
   prefillPhoto?: string | null
+  prefillPhotos?: string[]
   prefillCaption?: string
   prefillShopId?: string | null
   prefillRatingId?: string | null
 }
 
-export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillCaption, prefillShopId, prefillRatingId }: Props) {
+export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillPhotos, prefillCaption, prefillShopId, prefillRatingId }: Props) {
   const { profile } = useAuth()
+
+  // Resolve the canonical list of prefill URLs
+  const initialPhotos = prefillPhotos?.length ? prefillPhotos : (prefillPhoto ? [prefillPhoto] : [])
+
   const [mode, setMode] = useState<'choose' | 'photo' | 'text'>(
-    prefillPhoto ? 'photo' : 'choose'
+    initialPhotos.length > 0 ? 'photo' : 'choose'
   )
   const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(prefillPhoto || null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(initialPhotos[0] || null)
   const [caption, setCaption] = useState(prefillCaption || '')
   const [posting, setPosting] = useState(false)
+  const [previewIndex, setPreviewIndex] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
+  // For single new-photo uploads; prefill URLs are already uploaded
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -37,25 +45,32 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillC
     setMode('photo')
   }
 
+  function handleCarouselScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    setPreviewIndex(Math.round(el.scrollLeft / el.clientWidth))
+  }
+
   async function handlePost() {
     if (!profile) return
     setPosting(true)
 
-    let photoUrl: string | null = prefillPhoto || null
+    let photoUrls: string[] = [...initialPhotos]
 
-    // Upload new photo if selected (compressed before upload)
-    if (photo) {
+    // Upload new photo if selected (only applies when user picks their own photo, not prefill)
+    if (photo && !initialPhotos.length) {
       try {
         const compressed = await compressImage(photo)
         const path = `stories/${profile.id}/${Date.now()}.jpg`
         const { error: upErr } = await supabase.storage.from('avatars').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
         if (!upErr) {
           const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-          photoUrl = publicUrl
+          photoUrls = [publicUrl]
         }
       } catch { /* skip compression error, continue without photo */ }
     }
 
+    const photoUrl = photoUrls[0] || null
     const storyType = prefillRatingId ? 'rating' : photoUrl ? 'moment' : 'text'
 
     await supabase.from('stories').insert({
@@ -63,6 +78,7 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillC
       shop_id: prefillShopId || null,
       rating_id: prefillRatingId || null,
       photo_url: photoUrl,
+      photo_urls: photoUrls.length > 0 ? photoUrls : null,
       caption: caption.trim() || null,
       story_type: storyType,
     })
@@ -140,8 +156,38 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillC
       {mode === 'photo' && (
         <div className="flex-1 flex flex-col">
           <div className="flex-1 relative mx-4 rounded-2xl overflow-hidden bg-coffee-900">
-            {photoPreview && <img src={photoPreview} alt="" className="w-full h-full object-cover" />}
-            {!prefillPhoto && (
+            {initialPhotos.length > 1 ? (
+              /* Multi-photo carousel */
+              <>
+                <div
+                  ref={scrollRef}
+                  className="w-full h-full flex overflow-x-auto snap-x snap-mandatory"
+                  style={{ scrollbarWidth: 'none' }}
+                  onScroll={handleCarouselScroll}
+                >
+                  {initialPhotos.map((url, i) => (
+                    <div key={i} className="w-full h-full flex-shrink-0 snap-center">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+                {/* Dot indicators */}
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+                  {initialPhotos.map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full transition-all"
+                      style={{ background: i === previewIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)' }}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              photoPreview && <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+            )}
+
+            {/* Allow swapping photo when user picked their own (not prefill) */}
+            {!initialPhotos.length && (
               <button
                 onClick={() => fileRef.current?.click()}
                 className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center"
@@ -164,7 +210,7 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillC
               className="w-full py-3.5 rounded-2xl text-white font-bold text-sm disabled:opacity-40"
               style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
             >
-              {posting ? 'Posting...' : 'Share Story'}
+              {posting ? 'Posting...' : `Share Story${initialPhotos.length > 1 ? ` (${initialPhotos.length} photos)` : ''}`}
             </button>
           </div>
         </div>

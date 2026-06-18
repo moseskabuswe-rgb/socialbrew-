@@ -2,7 +2,7 @@
 // Full-screen story viewer with progress bars, reactions, and DM replies
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Eye, Send } from 'lucide-react'
+import { X, Eye, Send, ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { notifyDM } from '../../lib/push'
@@ -11,6 +11,7 @@ interface Story {
   id: string
   user_id: string
   photo_url: string | null
+  photo_urls?: string[] | null
   caption: string | null
   story_type: string
   created_at: string
@@ -40,6 +41,7 @@ const QUICK_REACTIONS = ['❤️', '😍', '🔥', '☕', '😂', '👏']
 export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) {
   const { profile } = useAuth()
   const [index, setIndex] = useState(0)
+  const [photoIndex, setPhotoIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const [replyText, setReplyText] = useState('')
   const [showReply, setShowReply] = useState(false)
@@ -55,11 +57,15 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
   const storyPinchStartDist = useRef(0)
   const storyPinchStartScale = useRef(1)
   const storyIsPinching = useRef(false)
+  const photoScrollRef = useRef<HTMLDivElement>(null)
 
   const story = group.stories[index]
+  const storyPhotos = story?.photo_urls?.length ? story.photo_urls : (story?.photo_url ? [story.photo_url] : [])
 
   useEffect(() => {
     if (!story) return
+    setPhotoIndex(0)
+    if (photoScrollRef.current) photoScrollRef.current.scrollLeft = 0
     onViewed(story.id)
     loadMyReaction()
     startTimer()
@@ -67,14 +73,14 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
     return () => stopTimer()
   }, [index, story?.id])
 
-  // Pause when reply input is open
+  // Pause when reply input or viewers panel is open
   useEffect(() => {
-    if (showReply) {
+    if (showReply || showViewers) {
       stopTimer()
     } else {
       startTimer()
     }
-  }, [showReply])
+  }, [showReply, showViewers])
 
   async function loadMyReaction() {
     if (!profile || isOwn) return
@@ -127,18 +133,22 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
     else onClose()
   }
 
+  function handlePhotoScroll() {
+    const el = photoScrollRef.current
+    if (!el) return
+    setPhotoIndex(Math.round(el.scrollLeft / el.clientWidth))
+  }
+
   async function sendReaction(emoji: string) {
     if (!profile || isOwn || sending) return
     setSending(true)
 
-    // Upsert reaction
     await supabase.from('story_reactions').upsert(
       { story_id: story.id, user_id: profile.id, emoji },
       { onConflict: 'story_id,user_id' }
     )
     setMyReaction(emoji)
 
-    // Send as DM to story owner
     const { data: dm } = await supabase
       .from('direct_messages')
       .insert({
@@ -244,7 +254,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
       {/* Story content */}
       <div className="flex-1 relative overflow-hidden"
         onTouchStart={(e) => {
-          if (e.touches.length === 2) {
+          if (storyPhotos.length <= 1 && e.touches.length === 2) {
             storyIsPinching.current = true
             storyPinchStartDist.current = Math.hypot(
               e.touches[1].clientX - e.touches[0].clientX,
@@ -254,7 +264,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           }
         }}
         onTouchMove={(e) => {
-          if (e.touches.length === 2 && storyIsPinching.current) {
+          if (storyPhotos.length <= 1 && e.touches.length === 2 && storyIsPinching.current) {
             const dist = Math.hypot(
               e.touches[1].clientX - e.touches[0].clientX,
               e.touches[1].clientY - e.touches[0].clientY
@@ -269,12 +279,46 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           }
         }}
       >
-        {story.photo_url ? (
-          <img src={story.photo_url} alt="" className="w-full h-full object-contain"
-            style={{
-              transform: `translateZ(0) scale(${storyScale})`,
-              transition: storyIsPinching.current ? 'none' : 'transform 0.2s ease',
-            }} />
+        {storyPhotos.length > 0 ? (
+          storyPhotos.length > 1 ? (
+            /* Multi-photo scrollable carousel */
+            <>
+              <div
+                ref={photoScrollRef}
+                className="w-full h-full flex overflow-x-auto snap-x snap-mandatory"
+                style={{ scrollbarWidth: 'none' }}
+                onScroll={handlePhotoScroll}
+              >
+                {storyPhotos.map((url, i) => (
+                  <div key={i} className="w-full h-full flex-shrink-0 snap-center">
+                    <img
+                      src={url}
+                      alt=""
+                      className="w-full h-full object-contain"
+                      style={{ transform: 'translateZ(0)' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              {/* Photo dot indicators */}
+              <div className="absolute bottom-20 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+                {storyPhotos.map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full transition-all"
+                    style={{ background: i === photoIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)' }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            /* Single photo */
+            <img src={storyPhotos[0]} alt="" className="w-full h-full object-contain"
+              style={{
+                transform: `translateZ(0) scale(${storyScale})`,
+                transition: storyIsPinching.current ? 'none' : 'transform 0.2s ease',
+              }} />
+          )
         ) : (
           <div className="w-full h-full flex items-center justify-center p-8"
             style={{ background: 'linear-gradient(160deg, #1a0a02, #3d1a06, #6b3410)' }}>
@@ -285,19 +329,19 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
         )}
 
         {/* Caption overlay for photo stories */}
-        {story.photo_url && story.caption && (
+        {storyPhotos.length > 0 && story.caption && (
           <div className="absolute bottom-32 left-0 right-0 px-5 py-4"
             style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
             <p className="text-white text-base font-medium">{story.caption}</p>
           </div>
         )}
 
-        {/* View count for own stories — uses view_count from DB (updated by trigger) */}
+        {/* View count for own stories */}
         {isOwn && (
           <>
             <button
               onClick={() => { loadViewers(story.id); setShowViewers(true) }}
-              className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/40 rounded-full px-3 py-1.5 active:scale-95 transition-all"
+              className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/40 rounded-full px-3 py-1.5 active:scale-95 transition-all z-10"
             >
               <Eye size={13} className="text-white/70" />
               <span className="text-white/70 text-xs font-medium">
@@ -307,17 +351,20 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
 
             {showViewers && (
               <div
-                className="absolute bottom-0 left-0 right-0 rounded-t-2xl flex flex-col z-10"
+                className="absolute bottom-0 left-0 right-0 rounded-t-2xl flex flex-col z-20"
                 style={{ background: 'rgba(18,10,4,0.97)', maxHeight: '60%' }}
                 onClick={e => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
-                  <p className="text-white font-semibold text-sm">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 flex-shrink-0">
+                  <button
+                    onClick={() => setShowViewers(false)}
+                    className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0"
+                  >
+                    <ChevronLeft size={18} className="text-white" />
+                  </button>
+                  <p className="text-white font-semibold text-sm flex-1">
                     {viewers.length} {viewers.length === 1 ? 'viewer' : 'viewers'}
                   </p>
-                  <button onClick={() => setShowViewers(false)}>
-                    <X size={18} className="text-white/60" />
-                  </button>
                 </div>
                 <div className="overflow-y-auto flex-1 py-2">
                   {viewers.length === 0 && (
@@ -341,8 +388,8 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           </>
         )}
 
-        {/* Tap zones — only active when reply is closed and not zoomed */}
-        {!showReply && storyScale <= 1 && (
+        {/* Tap zones — only active when reply/viewers closed and not zoomed */}
+        {!showReply && !showViewers && storyScale <= 1 && (
           <div className="absolute inset-0 flex">
             <div className="w-1/3 h-full" onClick={prev} />
             <div className="w-1/3 h-full" />

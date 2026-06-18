@@ -1568,20 +1568,18 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
                   return (
                     <div className={urls.length > 1 ? 'grid gap-0.5' : ''} style={{
-                      gridTemplateColumns: urls.length === 2 ? '1fr 1fr' : urls.length === 3 ? '1fr 1fr' : urls.length === 4 ? '1fr 1fr' : '1fr',
-                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? 'auto auto' : 'auto',
+                      gridTemplateColumns: urls.length === 3 ? '1fr 1fr 1fr' : urls.length >= 2 ? '1fr 1fr' : '1fr',
                       background: urls.length === 1 ? '#0a0605' : undefined,
                     }}>
                       {urls.map((url: string, i: number) => (
                         <button key={i}
                           onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(i) }}
-                          className="w-full overflow-hidden"
-                          style={{ gridColumn: urls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
+                          className="w-full overflow-hidden">
                           <img src={cachedUrl(url)} alt="" loading="lazy" decoding="async"
                             className="w-full"
                             style={{
                               objectFit: urls.length === 1 ? 'contain' : 'cover',
-                              height: urls.length === 1 ? 'auto' : urls.length === 3 && i === 0 ? 200 : 160,
+                              height: urls.length === 1 ? 'auto' : 160,
                               maxHeight: urls.length === 1 ? 420 : undefined,
                             }} />
                         </button>
@@ -1785,20 +1783,18 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                   const urls = (rating.photo_urls?.length > 0 ? rating.photo_urls : [rating.photo_url]).filter(Boolean)
                   return (
                     <div className={`${urls.length > 1 ? 'grid gap-0.5' : ''} mb-2`} style={{
-                      gridTemplateColumns: urls.length >= 2 ? '1fr 1fr' : '1fr',
-                      gridTemplateRows: urls.length === 3 ? 'auto auto' : urls.length === 4 ? 'auto auto' : 'auto',
+                      gridTemplateColumns: urls.length === 3 ? '1fr 1fr 1fr' : urls.length >= 2 ? '1fr 1fr' : '1fr',
                       background: urls.length === 1 ? '#0a0605' : undefined,
                     }}>
                       {urls.map((url: string, i: number) => (
                         <button key={i}
                           onClick={() => { setFullscreenPhotos(urls); setFullscreenIndex(i) }}
-                          className="w-full overflow-hidden rounded-sm"
-                          style={{ gridColumn: urls.length === 3 && i === 0 ? '1 / -1' : 'auto' }}>
+                          className="w-full overflow-hidden rounded-sm">
                           <img loading="lazy" decoding="async" src={cachedUrl(url)} alt=""
                             className="w-full"
                             style={{
                               objectFit: urls.length === 1 ? 'contain' : 'cover',
-                              height: urls.length === 1 ? 'auto' : urls.length === 3 && i === 0 ? 160 : 120,
+                              height: urls.length === 1 ? 'auto' : 120,
                               maxHeight: urls.length === 1 ? 320 : undefined,
                               transform: 'translateZ(0)',
                             }} />

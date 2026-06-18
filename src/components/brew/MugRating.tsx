@@ -111,11 +111,12 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     if (!files.length) return
     const remaining = 4 - photos.length
     const toAdd = files.slice(0, remaining)
-    for (const file of toAdd) {
-      if (file.size > 10 * 1024 * 1024) { alert('Each image must be under 10MB'); return }
-    }
-    setPhotos(prev => [...prev, ...toAdd])
-    setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+    const valid = toAdd.filter(f => f.size <= 10 * 1024 * 1024)
+    const skipped = toAdd.length - valid.length
+    if (skipped > 0) alert(`${skipped} image${skipped > 1 ? 's were' : ' was'} over 10MB and skipped`)
+    if (!valid.length) return
+    setPhotos(prev => [...prev, ...valid])
+    setPhotoPreviews(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))])
     // EXIF date from first photo
     if (toAdd[0]) {
       try {
@@ -178,6 +179,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
     // Upload up to 4 photos (compressed before upload)
     const photoUrls: string[] = []
+    let uploadFailures = 0
     for (const photo of photos) {
       const path = `moments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
       const compressed = await compressImage(photo).catch(() => photo)
@@ -186,8 +188,13 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
         photoUrls.push(publicUrl)
       } else {
-        console.warn('Photo upload failed (non-fatal):', uploadErr.message)
+        console.warn('Photo upload failed:', uploadErr.message)
+        uploadFailures++
       }
+    }
+    if (uploadFailures > 0) {
+      const proceed = window.confirm(`${uploadFailures} photo${uploadFailures > 1 ? 's' : ''} failed to upload. Post with the ${photoUrls.length} that succeeded?`)
+      if (!proceed) { setStep('details'); return }
     }
     const photoUrl = photoUrls[0] || null
     setUploadedPhotoUrls(photoUrls)
@@ -340,7 +347,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           <CreateStory
             prefillRatingId={createdRatingId}
             prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
-            prefillPhoto={uploadedPhotoUrls[0] || null}
+            prefillPhotos={uploadedPhotoUrls}
             onClose={() => { setShowStoryCreate(false); onComplete(); onClose() }}
             onCreated={() => { setShowStoryCreate(false); onComplete(); onClose() }}
           />
@@ -834,7 +841,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         <CreateStory
           prefillRatingId={createdRatingId}
           prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
-          prefillPhoto={uploadedPhotoUrls[0] || null}
+          prefillPhotos={uploadedPhotoUrls}
           onClose={() => { setShowStoryCreate(false); onClose() }}
           onCreated={() => { setShowStoryCreate(false); onClose() }}
         />
