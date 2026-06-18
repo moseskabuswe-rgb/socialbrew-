@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Bell } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import CoffeeDateInbox from './CoffeeDateInbox'
 import { useAuth } from '../../contexts/AuthContext'
 import { registerPushNotifications } from '../../lib/push'
 
@@ -81,8 +80,6 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
   const { profile } = useAuth()
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
-  const [showDateInbox, setShowDateInbox] = useState(false)
-  const [pendingDates, setPendingDates] = useState(0)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [tableExists, setTableExists] = useState(true)
@@ -100,15 +97,6 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
         if (error) { setTableExists(false); return }
         setUnread(count || 0)
       } catch { setTableExists(false) }
-      // Also load pending coffee dates
-      try {
-        const { count: dateCount } = await supabase
-          .from('coffee_dates')
-          .select('*', { count: 'exact', head: true })
-          .eq('recipient_id', profile!.id)
-          .eq('status', 'pending')
-        setPendingDates(dateCount || 0)
-      } catch {}
     }
     loadCount()
     let channel: any = null
@@ -174,20 +162,7 @@ export function NotificationBell({ onNavigate, onOpen }: { onNavigate?: (type: s
 
   return (
     <>
-    {showDateInbox && <CoffeeDateInbox onClose={() => { setShowDateInbox(false); setPendingDates(0) }} />}
     <div className="relative flex items-center gap-1" ref={panelRef}>
-      {/* Coffee date inbox button */}
-      <button
-        onClick={() => setShowDateInbox(true)}
-        className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors"
-      >
-        <span className="text-lg">📅</span>
-        {pendingDates > 0 && (
-          <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
-            <span className="text-white font-bold" style={{ fontSize: 9 }}>{pendingDates}</span>
-          </span>
-        )}
-      </button>
       <button onClick={() => open ? setOpen(false) : openPanel()}
         className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
         <Bell size={22} />

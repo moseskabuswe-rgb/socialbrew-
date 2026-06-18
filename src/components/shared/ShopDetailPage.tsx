@@ -3,7 +3,6 @@ import { ArrowLeft, MapPin, Users, Coffee, Heart } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ShopPhotoGallery from './ShopPhotoGallery'
 import UserProfilePage from './UserProfilePage'
-import CoffeeDate from './CoffeeDate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { CoffeeShop } from '../../lib/supabase'
 import ClaimShopModal from '../shops/ClaimShopModal'
@@ -135,7 +134,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
   const [myRatings, setMyRatings] = useState<any[]>([])
   const [friendRatings, setFriendRatings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCoffeeDate, setShowCoffeeDate] = useState(false)
   const [activeTab, setActiveTab] = useState<'ratings' | 'photos'>('ratings')
   const [imgError, setImgError] = useState(false)
   const [resolvedShop, setResolvedShop] = useState<any>(shop)
@@ -543,11 +541,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
           </button>
         )}
         <button
-          onClick={() => setShowCoffeeDate(true)}
-          className="flex items-center justify-center gap-1.5 bg-cream-100 border border-cream-300 text-coffee-700 rounded-xl py-3 font-semibold text-sm px-4">
-          📅 Date
-        </button>
-        <button
           onClick={toggleWishlist}
           disabled={wishlistLoading}
           className="flex items-center justify-center gap-1 rounded-xl py-3 font-semibold text-sm px-3 border transition-all disabled:opacity-50"
@@ -568,9 +561,6 @@ export default function ShopDetailPage({ shop, onBack, onNavigateToBrew }: Props
             Own this shop? Claim it free ☕
           </button>
         </div>
-      )}
-      {showCoffeeDate && (
-        <CoffeeDate onClose={() => setShowCoffeeDate(false)} preselectedShop={resolvedShop} />
       )}
       {showClaim && (
         <ClaimShopModal

@@ -202,7 +202,9 @@ export default function PortalLogin({ onSuccess }: Props) {
       <div className="min-h-screen bg-cream-50 flex items-center justify-center px-5">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <p className="text-5xl mb-3">☕</p>
+            <div className="inline-block mb-3" style={{ width: 72, height: 72, borderRadius: 18, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,0.2), 0 0 0 2px rgba(200,133,58,0.3)' }}>
+              <img src="/icon-512.png" alt="Social Brew" width={72} height={72} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
             <h1 className="font-display font-bold text-coffee-900 text-2xl">Shop Owner Portal</h1>
             <p className="text-coffee-400 text-sm mt-1">Sign in with your owner account</p>
           </div>

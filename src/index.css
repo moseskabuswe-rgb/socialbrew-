@@ -4,7 +4,13 @@
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif; overscroll-behavior: none; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    overscroll-behavior: none;
+    /* NOTE: never apply transform to body — it breaks position:fixed on iOS Safari */
+  }
+  /* Prevent image-decode stutter during scroll */
+  img { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 }
 
 @layer utilities {

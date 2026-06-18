@@ -148,8 +148,8 @@ export default function ShopPostCard({ post, likedByMe: initialLiked, likeCount:
 
       {/* Post image */}
       {post.photo_url && (
-        <div className="mx-4 mb-2 rounded-xl overflow-hidden" style={{ maxHeight: 220 }}>
-          <img src={post.photo_url} alt="" className="w-full h-full object-cover" />
+        <div className="mx-4 mb-2 rounded-xl overflow-hidden" style={{ background: '#0a0605' }}>
+          <img src={post.photo_url} alt="" className="w-full object-contain" style={{ maxHeight: 320 }} />
         </div>
       )}
 

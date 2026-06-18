@@ -379,7 +379,6 @@ export default function ShopSelector({ onSelect, onClose }: Props) {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={mode === 'shop' ? 'Search coffee shops...' : 'Search drink name (e.g. oat latte)'}
                 className="flex-1 bg-transparent text-white text-sm placeholder-stone-500 focus:outline-none"
-                autoFocus
               />
               {search.length > 0 && (
                 <button onClick={() => setSearch('')} className="text-stone-500 ml-2">

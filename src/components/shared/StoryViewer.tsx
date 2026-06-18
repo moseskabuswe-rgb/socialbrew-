@@ -47,10 +47,14 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
   const [myReaction, setMyReaction] = useState<string | null>(null)
   const [showViewers, setShowViewers] = useState(false)
   const [viewers, setViewers] = useState<Array<{id: string, username: string, avatar_url: string | null}>>([])
+  const [storyScale, setStoryScale] = useState(1)
   const timerRef = useRef<any>(null)
   const progressRef = useRef<any>(null)
   const startTimeRef = useRef<number>(0)
   const elapsedRef = useRef<number>(0)
+  const storyPinchStartDist = useRef(0)
+  const storyPinchStartScale = useRef(1)
+  const storyIsPinching = useRef(false)
 
   const story = group.stories[index]
 
@@ -59,6 +63,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
     onViewed(story.id)
     loadMyReaction()
     startTimer()
+    setStoryScale(1)
     return () => stopTimer()
   }, [index, story?.id])
 
@@ -237,9 +242,39 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
       </div>
 
       {/* Story content */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden"
+        onTouchStart={(e) => {
+          if (e.touches.length === 2) {
+            storyIsPinching.current = true
+            storyPinchStartDist.current = Math.hypot(
+              e.touches[1].clientX - e.touches[0].clientX,
+              e.touches[1].clientY - e.touches[0].clientY
+            )
+            storyPinchStartScale.current = storyScale
+          }
+        }}
+        onTouchMove={(e) => {
+          if (e.touches.length === 2 && storyIsPinching.current) {
+            const dist = Math.hypot(
+              e.touches[1].clientX - e.touches[0].clientX,
+              e.touches[1].clientY - e.touches[0].clientY
+            )
+            setStoryScale(Math.min(4, Math.max(1, storyPinchStartScale.current * (dist / storyPinchStartDist.current))))
+          }
+        }}
+        onTouchEnd={() => {
+          if (storyIsPinching.current) {
+            storyIsPinching.current = false
+            if (storyScale < 1.05) setStoryScale(1)
+          }
+        }}
+      >
         {story.photo_url ? (
-          <img src={story.photo_url} alt="" className="w-full h-full object-cover" style={{ transform: 'translateZ(0)' }} />
+          <img src={story.photo_url} alt="" className="w-full h-full object-contain"
+            style={{
+              transform: `translateZ(0) scale(${storyScale})`,
+              transition: storyIsPinching.current ? 'none' : 'transform 0.2s ease',
+            }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center p-8"
             style={{ background: 'linear-gradient(160deg, #1a0a02, #3d1a06, #6b3410)' }}>
@@ -306,8 +341,8 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           </>
         )}
 
-        {/* Tap zones — only active when reply is closed */}
-        {!showReply && (
+        {/* Tap zones — only active when reply is closed and not zoomed */}
+        {!showReply && storyScale <= 1 && (
           <div className="absolute inset-0 flex">
             <div className="w-1/3 h-full" onClick={prev} />
             <div className="w-1/3 h-full" />
