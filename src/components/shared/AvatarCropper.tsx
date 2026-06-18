@@ -142,7 +142,7 @@ export default function AvatarCropper({ imageFile, onCrop, onCancel }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{ background: 'rgba(8,4,1,0.95)', backdropFilter: 'blur(8px)' }}>
+      style={{ background: 'rgba(8,4,1,0.97)' }}>
 
       <p className="text-white font-semibold text-base mb-2">Drag to reposition</p>
       <p className="text-white/50 text-xs mb-5">Pinch or use buttons to zoom</p>

@@ -264,7 +264,7 @@ function AppContent() {
       {firstRatingShop && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(8,4,1,0.85)', backdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(8,4,1,0.92)' }}
           onClick={() => setFirstRatingShop(null)}
         >
           <div className="mx-6 bg-white rounded-3xl p-8 text-center shadow-2xl">

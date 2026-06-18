@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSwipeDown } from '../../lib/useSwipeDown'
 import { X, MapPin, Star, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -48,7 +48,8 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
   const [userPunches, setUserPunches] = useState<any>(null)
   const [showRedemption, setShowRedemption] = useState(false)
 
-  const swipe = useSwipeDown(onClose)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeDown(onClose, 120, () => (scrollRef.current?.scrollTop ?? 0) === 0)
   const isInDb = !String(shop.id).startsWith('osm-') && !String(shop.id).startsWith('fsq-') && !String(shop.id).startsWith('gpl-')
 
   useEffect(() => {
@@ -220,7 +221,7 @@ export default function ShopDetailModal({ shop, onClose }: Props) {
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {!isInDb && (
             <div className="px-5 py-8 text-center">
               <p className="text-4xl mb-3">📍</p>

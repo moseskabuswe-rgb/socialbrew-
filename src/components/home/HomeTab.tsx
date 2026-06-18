@@ -1183,9 +1183,9 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   useEffect(() => {
     loadFeed()
     if (profile) {
-      supabase.from('likes').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setLikedIds(new Set(data.map((l: any) => l.rating_id))) })
-      supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setSavedIds(new Set(data.map((s: any) => s.rating_id))) })
-      supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id).then(({ data }) => { if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id))) })
+      supabase.from('likes').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setLikedIds(new Set(data.map((l: any) => l.rating_id))) }, console.error)
+      supabase.from('saved_posts').select('rating_id').eq('user_id', profile.id).then(({ data }) => { if (data) setSavedIds(new Set(data.map((s: any) => s.rating_id))) }, console.error)
+      supabase.from('blocks').select('blocked_id').eq('blocker_id', profile.id).then(({ data }) => { if (data) setBlockedUsers(new Set(data.map((b: any) => b.blocked_id))) }, console.error)
       // Load friend suggestions: people not yet followed
       supabase.from('follows').select('following_id').eq('follower_id', profile.id)
         .then(async ({ data: followed }) => {
@@ -1197,7 +1197,7 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             .limit(30)
           const suggestions = (profiles || []).filter(p => !followedIds.has(p.id)).slice(0, 8)
           setSuggestedUsers(suggestions)
-        })
+        }, console.error)
     }
 
     // Realtime: new posts, likes, comments update automatically

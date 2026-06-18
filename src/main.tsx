@@ -6,11 +6,10 @@ import { initAnalytics } from './lib/analytics'
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
-    // Check for updates when user returns to the tab
-    // New SWs wait until all tabs close before activating (no forced reloads)
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update()
-    })
+    // Check for updates when user returns to the tab.
+    // Listener is stored so it can be removed if the registration is replaced.
+    const onVisibility = () => { if (document.visibilityState === 'visible') reg.update() }
+    document.addEventListener('visibilitychange', onVisibility)
   }).catch(() => {})
 }
 

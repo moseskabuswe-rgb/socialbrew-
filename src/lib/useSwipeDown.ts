@@ -1,14 +1,15 @@
 import { useRef, useCallback } from 'react'
 
-export function useSwipeDown(onDismiss: () => void, threshold = 120) {
+export function useSwipeDown(onDismiss: () => void, threshold = 120, canStart?: () => boolean) {
   const startY = useRef<number | null>(null)
   const currentY = useRef<number | null>(null)
   const el = useRef<HTMLDivElement | null>(null)
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (canStart && !canStart()) return
     startY.current = e.touches[0].clientY
     currentY.current = e.touches[0].clientY
-  }, [])
+  }, [canStart])
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (startY.current === null) return

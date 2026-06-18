@@ -446,7 +446,6 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
                 onChange={e => setFriendQuery(e.target.value)}
                 placeholder="Search by username or name..."
                 className="flex-1 bg-transparent text-coffee-800 text-sm placeholder-coffee-300 focus:outline-none"
-                autoFocus
               />
               {friendSearching && (
                 <div className="w-4 h-4 rounded-full border-2 border-caramel border-t-transparent animate-spin flex-shrink-0" />
@@ -536,7 +535,7 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
           )}
           {showSuggest && (
             <div className="fixed inset-0 z-50 flex items-end justify-center"
-              style={{ background: 'rgba(8,4,1,0.92)', backdropFilter: 'blur(10px)' }}>
+              style={{ background: 'rgba(8,4,1,0.95)' }}>
               <div className="w-full max-w-sm bg-coffee-700 rounded-t-3xl p-6 animate-slide-up">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-white font-display text-lg font-bold">Missing a Shop?</h3>

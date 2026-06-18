@@ -16,7 +16,7 @@ export default function BadgeCelebration({ badge, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
-      style={{ background: visible ? 'rgba(0,0,0,0.4)' : 'transparent', transition: 'background 0.3s', backdropFilter: visible ? 'blur(4px)' : 'none' }}>
+      style={{ background: visible ? 'rgba(0,0,0,0.5)' : 'transparent', transition: 'background 0.3s' }}>
       <div className="pointer-events-auto text-center px-8 py-10 rounded-3xl bg-white shadow-2xl mx-6"
         style={{
           transform: visible ? 'scale(1)' : 'scale(0.5)',

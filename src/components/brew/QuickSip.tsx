@@ -201,7 +201,7 @@ export default function QuickSip({ onClose, onComplete }: Props) {
               }))
             )
           }
-        })
+        }, console.error)
 
       // Best-effort — don't block post on RPC failure
       Promise.resolve(supabase.rpc('increment_shop_visit', { shop_id_input: shopId })).catch(() => {})

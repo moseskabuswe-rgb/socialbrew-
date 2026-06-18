@@ -24,7 +24,7 @@ export default function WelcomeModal({ username, onClose, onBrew }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(8,4,1,0.75)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(8,4,1,0.82)' }}
       onClick={handleClose}
     >
       <div

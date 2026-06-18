@@ -128,7 +128,7 @@ export default function InstallPrompt() {
       <>
         <div onClick={dismiss} style={{
           position: 'fixed', inset: 0, zIndex: 9998,
-          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,0.6)',
         }} />
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
