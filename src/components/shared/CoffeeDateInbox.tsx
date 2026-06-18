@@ -23,9 +23,10 @@ interface CoffeeDate {
 
 interface Props {
   onClose: () => void
+  onNewInvite?: () => void
 }
 
-export default function CoffeeDateInbox({ onClose }: Props) {
+export default function CoffeeDateInbox({ onClose, onNewInvite }: Props) {
   // Full page — no modal sheet
   const { profile } = useAuth()
   const [incoming, setIncoming] = useState<CoffeeDate[]>([])
@@ -153,6 +154,15 @@ export default function CoffeeDateInbox({ onClose }: Props) {
               <p className="text-caramel text-xs font-medium">{pendingCount} pending invite{pendingCount !== 1 ? 's' : ''}</p>
             )}
           </div>
+          {onNewInvite && (
+            <button
+              onClick={onNewInvite}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+            >
+              <span className="text-lg leading-none">+</span>
+            </button>
+          )}
         </div>
 
         {/* Tabs */}

@@ -18,6 +18,8 @@ import UserProfilePage from '../shared/UserProfilePage'
 import { NotificationBell } from '../shared/NotificationsPanel'
 import { cachedUrl } from '../../lib/storageUrl'
 import VerifiedBadge from '../shared/VerifiedBadge'
+import CoffeeDate from '../shared/CoffeeDate'
+import CoffeeDateInbox from '../shared/CoffeeDateInbox'
 
 function getMugColor(fill: number) {
   if (fill === 0)  return 'transparent'
@@ -1082,6 +1084,9 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   const [followedSuggestions, setFollowedSuggestions] = useState<Set<string>>(new Set())
   // Inline comment previews: rating_id → first 2 comments
   const [commentPreviews, setCommentPreviews] = useState<Record<string, any[]>>({})
+  const [showCoffeeDateHub, setShowCoffeeDateHub] = useState(false)
+  const [showNewCoffeeDate, setShowNewCoffeeDate] = useState(false)
+  const [pendingCoffeeDates, setPendingCoffeeDates] = useState(0)
 
   const loadFeed = useCallback(async (reset = true) => {
     if (reset) setLoading(true)
@@ -1257,6 +1262,20 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
     return () => { supabase.removeChannel(channel) }
   }, [refresh, profile])
 
+  useEffect(() => {
+    if (!profile) return
+    const loadPending = () => {
+      supabase.from('coffee_dates').select('*', { count: 'exact', head: true })
+        .eq('recipient_id', profile.id).eq('status', 'pending')
+        .then(({ count }) => setPendingCoffeeDates(count || 0))
+    }
+    loadPending()
+    const ch = supabase.channel('coffee-dates-badge-' + profile.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coffee_dates', filter: `recipient_id=eq.${profile.id}` }, loadPending)
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [profile])
+
   async function toggleLike(ratingId: string) {
     if (!profile) return
     if (likedIds.has(ratingId)) {
@@ -1377,6 +1396,14 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
             <h1 className="font-display text-2xl font-bold text-coffee-800">Social Brew</h1>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => setShowCoffeeDateHub(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
+              <Coffee size={22} />
+              {pendingCoffeeDates > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                  <span className="text-white font-bold" style={{ fontSize: 9 }}>{pendingCoffeeDates > 9 ? '9+' : pendingCoffeeDates}</span>
+                </span>
+              )}
+            </button>
             <button onClick={() => setShowNewInbox(true)} className="relative w-9 h-9 flex items-center justify-center text-coffee-500 hover:text-caramel transition-colors">
               <MessageCircle size={22} />
               {unreadDMs > 0 && (
@@ -1917,6 +1944,15 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
         </>)}
       </div>
 
+      {showCoffeeDateHub && (
+        <CoffeeDateInbox
+          onClose={() => setShowCoffeeDateHub(false)}
+          onNewInvite={() => setShowNewCoffeeDate(true)}
+        />
+      )}
+      {showNewCoffeeDate && (
+        <CoffeeDate onClose={() => setShowNewCoffeeDate(false)} />
+      )}
       {selectedShop && <ShopDetailPage shop={selectedShop} onBack={() => setSelectedShop(null)} onNavigateToBrew={onNavigateToBrew} />}
       {activeComments && <CommentsSection ratingId={activeComments} onClose={() => setActiveComments(null)} />}
       {showMessages && <MessagesPanel
