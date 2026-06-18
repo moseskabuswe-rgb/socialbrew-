@@ -4,6 +4,19 @@ const THRESHOLD = 80  // px of pull needed to trigger refresh
 const MIN_PULL = 24   // px moved before we decide intent
 const AXIS_RATIO = 2.5 // vertical must be this much more than horizontal
 
+// Walk up from the touch target; if any scrollable ancestor is scrolled down,
+// the user is mid-scroll inside a container — don't hijack for pull-to-refresh.
+function isInsideScrolledContainer(el: EventTarget | null): boolean {
+  let node = el as Element | null
+  while (node && node !== document.body) {
+    const style = window.getComputedStyle(node)
+    const ov = style.overflowY
+    if ((ov === 'auto' || ov === 'scroll') && node.scrollTop > 0) return true
+    node = node.parentElement
+  }
+  return false
+}
+
 export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
   const [pullProgress, setPullProgress] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -27,6 +40,8 @@ export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
 
     function onTouchStart(e: TouchEvent) {
       if (window.scrollY > 0 || refreshingRef.current) return
+      // Don't activate when the touch starts inside a container that's already scrolled down
+      if (isInsideScrolledContainer(e.target)) return
       startYRef.current = e.touches[0].clientY
       startXRef.current = e.touches[0].clientX
       activeRef.current = true
@@ -36,8 +51,9 @@ export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
     function onTouchMove(e: TouchEvent) {
       if (!activeRef.current) return
 
-      // Abort if page has scrolled away from top
+      // Abort if page or any inner container has scrolled away from top
       if (window.scrollY > 0) { reset(); return }
+      if (!lockedRef.current && isInsideScrolledContainer(e.target)) { reset(); return }
 
       const dy = e.touches[0].clientY - startYRef.current
       const dx = e.touches[0].clientX - startXRef.current
