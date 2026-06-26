@@ -926,7 +926,7 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
           {/* Stats */}
           <div className="grid grid-cols-4 gap-2 mt-5 pt-4 border-t border-cream-100">
             <div className="text-center">
-              <p className="text-coffee-800 font-bold text-lg">{ratings.length}</p>
+              <p className="text-coffee-800 font-bold text-lg">{totalCount}</p>
               <p className="text-coffee-400 text-xs">Sips</p>
             </div>
             <button onClick={() => setShowShops(true)} className="text-center hover:opacity-70 transition-opacity">
