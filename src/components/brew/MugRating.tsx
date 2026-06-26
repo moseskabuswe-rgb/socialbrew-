@@ -179,9 +179,9 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
     for (const photo of photos) {
       const path = `moments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
       const compressed = await compressImage(photo).catch(() => photo)
-      const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
+      const { error: uploadErr } = await supabase.storage.from('rating_photos').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
       if (!uploadErr) {
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+        const { data: { publicUrl } } = supabase.storage.from('rating_photos').getPublicUrl(path)
         photoUrls.push(publicUrl)
       } else {
         console.warn('Photo upload failed:', uploadErr.message)
