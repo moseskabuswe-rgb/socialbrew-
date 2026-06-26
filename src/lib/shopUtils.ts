@@ -90,6 +90,5 @@ export async function resolveShopId(shop: any): Promise<string | null> {
     return null
   }
 
-  console.log(`Auto-added shop to Social Brew: ${shop.name}`)
   return inserted.id
 }

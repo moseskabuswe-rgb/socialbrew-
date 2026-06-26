@@ -53,10 +53,8 @@ export default function InstallPrompt() {
     return () => window.removeEventListener('beforeinstallprompt', handler as EventListener)
   }, [])
 
-  function trackInstallEvent(action: string, platform: string) {
-    console.log(`[SocialBrew Analytics] install_${action} | platform: ${platform} | time: ${new Date().toISOString()}`)
-    // Uncomment when Posthog is configured:
-    // posthog.capture(`install_${action}`, { platform })
+  function trackInstallEvent(_action: string, _platform: string) {
+    // posthog.capture(`install_${_action}`, { platform: _platform })
   }
 
   async function handleAndroidInstall() {
