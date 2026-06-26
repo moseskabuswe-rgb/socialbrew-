@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
         <h2 className="font-display text-xl font-bold text-coffee-800">Privacy Policy</h2>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5 pb-20">
-        <p className="text-coffee-400 text-xs">Last updated: June 2026 · Version 1.1</p>
+        <p className="text-coffee-400 text-xs">Last updated: June 2026 · Version 1.2</p>
 
         <section className="space-y-2">
           <h3 className="text-coffee-800 font-semibold text-base">1. Who We Are</h3>
@@ -19,9 +19,11 @@ export default function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
           <h3 className="text-coffee-800 font-semibold text-base">2. What We Collect</h3>
           <ul className="text-coffee-600 text-sm leading-relaxed space-y-1.5 list-none">
             <li><span className="font-medium">Account info:</span> email address, username, display name, profile photo, bio</li>
-            <li><span className="font-medium">Content you create:</span> coffee shop ratings, captions, photos, wishlist items, stories</li>
+            <li><span className="font-medium">Content you create:</span> coffee shop ratings, captions, drink prices you log, photos, wishlist items, stories</li>
             <li><span className="font-medium">Social activity:</span> follows, likes, comments, messages</li>
             <li><span className="font-medium">Shop data:</span> coffee shop locations, names, and details you add or edit</li>
+            <li><span className="font-medium">Location data:</span> approximate device location when you use the Discover tab, to sort nearby shops by distance. This is used only in the moment and is not stored on our servers or shared with third parties.</li>
+            <li><span className="font-medium">Photo metadata:</span> when you upload photos we read EXIF metadata (e.g. camera model) to process the image. Any GPS coordinates embedded in EXIF data are not read or stored.</li>
             <li><span className="font-medium">Device data:</span> push notification token (only if you enable notifications)</li>
             <li><span className="font-medium">Usage data:</span> in-app events (pages visited, features used) via PostHog analytics</li>
             <li><span className="font-medium">Loyalty data:</span> punch card progress and redemption history at participating shops</li>
