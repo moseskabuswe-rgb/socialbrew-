@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import PrivacyPolicyPage from '../shared/PrivacyPolicyPage'
+import TermsPage from '../shared/TermsPage'
 
 function friendlyError(msg: string): string {
   if (!msg) return 'Something went wrong. Please try again.'
@@ -20,6 +22,7 @@ function friendlyError(msg: string): string {
 
 export default function AuthForm() {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login')
+  const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
@@ -77,6 +80,9 @@ export default function AuthForm() {
     if (error) setError(friendlyError(error.message))
     else setSuccess('Password reset email sent! Check your inbox.')
   }
+
+  if (legalView === 'privacy') return <PrivacyPolicyPage onBack={() => setLegalView(null)} />
+  if (legalView === 'terms') return <TermsPage onBack={() => setLegalView(null)} />
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6"
@@ -171,6 +177,19 @@ export default function AuthForm() {
               </span>
             ) : mode === 'login' ? 'Sign In ☕' : 'Create Account ☕'}
           </button>
+
+          {mode === 'signup' && (
+            <p className="text-coffee-400 text-xs text-center leading-relaxed mt-1">
+              By creating an account you agree to our{' '}
+              <button type="button" onClick={() => setLegalView('privacy')} className="text-caramel underline">
+                Privacy Policy
+              </button>{' '}
+              and{' '}
+              <button type="button" onClick={() => setLegalView('terms')} className="text-caramel underline">
+                Terms of Service
+              </button>
+            </p>
+          )}
         </form>
 
         {mode === 'login' && (
