@@ -13,10 +13,12 @@ interface Story {
   id: string
   user_id: string
   photo_url: string | null
+  photo_urls?: string[] | null
   caption: string | null
   story_type: string
   created_at: string
   expires_at: string
+  view_count?: number
   profiles: {
     username: string
     avatar_url: string | null
@@ -184,6 +186,13 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
 
   if (loading) return <div className="h-24" />
 
+  // Precompute ordered group lists for story-to-story navigation
+  const shopGroupsList = Object.values(shopStoryGroups)
+  const ownStoryGroup: StoryGroup | null = myStories.length > 0
+    ? { user_id: profile!.id, username: profile!.username || '', avatar_url: profile!.avatar_url || null, stories: myStories, hasUnviewed: false }
+    : null
+  const allPeopleGroups: StoryGroup[] = [...(ownStoryGroup ? [ownStoryGroup] : []), ...groups]
+
   if (mode === 'shops') {
     return (
       <>
@@ -216,10 +225,17 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
         </div>
         {viewingGroup && (
           <StoryViewer
+            key={viewingGroup.user_id}
             group={viewingGroup}
             onClose={() => { setViewingGroup(null); loadShops() }}
             onViewed={markViewed}
             isOwn={false}
+            onNext={() => {
+              const idx = shopGroupsList.findIndex(g => g.user_id === viewingGroup.user_id)
+              const nextGroup = shopGroupsList[idx + 1]
+              if (nextGroup) setViewingGroup(nextGroup)
+              else { setViewingGroup(null); loadShops() }
+            }}
           />
         )}
       </>
@@ -280,10 +296,17 @@ export default function StoriesBar({ mode = 'people', onShopSelect }: Props) {
 
       {viewingGroup && (
         <StoryViewer
+          key={viewingGroup.user_id}
           group={viewingGroup}
           onClose={() => { setViewingGroup(null); loadStories() }}
           onViewed={markViewed}
           isOwn={viewingGroup.user_id === profile?.id}
+          onNext={() => {
+            const idx = allPeopleGroups.findIndex(g => g.user_id === viewingGroup.user_id)
+            const nextGroup = allPeopleGroups[idx + 1]
+            if (nextGroup) setViewingGroup(nextGroup)
+            else { setViewingGroup(null); loadStories() }
+          }}
         />
       )}
       {showCreate && <CreateStory onClose={() => setShowCreate(false)} onCreated={loadStories} />}

@@ -8,7 +8,6 @@ import { useAuth } from '../../contexts/AuthContext'
 import AnonymousFeedbackModal from '../shared/AnonymousFeedbackModal'
 import MugSwipeHint from '../shared/MugSwipeHint'
 import { compressImage } from '../../lib/compressImage'
-import CreateStory from '../shared/CreateStory'
 import { tryAwardPunch, type PunchAwardResult } from '../../lib/punchCard'
 
 type Props = { shop: any; onClose: () => void; onComplete: () => void }
@@ -62,9 +61,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
   const [plugs, setPlugs] = useState('')
   const [music, setMusic] = useState('')
   const [addToStory, setAddToStory] = useState(false)
-  const [createdRatingId, setCreatedRatingId] = useState<string | null>(null)
-  const [showStoryCreate, setShowStoryCreate] = useState(false)
-  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([])
   const [punchResult, setPunchResult] = useState<PunchAwardResult | null>(null)
   // Steps: rate → (feedback if low) → details → price → submitting → done
   const [step, setStep] = useState<'rate' | 'details' | 'price' | 'submitting' | 'done'>('rate')
@@ -197,7 +193,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       if (!proceed) { setStep('details'); return }
     }
     const photoUrl = photoUrls[0] || null
-    setUploadedPhotoUrls(photoUrls)
 
     const shopId = await resolveShopId(shop)
     if (!shopId) { setStep('details'); alert('Something went wrong finding the shop. Please try again.'); return }
@@ -278,7 +273,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
         }
       })
 
-    // Capture new rating ID for story creation
+    // Capture new rating ID and auto-post story if user toggled "Add to story"
     const { data: newRatingForStory } = await supabase
       .from('ratings')
       .select('id')
@@ -286,7 +281,18 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    if (newRatingForStory) setCreatedRatingId(newRatingForStory.id)
+
+    if (addToStory && newRatingForStory?.id && photoUrls.length > 0) {
+      await supabase.from('stories').insert({
+        user_id: profile.id,
+        shop_id: shopId || null,
+        rating_id: newRatingForStory.id,
+        photo_url: photoUrls[0],
+        photo_urls: photoUrls,
+        caption: caption.trim() || null,
+        story_type: 'rating',
+      })
+    }
 
     // Award punch — non-blocking, fire and forget
     if (shopId) {
@@ -297,11 +303,7 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
 
     setStep('done')
     setTimeout(() => {
-      // onComplete() must come LAST — it triggers setActiveTab('home') in the parent,
-      // which unmounts BrewTab (and this component) before story/feedback can render.
-      // Each branch below calls onComplete() + onClose() once its own flow is done.
       if (fill <= 50) setShowFeedback(true)
-      else if (addToStory && newRatingForStory?.id) setShowStoryCreate(true)
       else { onComplete(); onClose() }
     }, 1600)
   }
@@ -341,15 +343,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
             fillLevel={fill}
             onSkip={() => { onComplete(); onClose() }}
             onSent={() => { onComplete(); onClose() }}
-          />
-        )}
-        {showStoryCreate && createdRatingId && (
-          <CreateStory
-            prefillRatingId={createdRatingId}
-            prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
-            prefillPhotos={uploadedPhotoUrls}
-            onClose={() => { setShowStoryCreate(false); onComplete(); onClose() }}
-            onCreated={() => { setShowStoryCreate(false); onComplete(); onClose() }}
           />
         )}
       </>
@@ -837,15 +830,6 @@ export default function MugRating({ shop, onClose, onComplete }: Props) {
           </div>
         )}
       </div>
-      {showStoryCreate && createdRatingId && (
-        <CreateStory
-          prefillRatingId={createdRatingId}
-          prefillShopId={typeof shop?.id === 'string' && !shop.id.startsWith('osm-') ? shop.id : undefined}
-          prefillPhotos={uploadedPhotoUrls}
-          onClose={() => { setShowStoryCreate(false); onClose() }}
-          onCreated={() => { setShowStoryCreate(false); onClose() }}
-        />
-      )}
     </div>
   )
 }

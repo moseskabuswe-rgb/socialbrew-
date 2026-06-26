@@ -1,6 +1,3 @@
-// src/components/shared/StoryViewer.tsx
-// Full-screen story viewer with progress bars, reactions, and DM replies
-
 import { useState, useEffect, useRef } from 'react'
 import { X, Eye, Send, ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -28,62 +25,88 @@ interface StoryGroup {
   hasUnviewed: boolean
 }
 
+interface Slide {
+  story: Story
+  photo: string | null
+}
+
 interface Props {
   group: StoryGroup
   onClose: () => void
   onViewed: (storyId: string) => void
   isOwn: boolean
+  onNext?: () => void
 }
 
 const STORY_DURATION = 5000
 const QUICK_REACTIONS = ['❤️', '😍', '🔥', '☕', '😂', '👏']
 
-export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) {
+export default function StoryViewer({ group, onClose, onViewed, isOwn, onNext }: Props) {
   const { profile } = useAuth()
-  const [index, setIndex] = useState(0)
-  const [photoIndex, setPhotoIndex] = useState(0)
+  const [slideIndex, setSlideIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const [replyText, setReplyText] = useState('')
   const [showReply, setShowReply] = useState(false)
   const [sending, setSending] = useState(false)
   const [myReaction, setMyReaction] = useState<string | null>(null)
   const [showViewers, setShowViewers] = useState(false)
-  const [viewers, setViewers] = useState<Array<{id: string, username: string, avatar_url: string | null}>>([])
+  const [viewers, setViewers] = useState<Array<{ id: string; username: string; avatar_url: string | null }>>([])
   const [storyScale, setStoryScale] = useState(1)
+
   const timerRef = useRef<any>(null)
   const progressRef = useRef<any>(null)
   const startTimeRef = useRef<number>(0)
   const elapsedRef = useRef<number>(0)
+  const timerRunningRef = useRef(false)
+  const slideIndexRef = useRef(0)
+  const onCloseRef = useRef(onClose)
+  const onNextRef = useRef(onNext)
   const storyPinchStartDist = useRef(0)
   const storyPinchStartScale = useRef(1)
   const storyIsPinching = useRef(false)
-  const photoScrollRef = useRef<HTMLDivElement>(null)
+  const viewedStoryIds = useRef<Set<string>>(new Set())
 
-  const story = group.stories[index]
-  const storyPhotos = story?.photo_urls?.length ? story.photo_urls : (story?.photo_url ? [story.photo_url] : [])
+  // Keep callback refs fresh so timers never use stale closures
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+  useEffect(() => { onNextRef.current = onNext }, [onNext])
+  slideIndexRef.current = slideIndex
 
+  // Flatten stories × photos into one slide per photo (Instagram-style)
+  const slides: Slide[] = group.stories.flatMap((story): Slide[] => {
+    const photos = story.photo_urls?.length
+      ? story.photo_urls
+      : story.photo_url
+        ? [story.photo_url]
+        : []
+    if (photos.length > 0) return photos.map(photo => ({ story, photo }))
+    return [{ story, photo: null }]
+  })
+
+  const currentSlide = slides[slideIndex]
+  const story = currentSlide?.story
+
+  // Start fresh timer on every slide change
   useEffect(() => {
     if (!story) return
-    setPhotoIndex(0)
-    if (photoScrollRef.current) photoScrollRef.current.scrollLeft = 0
-    onViewed(story.id)
-    loadMyReaction()
-    startTimer()
-    setStoryScale(1)
-    return () => stopTimer()
-  }, [index, story?.id])
-
-  // Pause when reply input or viewers panel is open
-  useEffect(() => {
-    if (showReply || showViewers) {
-      stopTimer()
-    } else {
-      startTimer()
+    elapsedRef.current = 0
+    if (!viewedStoryIds.current.has(story.id)) {
+      viewedStoryIds.current.add(story.id)
+      onViewed(story.id)
     }
-  }, [showReply, showViewers])
+    loadMyReaction()
+    setStoryScale(1)
+    startTimer()
+    return () => stopTimer()
+  }, [slideIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pause while reply / viewers panel is open
+  useEffect(() => {
+    if (showReply || showViewers) stopTimer()
+    else startTimer()
+  }, [showReply, showViewers]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMyReaction() {
-    if (!profile || isOwn) return
+    if (!profile || isOwn || !story) return
     const { data } = await supabase
       .from('story_reactions')
       .select('emoji')
@@ -93,62 +116,79 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
     setMyReaction(data?.emoji || null)
   }
 
+  // Move to next slide, then next group, then close
+  function advance() {
+    const idx = slideIndexRef.current
+    if (idx < slides.length - 1) {
+      setSlideIndex(idx + 1)
+    } else if (onNextRef.current) {
+      onNextRef.current()
+    } else {
+      requestAnimationFrame(() => onCloseRef.current())
+    }
+  }
+
   function startTimer() {
-    stopTimer()
-    setProgress(elapsedRef.current / STORY_DURATION * 100)
+    // Clear without accumulating (timer may already be stopped)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (progressRef.current) clearInterval(progressRef.current)
+    timerRunningRef.current = true
     startTimeRef.current = Date.now()
+
+    setProgress((elapsedRef.current / STORY_DURATION) * 100)
 
     progressRef.current = setInterval(() => {
       const totalElapsed = elapsedRef.current + (Date.now() - startTimeRef.current)
       setProgress(Math.min((totalElapsed / STORY_DURATION) * 100, 100))
     }, 50)
 
+    const remaining = Math.max(0, STORY_DURATION - elapsedRef.current)
     timerRef.current = setTimeout(() => {
+      timerRunningRef.current = false
       elapsedRef.current = 0
-      if (index < group.stories.length - 1) {
-        setIndex(i => i + 1)
-      } else {
-        onClose()
-      }
-    }, STORY_DURATION - elapsedRef.current)
+      advance()
+    }, remaining)
   }
 
   function stopTimer() {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (progressRef.current) clearInterval(progressRef.current)
-    elapsedRef.current = elapsedRef.current + (Date.now() - (startTimeRef.current || Date.now()))
+    timerRef.current = null
+    progressRef.current = null
+    if (timerRunningRef.current) {
+      elapsedRef.current = Math.min(
+        elapsedRef.current + (Date.now() - startTimeRef.current),
+        STORY_DURATION
+      )
+      timerRunningRef.current = false
+    }
   }
 
-  function prev() {
+  function nextSlide() {
     stopTimer()
     elapsedRef.current = 0
-    if (index > 0) setIndex(i => i - 1)
-    else onClose()
+    advance()
   }
 
-  function next() {
+  function prevSlide() {
     stopTimer()
     elapsedRef.current = 0
-    if (index < group.stories.length - 1) setIndex(i => i + 1)
-    else onClose()
-  }
-
-  function handlePhotoScroll() {
-    const el = photoScrollRef.current
-    if (!el) return
-    setPhotoIndex(Math.round(el.scrollLeft / el.clientWidth))
+    const idx = slideIndexRef.current
+    if (idx > 0) {
+      setSlideIndex(idx - 1)
+    } else {
+      requestAnimationFrame(() => onCloseRef.current())
+    }
   }
 
   async function sendReaction(emoji: string) {
-    if (!profile || isOwn || sending) return
+    if (!profile || isOwn || sending || !story) return
     setSending(true)
-
     await supabase.from('story_reactions').upsert(
       { story_id: story.id, user_id: profile.id, emoji },
       { onConflict: 'story_id,user_id' }
     )
     setMyReaction(emoji)
-
     const { data: dm } = await supabase
       .from('direct_messages')
       .insert({
@@ -159,41 +199,22 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
       })
       .select('*, profiles!direct_messages_from_id_fkey(username, avatar_url)')
       .single()
-
     if (dm) {
-      try {
-        await notifyDM(
-          group.user_id,
-          profile.username || 'Someone',
-          `${emoji} reacted to your story`,
-          profile.id
-        )
-      } catch {}
+      try { await notifyDM(group.user_id, profile.username || 'Someone', `${emoji} reacted to your story`, profile.id) } catch {}
     }
-
     setSending(false)
   }
 
   async function sendReply() {
-    if (!profile || !replyText.trim() || sending || isOwn) return
+    if (!profile || !replyText.trim() || sending || isOwn || !story) return
     setSending(true)
-
     await supabase.from('direct_messages').insert({
       from_id: profile.id,
       to_id: group.user_id,
       content: replyText.trim(),
       story_id: story.id,
     })
-
-    try {
-      await notifyDM(
-        group.user_id,
-        profile.username || 'Someone',
-        replyText.trim(),
-        profile.id
-      )
-    } catch {}
-
+    try { await notifyDM(group.user_id, profile.username || 'Someone', replyText.trim(), profile.id) } catch {}
     setReplyText('')
     setShowReply(false)
     setSending(false)
@@ -208,7 +229,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
     setViewers((data || []).map((v: any) => v.profiles).filter(Boolean))
   }
 
-  if (!story) return null
+  if (!currentSlide) return null
 
   const timeAgo = (() => {
     const diff = (Date.now() - new Date(story.created_at).getTime()) / 1000 / 60
@@ -217,16 +238,22 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
   })()
 
   return (
-    <div className="fixed inset-0 z-[90] bg-black flex flex-col">
-      {/* Progress bars */}
+    <div
+      className="fixed inset-0 z-[90] bg-black flex flex-col"
+      onClick={e => e.stopPropagation()}
+      onTouchStart={e => e.stopPropagation()}
+      onTouchEnd={e => e.stopPropagation()}
+      onTouchMove={e => e.stopPropagation()}
+    >
+      {/* Progress bars — one per slide (photo) */}
       <div className="flex gap-1 px-3 pt-12 pb-2 flex-shrink-0">
-        {group.stories.map((_, i) => (
+        {slides.map((_, i) => (
           <div key={i} className="flex-1 h-0.5 rounded-full overflow-hidden bg-white/30">
             <div
               className="h-full bg-white rounded-full"
               style={{
-                width: i < index ? '100%' : i === index ? `${progress}%` : '0%',
-                transition: i === index ? 'none' : undefined,
+                width: i < slideIndex ? '100%' : i === slideIndex ? `${progress}%` : '0%',
+                transition: i === slideIndex ? 'none' : undefined,
               }}
             />
           </div>
@@ -246,15 +273,19 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           <p className="text-white font-semibold text-sm">{group.username}</p>
           <p className="text-white/50 text-xs">{timeAgo}</p>
         </div>
-        <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+        <button
+          onClick={e => { e.stopPropagation(); onClose() }}
+          className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"
+        >
           <X size={16} className="text-white" />
         </button>
       </div>
 
       {/* Story content */}
-      <div className="flex-1 relative overflow-hidden"
+      <div
+        className="flex-1 relative overflow-hidden"
         onTouchStart={(e) => {
-          if (storyPhotos.length <= 1 && e.touches.length === 2) {
+          if (e.touches.length === 2) {
             storyIsPinching.current = true
             storyPinchStartDist.current = Math.hypot(
               e.touches[1].clientX - e.touches[0].clientX,
@@ -264,7 +295,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           }
         }}
         onTouchMove={(e) => {
-          if (storyPhotos.length <= 1 && e.touches.length === 2 && storyIsPinching.current) {
+          if (e.touches.length === 2 && storyIsPinching.current) {
             const dist = Math.hypot(
               e.touches[1].clientX - e.touches[0].clientX,
               e.touches[1].clientY - e.touches[0].clientY
@@ -279,59 +310,34 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           }
         }}
       >
-        {storyPhotos.length > 0 ? (
-          storyPhotos.length > 1 ? (
-            /* Multi-photo scrollable carousel */
-            <>
-              <div
-                ref={photoScrollRef}
-                className="w-full h-full flex overflow-x-auto snap-x snap-mandatory"
-                style={{ scrollbarWidth: 'none' }}
-                onScroll={handlePhotoScroll}
-              >
-                {storyPhotos.map((url, i) => (
-                  <div key={i} className="w-full h-full flex-shrink-0 snap-center">
-                    <img
-                      src={url}
-                      alt=""
-                      className="w-full h-full object-contain"
-                      style={{ transform: 'translateZ(0)' }}
-                    />
-                  </div>
-                ))}
-              </div>
-              {/* Photo dot indicators */}
-              <div className="absolute bottom-20 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
-                {storyPhotos.map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-1.5 h-1.5 rounded-full transition-all"
-                    style={{ background: i === photoIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)' }}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            /* Single photo */
-            <img src={storyPhotos[0]} alt="" className="w-full h-full object-contain"
-              style={{
-                transform: `translateZ(0) scale(${storyScale})`,
-                transition: storyIsPinching.current ? 'none' : 'transform 0.2s ease',
-              }} />
-          )
+        {currentSlide.photo ? (
+          <img
+            key={currentSlide.photo}
+            src={currentSlide.photo}
+            alt=""
+            className="w-full h-full object-contain"
+            style={{
+              transform: `translateZ(0) scale(${storyScale})`,
+              transition: storyIsPinching.current ? 'none' : 'transform 0.2s ease',
+            }}
+          />
         ) : (
-          <div className="w-full h-full flex items-center justify-center p-8"
-            style={{ background: 'linear-gradient(160deg, #1a0a02, #3d1a06, #6b3410)' }}>
+          <div
+            className="w-full h-full flex items-center justify-center p-8"
+            style={{ background: 'linear-gradient(160deg, #1a0a02, #3d1a06, #6b3410)' }}
+          >
             <p className="text-white font-display text-3xl font-bold text-center leading-tight">
               {story.caption || '☕'}
             </p>
           </div>
         )}
 
-        {/* Caption overlay for photo stories */}
-        {storyPhotos.length > 0 && story.caption && (
-          <div className="absolute bottom-32 left-0 right-0 px-5 py-4"
-            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
+        {/* Caption overlay for photo slides */}
+        {currentSlide.photo && story.caption && (
+          <div
+            className="absolute bottom-32 left-0 right-0 px-5 py-4"
+            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}
+          >
             <p className="text-white text-base font-medium">{story.caption}</p>
           </div>
         )}
@@ -388,20 +394,24 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
           </>
         )}
 
-        {/* Tap zones — only active when reply/viewers closed and not zoomed */}
+        {/* Tap zones — left third goes back, right third advances */}
         {!showReply && !showViewers && storyScale <= 1 && (
           <div className="absolute inset-0 flex">
-            <div className="w-1/3 h-full" onClick={prev} />
+            <div className="w-1/3 h-full" onClick={prevSlide} />
             <div className="w-1/3 h-full" />
-            <div className="w-1/3 h-full" onClick={next} />
+            <div className="w-1/3 h-full" onClick={nextSlide} />
           </div>
+        )}
+
+        {/* Preload next slide's photo */}
+        {slides[slideIndex + 1]?.photo && (
+          <img src={slides[slideIndex + 1].photo!} style={{ display: 'none' }} alt="" />
         )}
       </div>
 
-      {/* Reactions + reply bar — only for other people's stories */}
+      {/* Reactions + reply — only for others' stories */}
       {!isOwn && (
         <div className="flex-shrink-0 px-4 pb-10 pt-3 flex flex-col gap-3">
-          {/* Quick reactions */}
           {!showReply && (
             <div className="flex items-center justify-center gap-3">
               {QUICK_REACTIONS.map(emoji => (
@@ -416,8 +426,6 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
               ))}
             </div>
           )}
-
-          {/* Reply input */}
           {showReply ? (
             <div className="flex items-center gap-2">
               <input
@@ -428,10 +436,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn }: Props) 
                 onKeyDown={e => { if (e.key === 'Enter' && replyText.trim()) sendReply() }}
                 className="flex-1 bg-white/15 text-white rounded-full px-4 py-2.5 text-sm placeholder-white/40 focus:outline-none border border-white/20"
               />
-              <button
-                onClick={() => { setShowReply(false); setReplyText('') }}
-                className="text-white/60 text-sm"
-              >
+              <button onClick={() => { setShowReply(false); setReplyText('') }} className="text-white/60 text-sm">
                 Cancel
               </button>
               <button
