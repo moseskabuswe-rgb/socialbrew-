@@ -109,7 +109,7 @@ export default function ShopPhotoGallery({ shopId, shopName, onUserClick }: Prop
           onTouchMove={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 pt-12 pb-3 flex-shrink-0"
+          <div className="flex items-center justify-between px-4 pt-safe pb-3 flex-shrink-0"
             style={{ background: 'linear-gradient(rgba(0,0,0,0.6), transparent)' }}>
             <button
               className="flex items-center gap-2"

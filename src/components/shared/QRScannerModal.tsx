@@ -130,7 +130,7 @@ export default function QRScannerModal({ onClose, onStampEarned }: Props) {
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: '#0d0904' }}>
-      <div className="flex items-center justify-between px-5 pt-12 pb-4 flex-shrink-0">
+      <div className="flex items-center justify-between px-5 pt-safe pb-4 flex-shrink-0">
         <div>
           <p className="text-white font-display font-bold text-lg">Scan to Earn a Stamp</p>
           <p className="text-cream-400 text-xs mt-0.5">Point your camera at the shop's QR code</p>

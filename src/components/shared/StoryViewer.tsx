@@ -246,7 +246,7 @@ export default function StoryViewer({ group, onClose, onViewed, isOwn, onNext }:
       onTouchMove={e => e.stopPropagation()}
     >
       {/* Progress bars — one per slide (photo) */}
-      <div className="flex gap-1 px-3 pt-12 pb-2 flex-shrink-0">
+      <div className="flex gap-1 px-3 pt-safe pb-2 flex-shrink-0">
         {slides.map((_, i) => (
           <div key={i} className="flex-1 h-0.5 rounded-full overflow-hidden bg-white/30">
             <div

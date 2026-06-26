@@ -112,7 +112,7 @@ export default function CreateStory({ onClose, onCreated, prefillPhoto, prefillP
   return (
     <div className="fixed inset-0 z-[85] flex flex-col" style={{ background: 'rgba(8,4,1,0.97)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-12 pb-4 flex-shrink-0">
+      <div className="flex items-center justify-between px-5 pt-safe pb-4 flex-shrink-0">
         <h2 className="text-white font-display text-xl font-bold">New Story</h2>
         <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
           <X size={16} className="text-white" />

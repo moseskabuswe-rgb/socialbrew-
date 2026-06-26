@@ -467,7 +467,7 @@ export default function BrewWrapped({ onClose }: Props) {
       style={{ background: current.style.bg, transition: 'background 0.5s ease' }}
     >
       {/* Progress bars */}
-      <div className="flex gap-1 px-4 pt-12 pb-2 flex-shrink-0">
+      <div className="flex gap-1 px-4 pt-safe pb-2 flex-shrink-0">
         {slides.map((_, i) => (
           <div key={i} className="flex-1 h-0.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.2)' }}>
             <div
