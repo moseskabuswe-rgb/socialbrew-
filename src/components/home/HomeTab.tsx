@@ -623,8 +623,9 @@ function WishlistModal({ rating, onClose }: { rating: any; onClose: () => void }
   async function save() {
     if (!profile || !drinkName.trim()) return
     setSaving(true)
-    await supabase.from('wishlist').insert({ user_id: profile.id, drink_name: drinkName.trim(), shop_name: shopName.trim() || null })
-    setDone(true); setTimeout(onClose, 1500); setSaving(false)
+    const { error } = await supabase.from('wishlist').insert({ user_id: profile.id, drink_name: drinkName.trim(), shop_name: shopName.trim() || null })
+    setSaving(false)
+    if (!error) { setDone(true); setTimeout(onClose, 1500) }
   }
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,4,1,0.85)'}}>
@@ -1279,18 +1280,22 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   async function toggleLike(ratingId: string) {
     if (!profile) return
     if (likedIds.has(ratingId)) {
-      await supabase.from('likes').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
-      setLikedIds(prev => { const n = new Set(prev); n.delete(ratingId); return n })
-      setRatings(prev => prev.map(r => r.id === ratingId ? { ...r, likes_count: Math.max(0, r.likes_count - 1) } : r))
+      const { error } = await supabase.from('likes').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
+      if (!error) {
+        setLikedIds(prev => { const n = new Set(prev); n.delete(ratingId); return n })
+        setRatings(prev => prev.map(r => r.id === ratingId ? { ...r, likes_count: Math.max(0, r.likes_count - 1) } : r))
+      }
     } else {
-      await supabase.from('likes').insert({ user_id: profile.id, rating_id: ratingId })
-      setLikedIds(prev => new Set([...prev, ratingId]))
-      setRatings(prev => prev.map(r => r.id === ratingId ? { ...r, likes_count: r.likes_count + 1 } : r))
-      trackEvent('post_liked')
-      // Notify post owner
-      const rating = ratings.find(r => r.id === ratingId)
-      if (rating?.profiles?.id && rating.profiles.id !== profile.id) {
-        notifyLike(rating.profiles.id, profile.username || 'Someone', ratingId)
+      const { error } = await supabase.from('likes').insert({ user_id: profile.id, rating_id: ratingId })
+      if (!error) {
+        setLikedIds(prev => new Set([...prev, ratingId]))
+        setRatings(prev => prev.map(r => r.id === ratingId ? { ...r, likes_count: r.likes_count + 1 } : r))
+        trackEvent('post_liked')
+        // Notify post owner
+        const rating = ratings.find(r => r.id === ratingId)
+        if (rating?.profiles?.id && rating.profiles.id !== profile.id) {
+          notifyLike(rating.profiles.id, profile.username || 'Someone', ratingId)
+        }
       }
     }
   }
@@ -1298,11 +1303,11 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
   async function toggleSave(ratingId: string) {
     if (!profile) return
     if (savedIds.has(ratingId)) {
-      await supabase.from('saved_posts').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
-      setSavedIds(prev => { const n = new Set(prev); n.delete(ratingId); return n })
+      const { error } = await supabase.from('saved_posts').delete().eq('user_id', profile.id).eq('rating_id', ratingId)
+      if (!error) setSavedIds(prev => { const n = new Set(prev); n.delete(ratingId); return n })
     } else {
-      await supabase.from('saved_posts').insert({ user_id: profile.id, rating_id: ratingId })
-      setSavedIds(prev => new Set([...prev, ratingId]))
+      const { error } = await supabase.from('saved_posts').insert({ user_id: profile.id, rating_id: ratingId })
+      if (!error) setSavedIds(prev => new Set([...prev, ratingId]))
     }
   }
 
@@ -1501,10 +1506,12 @@ export default function HomeTab({ refresh, onLogoTap, unreadPerSender = {}, onMa
                       <button
                         onClick={async () => {
                           if (!profile || isFollowing) return
-                          await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id, status: 'pending' })
-                          await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow_request' })
-                          notifyFollow(u.id, profile.username || 'Someone')
-                          setFollowedSuggestions(prev => new Set([...prev, u.id]))
+                          const { error } = await supabase.from('follows').insert({ follower_id: profile.id, following_id: u.id, status: 'pending' })
+                          if (!error) {
+                            await supabase.from('notifications').insert({ user_id: u.id, actor_id: profile.id, type: 'follow_request' })
+                            notifyFollow(u.id, profile.username || 'Someone')
+                            setFollowedSuggestions(prev => new Set([...prev, u.id]))
+                          }
                         }}
                         className="text-xs px-2.5 py-1 rounded-full font-semibold transition-all active:scale-95"
                         style={isFollowing

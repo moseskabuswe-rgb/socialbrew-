@@ -53,13 +53,15 @@ function FollowersModal({ userId, type, onClose }: { userId: string; type: 'foll
     e.stopPropagation()
     if (!me || targetId === me.id) return
     if (following.has(targetId)) {
-      await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', targetId)
-      setFollowing(prev => { const n = new Set(prev); n.delete(targetId); return n })
+      const { error } = await supabase.from('follows').delete().eq('follower_id', me.id).eq('following_id', targetId)
+      if (!error) setFollowing(prev => { const n = new Set(prev); n.delete(targetId); return n })
     } else {
-      await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId, status: 'pending' })
-      await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow_request' })
-      notifyFollow(targetId, me.username || 'Someone', me.id)
-      setFollowing(prev => new Set([...prev, targetId]))
+      const { error } = await supabase.from('follows').insert({ follower_id: me.id, following_id: targetId, status: 'pending' })
+      if (!error) {
+        await supabase.from('notifications').insert({ user_id: targetId, actor_id: me.id, type: 'follow_request' })
+        notifyFollow(targetId, me.username || 'Someone', me.id)
+        setFollowing(prev => new Set([...prev, targetId]))
+      }
     }
   }
   return (
@@ -851,20 +853,22 @@ export default function ProfileTab({ onNavigateToBrew }: { onNavigateToBrew?: (s
   async function addToWishlist() {
     if (!profile || !newDrink.trim() || addingWishlist) return
     setAddingWishlist(true)
-    const { data } = await supabase.from('wishlist').insert({
+    const { data, error } = await supabase.from('wishlist').insert({
       user_id: profile.id,
       drink_name: newDrink.trim(),
       shop_name: newShop.trim() || null,
     }).select().single()
-    if (data) setWishlist(prev => [data, ...prev])
-    setNewDrink('')
-    setNewShop('')
-    setShowAddWishlist(false)
+    if (!error) {
+      if (data) setWishlist(prev => [data, ...prev])
+      setNewDrink('')
+      setNewShop('')
+      setShowAddWishlist(false)
+    }
     setAddingWishlist(false)
   }
   async function deleteWishlistItem(id: string) {
-    await supabase.from('wishlist').delete().eq('id', id)
-    setWishlist(prev => prev.filter(w => w.id !== id))
+    const { error } = await supabase.from('wishlist').delete().eq('id', id)
+    if (!error) setWishlist(prev => prev.filter(w => w.id !== id))
   }
 
   async function loadMoreRatings() {

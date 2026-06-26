@@ -257,13 +257,15 @@ export default function DiscoverTab({ onNavigateToBrew }: { onNavigateToBrew?: (
   async function toggleFriendFollow(userId: string) {
     if (!profile) return
     if (friendFollowing.has(userId)) {
-      await supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', userId)
-      setFriendFollowing(prev => { const n = new Set(prev); n.delete(userId); return n })
+      const { error } = await supabase.from('follows').delete().eq('follower_id', profile.id).eq('following_id', userId)
+      if (!error) setFriendFollowing(prev => { const n = new Set(prev); n.delete(userId); return n })
     } else {
-      await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId, status: 'pending' })
-      await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow_request' })
-      notifyFollow(userId, profile.username || 'Someone')
-      setFriendFollowing(prev => new Set([...prev, userId]))
+      const { error } = await supabase.from('follows').insert({ follower_id: profile.id, following_id: userId, status: 'pending' })
+      if (!error) {
+        await supabase.from('notifications').insert({ user_id: userId, actor_id: profile.id, type: 'follow_request' })
+        notifyFollow(userId, profile.username || 'Someone')
+        setFriendFollowing(prev => new Set([...prev, userId]))
+      }
     }
   }
 
