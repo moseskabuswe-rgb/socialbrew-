@@ -438,7 +438,9 @@ function SettingsModal({ onClose, onShowPrivacy, onShowTerms }: { onClose: () =>
             <div>
               <label className="text-coffee-500 text-xs font-medium block mb-1">Bio</label>
               <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Tell your coffee story..."
+                maxLength={150}
                 className="w-full bg-cream-50 text-coffee-800 rounded-xl px-4 py-3 text-sm border border-cream-200 focus:border-caramel focus:outline-none resize-none placeholder-coffee-300" />
+              <p className="text-coffee-400 text-xs text-right mt-1">{bio.length}/150</p>
             </div>
             <div>
               <label className="text-coffee-500 text-xs font-medium block mb-1">Home City</label>
