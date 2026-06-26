@@ -72,18 +72,20 @@ export default function ClaimShopModal({ shop, onClose }: Props) {
       setErrors({ submit: 'Something went wrong. Please try again.' })
     } else {
       setDone(true)
-      supabase.functions.invoke('notify-admin', {
-        body: {
-          type: 'claim',
-          data: {
-            shop_name: shop.name,
-            claimant_name: name.trim(),
-            claimant_email: email.trim(),
-            claimant_role: role,
-            message: message.trim() || null,
+      try {
+        await supabase.functions.invoke('notify-admin', {
+          body: {
+            type: 'claim',
+            data: {
+              shop_name: shop.name,
+              claimant_name: name.trim(),
+              claimant_email: email.trim(),
+              claimant_role: role,
+              message: message.trim() || null,
+            },
           },
-        },
-      })
+        })
+      } catch {}
     }
   }
 
