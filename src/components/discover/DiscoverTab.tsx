@@ -135,14 +135,7 @@ async function searchAnywhere(query: string, lat?: number | null, lng?: number |
   } catch { return [] }
 }
 
-const FALLBACK_PHOTOS = [
-  'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800',
-  'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800',
-  'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800',
-  'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=800',
-  'https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=800',
-  'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800',
-]
+const FALLBACK_PHOTOS = ['/shop-fallback.svg']
 
 function formatLocation(city?: string | null, state?: string | null, country?: string | null): string {
   const c = city?.trim(), s = state?.trim(), co = country?.trim()
