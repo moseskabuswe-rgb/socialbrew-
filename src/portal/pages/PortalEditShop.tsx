@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { compressPhoto } from '../../lib/compressImage'
 
 interface Shop {
   id: string
@@ -80,11 +81,12 @@ export default function PortalEditShop({ shop, onShopUpdate }: Props) {
     if (!photoFile) return
     setUploadingPhoto(true)
     setError('')
+    const compressed = await compressPhoto(photoFile).catch(() => photoFile)
     const ext = photoFile.name.split('.').pop()?.toLowerCase() || 'jpg'
     const path = `${shop.id}/${Date.now()}.${ext}`
     const { error: uploadErr } = await supabase.storage
       .from('shop-photos')
-      .upload(path, photoFile, { upsert: true, contentType: photoFile.type })
+      .upload(path, compressed, { upsert: true, contentType: compressed.type })
     if (uploadErr) {
       setError('Photo upload failed. Please try again.')
       setUploadingPhoto(false)

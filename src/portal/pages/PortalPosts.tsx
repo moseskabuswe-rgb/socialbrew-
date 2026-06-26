@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { compressPhoto } from '../../lib/compressImage'
 
 interface Shop { id: string; name: string }
 interface Props { shop: Shop; userId: string }
@@ -98,11 +99,12 @@ export default function PortalPosts({ shop }: Props) {
 
     let photoUrl: string | null = null
     if (imageFile) {
+      const compressed = await compressPhoto(imageFile).catch(() => imageFile)
       const ext = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
       const path = `${shop.id}/${Date.now()}.${ext}`
       const { error: uploadErr } = await supabase.storage
         .from('shop-posts')
-        .upload(path, imageFile, { upsert: true, contentType: imageFile.type })
+        .upload(path, compressed, { upsert: true, contentType: compressed.type })
       if (!uploadErr) {
         const { data: { publicUrl } } = supabase.storage.from('shop-posts').getPublicUrl(path)
         photoUrl = publicUrl
@@ -196,11 +198,12 @@ export default function PortalPosts({ shop }: Props) {
     let photoUrl: string | null = editOriginalPhotoUrl
 
     if (editImageFile) {
+      const compressed = await compressPhoto(editImageFile).catch(() => editImageFile)
       const ext = editImageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
       const path = `${shop.id}/${Date.now()}.${ext}`
       const { error: uploadErr } = await supabase.storage
         .from('shop-posts')
-        .upload(path, editImageFile, { upsert: true, contentType: editImageFile.type })
+        .upload(path, compressed, { upsert: true, contentType: compressed.type })
       if (!uploadErr) {
         const { data: { publicUrl } } = supabase.storage.from('shop-posts').getPublicUrl(path)
         photoUrl = publicUrl
