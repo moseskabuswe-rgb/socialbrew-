@@ -20,7 +20,7 @@ function friendlyError(msg: string): string {
   return msg
 }
 
-export default function AuthForm() {
+export default function AuthForm({ onGuest }: { onGuest?: () => void } = {}) {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login')
   const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(null)
   const [email, setEmail] = useState('')
@@ -239,6 +239,18 @@ export default function AuthForm() {
               {mode === 'login' ? 'Join now' : 'Sign in'}
             </button>
           </p>
+        )}
+
+        {onGuest && mode !== 'reset' && (
+          <div className="text-center mt-4 pt-4 border-t border-cream-100">
+            <button
+              type="button"
+              onClick={onGuest}
+              className="text-coffee-400 text-xs hover:text-coffee-600 transition-colors"
+            >
+              Browse without signing in →
+            </button>
+          </div>
         )}
       </div>
     </div>

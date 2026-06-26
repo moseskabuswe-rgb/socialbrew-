@@ -65,9 +65,32 @@ function TabSpinner() {
   )
 }
 
+function GuestAuthGate({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8"
+      style={{ background: 'linear-gradient(160deg, #fdfaf5 0%, #f5ead8 50%, #efe0c4 100%)' }}>
+      <div className="text-center mb-8">
+        <div className="text-5xl mb-4">☕</div>
+        <h2 className="font-display text-2xl font-bold text-coffee-800 mb-2">Sign in to continue</h2>
+        <p className="text-coffee-500 text-sm leading-relaxed">
+          Create a free account to post ratings,<br />follow friends, and build your coffee journey.
+        </p>
+      </div>
+      <button
+        onClick={onSignIn}
+        className="w-full max-w-xs py-3.5 rounded-2xl text-white font-semibold text-base"
+        style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+      >
+        Sign in / Create account ☕
+      </button>
+    </div>
+  )
+}
+
 function AppContent() {
   const { profile, loading } = useAuth()
   useWishlistProximity(profile?.id || null) // Proximity check for visit wishlist on app open
+  const [isGuest, setIsGuest] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [deepLink, setDeepLink] = useState<{ open: string; id?: string } | null>(null)
   const [feedRefresh, setFeedRefresh] = useState(0)
@@ -179,7 +202,38 @@ function AppContent() {
     )
   }
 
-  if (!profile) return <AuthForm />
+  if (!profile && !isGuest) return <AuthForm onGuest={() => { setIsGuest(true); setActiveTab('discover') }} />
+
+  // Guest mode — Discover and Trending only, everything else shows auth gate
+  if (!profile && isGuest) {
+    return (
+      <div className="min-h-screen max-w-lg mx-auto relative bg-cream-100">
+        <div className="bg-coffee-800 text-white text-xs text-center py-2.5 px-4 flex items-center justify-center gap-2">
+          <span className="text-white/70">Browsing as guest</span>
+          <button
+            onClick={() => { setIsGuest(false); setActiveTab('home') }}
+            className="text-caramel font-semibold underline"
+          >
+            Sign in
+          </button>
+        </div>
+        <div className="pb-20">
+          <TabErrorBoundary>
+            {(activeTab === 'home' || activeTab === 'brew' || activeTab === 'profile') && (
+              <GuestAuthGate onSignIn={() => { setIsGuest(false); setActiveTab(activeTab) }} />
+            )}
+          </TabErrorBoundary>
+          <TabErrorBoundary>
+            <Suspense fallback={<TabSpinner />}>
+              {activeTab === 'discover' && <DiscoverTab key={tabRefresh} />}
+              {activeTab === 'trending' && <TrendingTab key={tabRefresh} />}
+            </Suspense>
+          </TabErrorBoundary>
+        </div>
+        <BottomNav active={activeTab} onChange={setActiveTab} />
+      </div>
+    )
+  }
 
   // Show privacy acceptance for users who haven't accepted current policy version
   const needsPrivacyAccept = (profile as any).privacy_policy_version !== CURRENT_POLICY_VERSION
