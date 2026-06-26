@@ -18,6 +18,7 @@ export default function QRScannerModal({ onClose, onStampEarned }: Props) {
 
   const [status, setStatus] = useState<'scanning' | 'redeeming' | 'error' | 'success'>('scanning')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [cameraRequested, setCameraRequested] = useState(false)
 
   const stopCamera = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
@@ -108,6 +109,7 @@ export default function QRScannerModal({ onClose, onStampEarned }: Props) {
   }, [handleScan])
 
   useEffect(() => {
+    if (!cameraRequested) return
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -120,13 +122,13 @@ export default function QRScannerModal({ onClose, onStampEarned }: Props) {
           animFrameRef.current = requestAnimationFrame(scanFrame)
         }
       } catch {
-        setErrorMsg('Camera access denied. Please allow camera access in your device settings and try again.')
+        setErrorMsg('Camera access denied. Please enable camera access in your device settings and try again.')
         setStatus('error')
       }
     }
     startCamera()
     return stopCamera
-  }, [scanFrame, stopCamera])
+  }, [scanFrame, stopCamera, cameraRequested])
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: '#0d0904' }}>
@@ -144,7 +146,24 @@ export default function QRScannerModal({ onClose, onStampEarned }: Props) {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
-        {status === 'scanning' && (
+        {status === 'scanning' && !cameraRequested && (
+          <div className="w-full max-w-xs bg-white/10 rounded-2xl p-6 text-center space-y-4">
+            <div className="text-5xl">📷</div>
+            <p className="text-white font-semibold text-base">Camera access needed</p>
+            <p className="text-cream-400 text-sm leading-relaxed">
+              We need your camera to scan the shop's QR code and earn your loyalty stamp.
+            </p>
+            <button
+              onClick={() => setCameraRequested(true)}
+              className="w-full py-3 rounded-xl font-semibold text-white text-sm"
+              style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+            >
+              Grant Camera Access
+            </button>
+          </div>
+        )}
+
+        {status === 'scanning' && cameraRequested && (
           <>
             <div className="relative w-full max-w-xs aspect-square rounded-2xl overflow-hidden">
               <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />

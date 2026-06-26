@@ -19,6 +19,7 @@ function RedemptionScanner({ shop }: { shop: { id: string; name: string } }) {
   const [status, setStatus] = useState<ScanStatus>('scanning')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<{ reward: string; punches: number } | null>(null)
+  const [cameraRequested, setCameraRequested] = useState(false)
 
   const stopCamera = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
@@ -88,6 +89,7 @@ function RedemptionScanner({ shop }: { shop: { id: string; name: string } }) {
   }, [handleScan])
 
   useEffect(() => {
+    if (!cameraRequested) return
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -100,13 +102,13 @@ function RedemptionScanner({ shop }: { shop: { id: string; name: string } }) {
           animFrameRef.current = requestAnimationFrame(scanFrame)
         }
       } catch {
-        setErrorMsg('Camera access denied. Please allow camera access and try again.')
+        setErrorMsg('Camera access denied. Please enable camera access in your device settings and try again.')
         setStatus('error')
       }
     }
     startCamera()
     return stopCamera
-  }, [scanFrame, stopCamera])
+  }, [scanFrame, stopCamera, cameraRequested])
 
   function restart() {
     processingRef.current = false
@@ -129,7 +131,24 @@ function RedemptionScanner({ shop }: { shop: { id: string; name: string } }) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {status === 'scanning' && (
+      {status === 'scanning' && !cameraRequested && (
+        <div className="w-full bg-white rounded-2xl border border-cream-200 p-6 text-center space-y-4">
+          <div className="text-5xl">📷</div>
+          <p className="text-coffee-800 font-semibold text-base">Camera access needed</p>
+          <p className="text-coffee-500 text-sm leading-relaxed">
+            We need your camera to scan the customer's reward QR code.
+          </p>
+          <button
+            onClick={() => setCameraRequested(true)}
+            className="w-full py-3 rounded-xl font-semibold text-white text-sm"
+            style={{ background: 'linear-gradient(135deg, #c8853a, #9b5e1a)' }}
+          >
+            Grant Camera Access
+          </button>
+        </div>
+      )}
+
+      {status === 'scanning' && cameraRequested && (
         <>
           <div className="text-center">
             <p className="text-coffee-700 font-semibold text-sm">Scan Customer Reward QR</p>
