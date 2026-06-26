@@ -235,6 +235,9 @@ function AppContent() {
     )
   }
 
+  // At this point profile is guaranteed non-null (all !profile paths returned above)
+  if (!profile) return null
+
   // Show privacy acceptance for users who haven't accepted current policy version
   const needsPrivacyAccept = (profile as any).privacy_policy_version !== CURRENT_POLICY_VERSION
 
